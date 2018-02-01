@@ -2027,8 +2027,6 @@ TR::Register *J9::X86::i386::TreeEvaluator::conditionalHelperEvaluator(TR::Node 
       temp.integerCompareAnalyser(testNode, CMP4RegReg, CMP4RegMem, CMP4MemReg);
       }
 
-   cg->setVMThreadRequired(true);
-
    TR::LabelSymbol *startLabel   = TR::LabelSymbol::create(cg->trHeapMemory(),cg);
    TR::LabelSymbol *reStartLabel = TR::LabelSymbol::create(cg->trHeapMemory(),cg);
    TR::LabelSymbol *snippetLabel = TR::LabelSymbol::create(cg->trHeapMemory(),cg);
@@ -2046,7 +2044,6 @@ TR::Register *J9::X86::i386::TreeEvaluator::conditionalHelperEvaluator(TR::Node 
    cg->addSnippet(snippet);
 
    generateLabelInstruction(LABEL, node, reStartLabel, true, cg);
-   cg->setVMThreadRequired(false);
    cg->decReferenceCount(testNode);
    return NULL;
    }
@@ -2175,8 +2172,6 @@ TR::Register *J9::X86::AMD64::TreeEvaluator::conditionalHelperEvaluator(TR::Node
       temp.integerCompareAnalyser(testNode, CMPRegReg(testIs64Bit), CMPRegMem(testIs64Bit), CMPMemReg(testIs64Bit));
       }
 
-   cg->setVMThreadRequired(true);
-
    TR::LabelSymbol *startLabel   = TR::LabelSymbol::create(cg->trHeapMemory(),cg);
    TR::LabelSymbol *reStartLabel = TR::LabelSymbol::create(cg->trHeapMemory(),cg);
    TR::LabelSymbol *snippetLabel = TR::LabelSymbol::create(cg->trHeapMemory(),cg);
@@ -2249,7 +2244,6 @@ TR::Register *J9::X86::AMD64::TreeEvaluator::conditionalHelperEvaluator(TR::Node
       generateLabelInstruction(LABEL, node, reStartLabel, true, cg);
       }
 
-   cg->setVMThreadRequired(false);
    cg->decReferenceCount(testNode);
    return NULL;
    }
@@ -2380,8 +2374,6 @@ TR::Register *J9::X86::TreeEvaluator::asynccheckEvaluator(TR::Node *node, TR::Co
    {
    // Generate the test and branch for async message processing.
    //
-   cg->setVMThreadRequired(true);
-
    TR::Node *compareNode = node->getFirstChild();
    TR::Node *secondChild = compareNode->getSecondChild();
    TR::LabelSymbol *snippetLabel = generateLabelSymbol(cg);
@@ -2437,7 +2429,6 @@ TR::Register *J9::X86::TreeEvaluator::asynccheckEvaluator(TR::Node *node, TR::Co
    endControlFlowLabel->setEndInternalControlFlow();
    generateLabelInstruction(LABEL, node, endControlFlowLabel, true, cg);
 
-   cg->setVMThreadRequired(false);
    cg->decReferenceCount(compareNode);
 
    return NULL;
@@ -3293,9 +3284,6 @@ TR::Register *J9::X86::TreeEvaluator::BNDCHKEvaluator(TR::Node *node, TR::CodeGe
    TR::Instruction *instr;
    TR::Compilation *comp = cg->comp();
 
-   if (needsVMThread)
-      cg->setVMThreadRequired(true);
-
    bool skippedComparison = false;
    bool jumpOnOppositeCondition = false;
    if (firstChild->getOpCode().isLoadConst())
@@ -3347,9 +3335,6 @@ TR::Register *J9::X86::TreeEvaluator::BNDCHKEvaluator(TR::Node *node, TR::CodeGe
                                                      false,
                                                      ! needsVMThread));
 
-   if (needsVMThread)
-      cg->setVMThreadRequired(false);
-
    if (node->hasFoldedImplicitNULLCHK())
       {
       TR::Instruction *faultingInstruction = cg->getImplicitExceptionPoint();
@@ -3387,9 +3372,6 @@ TR::Register *J9::X86::TreeEvaluator::ArrayCopyBNDCHKEvaluator(TR::Node *node, T
    bool needsVMThread = !cg->allowVMThreadRematerialization() ||
                         node->hasFoldedImplicitNULLCHK() ||
                         !cg->getSupportsVMThreadGRA();
-
-   if (needsVMThread)
-      cg->setVMThreadRequired(true);
 
    if (firstChild->getOpCode().isLoadConst())
       {
@@ -3430,9 +3412,6 @@ TR::Register *J9::X86::TreeEvaluator::ArrayCopyBNDCHKEvaluator(TR::Node *node, T
                                                              instr,
                                                              false,
                                                              ! needsVMThread));
-
-   if (needsVMThread)
-      cg->setVMThreadRequired(false);
 
    return NULL;
    }
@@ -3597,8 +3576,6 @@ TR::Register *J9::X86::TreeEvaluator::ArrayStoreCHKEvaluator(TR::Node *node, TR:
    // Generate up-front array store checks to avoid calling out to the helper.
    //
    // -------------------------------------------------------------------------
-
-   cg->setVMThreadRequired(true);
 
    TR::LabelSymbol *postASCLabel = NULL;
    if (nopASC)
@@ -3826,8 +3803,6 @@ TR::Register *J9::X86::TreeEvaluator::ArrayStoreCHKEvaluator(TR::Node *node, TR:
       generateLabelInstruction(LABEL, node, doneLabel, deps, cg);
       }
 
-   cg->setVMThreadRequired(false);
-
    if (usingCompressedPointers)
       {
       cg->decReferenceCount(firstChild->getSecondChild());
@@ -3879,9 +3854,6 @@ TR::Register *J9::X86::TreeEvaluator::BNDCHKwithSpineCHKEvaluator(TR::Node *node
    // iconst.  In this case, make sure that the constant is the second child.
    //
    TR_X86OpCodes branchOpCode;
-
-   if (needsVMThread)
-      cg->setVMThreadRequired(true);
 
    // For primitive stores anchored under the check node, we must evaluate the source node
    // before the bound check branch so that its available to the snippet.  We can make
@@ -4071,9 +4043,6 @@ TR::Register *J9::X86::TreeEvaluator::BNDCHKwithSpineCHKEvaluator(TR::Node *node
 
    arrayletOI->setMainlinePathRegisterUsageList(mainlineRUL);
 
-   if (needsVMThread)
-      cg->setVMThreadRequired(false);
-
    if (node->hasFoldedImplicitNULLCHK())
       {
       if (faultingInstruction)
@@ -4211,8 +4180,6 @@ TR::Register *J9::X86::TreeEvaluator::atccheckEvaluator(TR::Node *node, TR::Code
    TR::Node *pendingAIELoad = node->getChild(0);
    TR_ASSERT(pendingAIELoad->getOpCodeValue() == TR::aload, "atccheck first child should be a compare test");
 
-   cg->setVMThreadRequired(true);
-
    TR::LabelSymbol *startLabel = generateLabelSymbol(cg);
    TR::LabelSymbol *doneLabel  = generateLabelSymbol(cg);
 
@@ -4240,8 +4207,6 @@ TR::Register *J9::X86::TreeEvaluator::atccheckEvaluator(TR::Node *node, TR::Code
 
    // and we're done
    generateLabelInstruction(LABEL, node, doneLabel, deps, cg);
-
-   cg->setVMThreadRequired(false);
 
    cg->decReferenceCount(pendingAIELoad);
 
@@ -4700,9 +4665,6 @@ TR::Register *J9::X86::TreeEvaluator::VMcheckcastEvaluator(TR::Node          *no
       numDeps--; // remove vmThread (ebp) as dependency
       }
 
-   if (!rematerializeVMThreadInSnippet)
-      cg->setVMThreadRequired(true);
-
    TR::LabelSymbol *startLabel = generateLabelSymbol(cg);
    TR::LabelSymbol *fallThru   = generateLabelSymbol(cg);
    startLabel->setStartInternalControlFlow();
@@ -4936,9 +4898,6 @@ TR::Register *J9::X86::TreeEvaluator::VMcheckcastEvaluator(TR::Node          *no
    generateLabelInstruction(LABEL, node, fallThru, deps, cg);
    srm->stopUsingRegisters();
 
-   if (!rematerializeVMThreadInSnippet)
-      cg->setVMThreadRequired(false);
-
    if (objectClassReg)
       cg->stopUsingRegister(objectClassReg);
    if (testerReg)
@@ -5142,9 +5101,6 @@ TR::Register *J9::X86::TreeEvaluator::VMifInstanceOfEvaluator(TR::Node          
       TR::LabelSymbol *superClassTestNext = NULL;
 
       generateLabelInstruction(LABEL, node, startLabel, cg);
-
-      if (!rematerializeVMThreadInSnippet)
-         cg->setVMThreadRequired(true);
 
       TR::LabelSymbol *trueLabel, *falseLabel;
       if (branchOnTrue)
@@ -5362,9 +5318,6 @@ TR::Register *J9::X86::TreeEvaluator::VMifInstanceOfEvaluator(TR::Node          
       generateLabelInstruction(LABEL, node, fallThru, deps, cg);
       srm->stopUsingRegisters();
 
-      if (!rematerializeVMThreadInSnippet)
-         cg->setVMThreadRequired(false);
-
       if (!popRegisters.isEmpty())
          {
          ListIterator<TR::Register> popRegsIt(&popRegisters);
@@ -5541,9 +5494,6 @@ J9::X86::TreeEvaluator::VMinstanceOfEvaluator(
       rematerializeVMThreadInSnippet = true;
       numDeps --;
       }
-
-   if (!rematerializeVMThreadInSnippet)
-      cg->setVMThreadRequired(true);
 
    TR::Register *objectReg      = cg->evaluate(objectRef);
    TR::Register *castClassReg   = NULL;
@@ -5745,9 +5695,6 @@ J9::X86::TreeEvaluator::VMinstanceOfEvaluator(
       generateLabelInstruction(LABEL, node, falseLabel, cg);
       generateRegRegInstruction(XOR4RegReg, node, targetReg, targetReg, cg);
       }
-
-   if (!rematerializeVMThreadInSnippet)
-      cg->setVMThreadRequired(false);
 
    numDeps += srm->numAvailableRegisters();
    TR::RegisterDependencyConditions  *deps = generateRegisterDependencyConditions((uint8_t)0, (uint8_t)numDeps, cg);
@@ -6199,7 +6146,6 @@ J9::X86::TreeEvaluator::VMmonentEvaluator(
 
    generatePrefetchAfterHeaderAccess (node, objectReg, cg);
 
-   cg->setVMThreadRequired(true);
    cg->setImplicitExceptionPoint(NULL);
 
    TR::LabelSymbol *startLabel = generateLabelSymbol(cg);
@@ -6554,8 +6500,6 @@ J9::X86::TreeEvaluator::VMmonentEvaluator(
    }
 #endif
 
-   cg->setVMThreadRequired(false);
-
    cg->decReferenceCount(objectRef);
    cg->stopUsingRegister(eaxReal);
    if (scratchReg)
@@ -6702,7 +6646,6 @@ TR::Register *J9::X86::TreeEvaluator::VMmonexitEvaluator(TR::Node          *node
    TR::Register *tempReg   = NULL;
    uint32_t     numDeps   = 2; // objectReg, ebp
 
-   cg->setVMThreadRequired(true);
    cg->setImplicitExceptionPoint(NULL);
    TR::Register *vmThreadReg = cg->getVMThreadRegister();
 
@@ -7108,8 +7051,6 @@ TR::Register *J9::X86::TreeEvaluator::VMmonexitEvaluator(TR::Node          *node
       generateMemRegInstruction(SMemReg(),node, tempMR2, objectReg, cg);
       }
 #endif
-
-   cg->setVMThreadRequired(false);
 
    if (eaxReal)
       cg->stopUsingRegister(eaxReal);
@@ -9234,8 +9175,6 @@ J9::X86::TreeEvaluator::VMnewEvaluator(
    if (!disableOutlinedNew && performTransformation(comp, "O^O OUTLINED NEW: outlining %s %p, size %d\n", node->getOpCode().getName(), node, allocationSize))
       outlineNew = true;
 
-   cg->setVMThreadRequired(true);
-
    TR::LabelSymbol *startLabel = generateLabelSymbol(cg);
    TR::LabelSymbol *fallThru = generateLabelSymbol(cg);
    startLabel->setStartInternalControlFlow();
@@ -9583,8 +9522,6 @@ J9::X86::TreeEvaluator::VMnewEvaluator(
       {
       genInitObjectHeader(node, clazz, classReg, targetReg, tempReg, monitorSlotIsInitialized, cg);
       }
-
-   cg->setVMThreadRequired(false);
 
    if (fej9->inlinedAllocationsMustBeVerified() && (node->getOpCodeValue() == TR::New ||
                                                         node->getOpCodeValue() == TR::anewarray) )
@@ -11429,10 +11366,8 @@ inlineNanoTime(
          return false;
       // Leave space on the stack for the 64-bit result
       //
-      cg->setVMThreadRequired(true);
       temp2 = cg->allocateRegister();
       generateRegMemInstruction(L4RegMem, node, temp2, generateX86MemoryReference(vmThreadReg, offsetof(J9VMThread, javaVM), cg), cg);
-      cg->setVMThreadRequired(false);
       generateRegMemInstruction(L4RegMem, node, temp2, generateX86MemoryReference(temp2, offsetof(J9JavaVM, portLibrary), cg), cg);
       generateRegInstruction(PUSHReg, node, espReal, cg);
       generateRegInstruction(PUSHReg, node, temp2, cg);
@@ -13836,8 +13771,6 @@ bool J9::X86::TreeEvaluator::VMinlineCallEvaluator(
                   numDeps ++;
                   }
 
-               cg->setVMThreadRequired(true);
-
                TR::RegisterDependencyConditions  *deps = generateRegisterDependencyConditions((uint8_t)0, (uint8_t)numDeps, cg);
                deps->addPostCondition(nativeThreadReg, TR::RealRegister::NoReg, cg);
                if (TR::Compiler->target.is32Bit())
@@ -13882,8 +13815,6 @@ bool J9::X86::TreeEvaluator::VMinlineCallEvaluator(
                   doneLabel->setEndInternalControlFlow();
                   generateLabelInstruction(LABEL, node, doneLabel, deps, cg);
                   }
-
-               cg->setVMThreadRequired(false);
 
                if (TR::Compiler->target.is32Bit())
                   {
@@ -15332,9 +15263,6 @@ void J9::X86::TreeEvaluator::VMwrtbarWithStoreEvaluator(
       storeInstr = doReferenceStore(node, storeMR, translatedSourceReg, usingCompressedPointers, cg);
       }
 
-
-   cg->setVMThreadRequired(true);
-
    if (comp->getOptions()->alwaysCallWriteBarrier() && !isRealTimeGC)
       {
       TR::RegisterDependencyConditions *deps = NULL;
@@ -15413,8 +15341,6 @@ void J9::X86::TreeEvaluator::VMwrtbarWithStoreEvaluator(
          }
       }
 
-   cg->setVMThreadRequired(false);
-
    // Realtime GCs must do the write barrier first and then the store.
    //
    if (isRealTimeGC)
@@ -15482,11 +15408,9 @@ VMgenerateCatchBlockBBStartPrologue(
       TR::LabelSymbol *snippetLabel = generateLabelSymbol(cg);
       TR::LabelSymbol *restartLabel = generateLabelSymbol(cg);
 
-      cg->setVMThreadRequired(true);
       generateMemInstruction(DEC4Mem, node, generateX86MemoryReference((intptrj_t)comp->getRecompilationInfo()->getCounterAddress(), cg), cg);
       generateLabelInstruction(JE4, node, snippetLabel, cg);
       generateLabelInstruction(LABEL, node, restartLabel, cg);
-      cg->setVMThreadRequired(false);
       cg->addSnippet(new (cg->trHeapMemory()) TR::X86ForceRecompilationSnippet(cg, node, restartLabel, snippetLabel));
       }
 

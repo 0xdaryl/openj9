@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2016 IBM Corp. and others
+ * Copyright (c) 2000, 2018 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -110,7 +110,6 @@ TR::Register *TR::IA32JNILinkage::buildJNIDispatch(TR::Node *callNode)
 
    TR::RegisterDependencyConditions  *deps = generateRegisterDependencyConditions((uint8_t)0, 20, cg());
 
-   cg()->setVMThreadRequired(true);
    TR::SymbolReference      *callSymRef = callNode->getSymbolReference();
    TR::MethodSymbol         *callSymbol = callSymRef->getSymbol()->castToMethodSymbol();
    TR::ResolvedMethodSymbol *resolvedMethodSymbol = callSymbol->castToResolvedMethodSymbol();
@@ -734,8 +733,6 @@ TR::Register *TR::IA32JNILinkage::buildJNIDispatch(TR::Node *callNode)
    bool useRegisterAssociations = cg()->enableRegisterAssociations() ? true : false;
    if (useRegisterAssociations)
       associatePreservedRegisters(deps, returnRegister);
-
-   cg()->setVMThreadRequired(false);
 
    return returnRegister;
    }
