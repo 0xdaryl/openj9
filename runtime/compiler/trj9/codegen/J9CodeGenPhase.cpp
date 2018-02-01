@@ -106,12 +106,6 @@ J9::CodeGenPhase::performInsertEpilogueYieldPointsPhase(TR::CodeGenerator * cg, 
       }
    }
 
-
-void
-J9::CodeGenPhase::performDetectEndOfVMThreadGlobalRegisterLiveRangePhase(TR::CodeGenerator * cg, TR::CodeGenPhase * phase)
-   {
-   }
-
 void
 J9::CodeGenPhase::performCompressedReferenceRematerializationPhase(TR::CodeGenerator * cg, TR::CodeGenPhase *)
    {
@@ -143,14 +137,12 @@ J9::CodeGenPhase::getName(TR::CodeGenPhase::PhaseValue phase)
          return "MoveUpArrayLengthStores";
       case InsertEpilogueYieldPointsPhase:
          return "InsertEpilogueYieldPoints";
-      case DetectEndOfVMThreadGlobalRegisterLiveRangePhase:
-         return "DetectEndOfVMThreadGlobalRegisterLiveRange";
       case CompressedReferenceRematerializationPhase:
          return "CompressedReferenceRematerialization";
       case SplitWarmAndColdBlocksPhase:
          return "SplitWarmAndColdBlocks";
       case IdentifyUnneededByteConvsPhase:
-	 return "IdentifyUnneededByteConvsPhase";
+         return "IdentifyUnneededByteConvsPhase";
       case FoldSignCleaningIntoStorePhase:
          return "FoldSignCleaningIntoStore";
       case LateSequentialConstantStoreSimplificationPhase:
