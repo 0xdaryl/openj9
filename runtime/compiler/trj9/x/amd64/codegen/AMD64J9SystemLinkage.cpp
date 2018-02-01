@@ -74,8 +74,6 @@ TR::AMD64J9SystemLinkage::buildVolatileAndReturnDependencies(
    {
    TR::Register* returnRegister = TR::AMD64SystemLinkage::buildVolatileAndReturnDependencies(callNode, deps);
 
-   deps->addPostCondition(cg()->getVMThreadRegister(), TR::RealRegister::ebp, cg());
-
    deps->stopAddingPostConditions();
 
    return returnRegister;

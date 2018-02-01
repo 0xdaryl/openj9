@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2017 IBM Corp. and others
+ * Copyright (c) 2000, 2018 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -100,7 +100,7 @@ J9::CodeGenPhase::performInsertEpilogueYieldPointsPhase(TR::CodeGenerator * cg, 
    if ((comp->getCurrentMethod()->maxBytecodeIndex() >= BYTECODESIZE_THRESHOLD_FOR_ASYNCCHECKS) &&
        !comp->mayHaveLoops() &&
        comp->getCurrentMethod()->convertToMethod()->methodType() == TR_Method::J9 &&  // FIXME: enable for ruby and python
-       comp->getOSRMode() != TR::involuntaryOSR) 
+       comp->getOSRMode() != TR::involuntaryOSR)
       {
       cg->insertEpilogueYieldPoints();
       }
@@ -110,26 +110,6 @@ J9::CodeGenPhase::performInsertEpilogueYieldPointsPhase(TR::CodeGenerator * cg, 
 void
 J9::CodeGenPhase::performDetectEndOfVMThreadGlobalRegisterLiveRangePhase(TR::CodeGenerator * cg, TR::CodeGenPhase * phase)
    {
-   if (!cg->getSupportsVMThreadGRA())
-      {
-      return;
-      }
-
-   TR::Block * block = NULL;
-   TR::TreeTop * tt;
-   TR::Node * node;
-
-   for (tt = cg->comp()->getStartTree(); tt; tt = tt->getNextTreeTop())
-      {
-      node = tt->getNode();
-
-      if (node->getOpCodeValue() == TR::BBStart)
-         {
-         block = node->getBlock();
-         cg->detectEndOfVMThreadGlobalRegisterLiveRange(block);
-         }
-      }
-
    }
 
 void

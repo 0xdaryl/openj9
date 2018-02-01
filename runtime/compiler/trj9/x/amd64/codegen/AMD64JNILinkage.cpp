@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2016 IBM Corp. and others
+ * Copyright (c) 2000, 2018 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -459,10 +459,6 @@ TR::AMD64JNILinkage::buildVolatileAndReturnDependencies(
          }
       }
 
-   // Add a VMThread register dependence.
-   //
-   deps->addPostCondition(cg()->getVMThreadRegister(), TR::RealRegister::ebp, cg());
-
    // Now that everything is dead, we can allocate the return register without
    // interference
    //
@@ -753,9 +749,6 @@ TR::AMD64JNILinkage::buildJNIMergeLabelDependencies(TR::Node *callNode, bool kil
          }
       }
 
-   // Add a VMThread register dependence.
-   //
-   deps->addPostCondition(cg()->getVMThreadRegister(), TR::RealRegister::ebp, cg());
    deps->stopAddingPostConditions();
    }
 
