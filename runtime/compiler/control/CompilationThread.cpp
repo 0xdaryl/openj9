@@ -6670,6 +6670,9 @@ TR::CompilationInfoPerThreadBase::postCompilationTasks(J9VMThread * vmThread,
 
    if (_compiler)
       {
+
+TR_ASSERT_FATAL(_compiler->cg(), "XXX ONE");
+
       // Unreserve the code cache used for this compilation
       if (_compiler->getCurrentCodeCache())
          {
@@ -9172,6 +9175,8 @@ TR::CompilationInfo::compilationEnd(J9VMThread * vmThread, TR::IlGeneratorMethod
 
                      // Use same code cache as AOT compile
                      //
+TR_ASSERT_FATAL(comp->cg(), "XXX TWO");
+
                      TR::CodeCache *aotMCCRuntimeCodeCache = comp->getCurrentCodeCache();
                      TR_ASSERT(aotMCCRuntimeCodeCache, "Must have a reserved codeCache");
                      cacheEntry = (J9JITDataCacheHeader *)dataStart;
