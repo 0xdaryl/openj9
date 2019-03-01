@@ -583,7 +583,7 @@ TR_RelocationRecord::computeHelperAddress(TR_RelocationRuntime *reloRuntime, TR_
    TR_RelocationRecordHelperAddressPrivateData *reloPrivateData = &(privateData()->helperAddress);
    uint8_t *helperAddress = reloPrivateData->_helper;
 
-   if (reloRuntime->options()->getOption(TR_StressTrampolines) || reloTarget->useTrampoline(helperAddress, baseLocation))
+   if (reloTarget->reloRuntime()->comp()->cg()->directCallRequiresTrampoline((intptrj_t)helperAddress, (intptrj_t)baseLocation))
       {
       TR::VMAccessCriticalSection computeHelperAddress(reloRuntime->fej9());
       J9JavaVM *javaVM = reloRuntime->jitConfig()->javaVM;
@@ -4546,7 +4546,7 @@ TR_RelocationRecordMethodCallAddress::computeTargetMethodAddress(TR_RelocationRu
    {
    uint8_t *callTargetAddress = address(reloTarget);
 
-   if (reloRuntime->options()->getOption(TR_StressTrampolines) || reloTarget->useTrampoline(callTargetAddress, baseLocation))
+   if (reloTarget->reloRuntime()->comp()->cg()->directCallRequiresTrampoline((intptrj_t)callTargetAddress, (intptrj_t)baseLocation))
       {
       RELO_LOG(reloRuntime->reloLogger(), 6, "\tredirecting call to " POINTER_PRINTF_FORMAT " through trampoline\n", callTargetAddress);
       auto metadata = jitGetExceptionTableFromPC(reloRuntime->currentThread(), (UDATA)callTargetAddress);

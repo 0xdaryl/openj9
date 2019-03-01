@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2018 IBM Corp. and others
+ * Copyright (c) 2000, 2019 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -93,11 +93,6 @@ TR_X86RelocationTarget::performThunkRelocation(uint8_t *thunkAddress, uintptr_t 
    {
    int32_t *thunkRelocationData = (int32_t *)(thunkAddress - sizeof(int32_t));
    *(UDATA *) (thunkAddress + *thunkRelocationData + 2) = vmHelper;
-   }
-
-bool TR_AMD64RelocationTarget::useTrampoline(uint8_t * helperAddress, uint8_t *baseLocation)
-   {
-   return !IS_32BIT_RIP_JUMP(helperAddress, baseLocation);
    }
 
 uint8_t *

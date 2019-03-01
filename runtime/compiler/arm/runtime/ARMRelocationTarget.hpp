@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2018 IBM Corp. and others
+ * Copyright (c) 2015, 2019 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -48,8 +48,6 @@ class TR_ARMRelocationTarget : public TR_RelocationTarget
 
       virtual uint8_t *loadAddressSequence(uint8_t *reloLocation);
       virtual void storeAddressSequence(uint8_t *computedAddress, uint8_t *reloLocation, uint32_t seqNumber);
-
-      virtual bool useTrampoline(uint8_t * helperAddress, uint8_t *baseLocation);
 
       virtual uint8_t *arrayCopyHelperAddress(J9JavaVM *javaVM);
       virtual void flushCache(uint8_t *codeStart, unsigned long size);

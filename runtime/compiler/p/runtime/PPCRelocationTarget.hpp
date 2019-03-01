@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2016 IBM Corp. and others
+ * Copyright (c) 2000, 2019 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -52,8 +52,6 @@ class TR_PPCRelocationTarget : public TR_RelocationTarget
       virtual void storeAddressSequence(uint8_t *computedAddress, uint8_t *reloLocation, uint32_t seqNumber);
 
       virtual bool isOrderedPairRelocation(TR_RelocationRecord *reloRecord, TR_RelocationTarget *reloTarget);
-
-      virtual bool useTrampoline(uint8_t * helperAddress, uint8_t *baseLocation);
 
       virtual uint8_t *arrayCopyHelperAddress(J9JavaVM *javaVM);
       virtual void flushCache(uint8_t *codeStart, unsigned long size);

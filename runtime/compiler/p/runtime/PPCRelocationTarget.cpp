@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2018 IBM Corp. and others
+ * Copyright (c) 2000, 2019 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -318,11 +318,6 @@ TR_PPC32RelocationTarget::isOrderedPairRelocation(TR_RelocationRecord *reloRecor
       }
 
    return false;
-   }
-
-bool TR_PPCRelocationTarget::useTrampoline(uint8_t * helperAddress, uint8_t *baseLocation)
-   {
-   return !(((IDATA)(helperAddress - baseLocation) <=BRANCH_FORWARD_LIMIT) && ((IDATA)(helperAddress - baseLocation) >=BRANCH_BACKWARD_LIMIT));
    }
 
 uint8_t *

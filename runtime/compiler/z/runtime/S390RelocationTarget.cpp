@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2018 IBM Corp. and others
+ * Copyright (c) 2000, 2019 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -98,19 +98,6 @@ TR_S390RelocationTarget::performThunkRelocation(uint8_t *thunkAddress, uintptr_t
    {
    int32_t *thunkRelocationData = (int32_t *)(thunkAddress - sizeof(int32_t));
    *(uintptr_t *) (thunkAddress + *thunkRelocationData) = vmHelper;
-   }
-
-bool TR_S390RelocationTarget::useTrampoline(uint8_t * helperAddress, uint8_t *baseLocation)
-   {
-#if defined(TR_HOST_S390) && defined(TR_TARGET_64BIT) && !defined(J9ZOS390)
-   return !CHECK_32BIT_TRAMPOLINE_RANGE((intptr_t)helperAddress, baseLocation);
-#else
-   TR::Compilation* comp = TR::comp();
-   if (comp->getOption(TR_EnableRMODE64))
-      return !CHECK_32BIT_TRAMPOLINE_RANGE((intptr_t)helperAddress, baseLocation);
-   else
-      return false;
-#endif
    }
 
 uint8_t *

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2016 IBM Corp. and others
+ * Copyright (c) 2000, 2019 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -79,8 +79,6 @@ class TR_RelocationTarget
       virtual uint8_t *loadPointer(uint8_t *address)                        { return *(uint8_t**) address; }
       virtual void storePointer(uint8_t *value, uint8_t *address)           { *(uint8_t**)address = value; }
 
-      virtual bool useTrampoline(uint8_t * helperAddress, uint8_t *baseLocation) { return false; }
-
       // The following functions should be overridden by subclasses for specific targets
       virtual uint8_t *eipBaseForCallOffset(uint8_t *reloLocation);
 
@@ -102,8 +100,8 @@ class TR_RelocationTarget
       virtual uint8_t *loadAddressSequence(uint8_t *reloLocation);
       virtual void storeAddressSequence(uint8_t *address, uint8_t *reloLocation, uint32_t seqNumber);
 
-         
-      virtual void storeRelativeAddressSequence(uint8_t *address, uint8_t *reloLocation, uint32_t seqNumber) 
+
+      virtual void storeRelativeAddressSequence(uint8_t *address, uint8_t *reloLocation, uint32_t seqNumber)
          {
          storeAddressSequence(address, reloLocation, seqNumber);
          }
