@@ -583,6 +583,10 @@ TR_RelocationRecord::computeHelperAddress(TR_RelocationRuntime *reloRuntime, TR_
    TR_RelocationRecordHelperAddressPrivateData *reloPrivateData = &(privateData()->helperAddress);
    uint8_t *helperAddress = reloPrivateData->_helper;
 
+if (!reloTarget->reloRuntime())
+   {
+   TR_ASSERT_FATAL(0, "RRRRR2 reloRuntime() is NULL");
+   }
 if (!reloTarget->reloRuntime()->comp())
    {
    TR_ASSERT_FATAL(0, "QQQQQ2 comp() is NULL");
@@ -4550,6 +4554,12 @@ uint8_t *
 TR_RelocationRecordMethodCallAddress::computeTargetMethodAddress(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *baseLocation)
    {
    uint8_t *callTargetAddress = address(reloTarget);
+
+if (!reloTarget->reloRuntime())
+   {
+   TR_ASSERT_FATAL(0, "RRRRR reloRuntime() is NULL");
+   }
+
 
 if (!reloTarget->reloRuntime()->comp())
    {
