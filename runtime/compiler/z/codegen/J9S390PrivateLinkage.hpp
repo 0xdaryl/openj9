@@ -23,7 +23,7 @@
 #ifndef J9S390PRIVATELINKAGE_INCL
 #define J9S390PRIVATELINKAGE_INCL
 
-#include "codegen/Linkage.hpp"
+#include "codegen/PrivateLinkage.hpp"
 
 namespace TR { class AutomaticSymbol; }
 namespace TR { class CodeGenerator; }
@@ -37,7 +37,7 @@ namespace TR {
 //  TR::S390PrivateLinkage Definition for J9
 ////////////////////////////////////////////////////////////////////////////////
 
-class S390PrivateLinkage : public TR::Linkage
+class S390PrivateLinkage : public J9::PrivateLinkage
    {
    uint32_t _preservedRegisterMapForGC;
 
@@ -88,7 +88,7 @@ public:
    virtual TR::RealRegister *getSystemStackPointerRealRegister() {return getRealRegister(getSystemStackPointerRegister());}
 
    virtual int32_t setupLiteralPoolRegister(TR::Snippet *firstSnippet);
-   
+
    //called by buildNativeDispatch
    virtual void setupRegisterDepForLinkage(TR::Node *, TR_DispatchType, TR::RegisterDependencyConditions * &, int64_t &, TR::SystemLinkage *, TR::Node * &, bool &, TR::Register **, TR::Register *&);
    virtual void setupBuildArgForLinkage(TR::Node *, TR_DispatchType, TR::RegisterDependencyConditions *, bool, bool, int64_t &, TR::Node *, bool, TR::SystemLinkage *);
