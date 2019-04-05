@@ -48,6 +48,7 @@
 #include "env/annotations/AnnotationBase.hpp"
 
 #define J9_EXTERNAL_TO_VM
+#include "codegen/PrivateLinkage.hpp"
 #include "control/CompilationRuntime.hpp"
 #include "control/CompilationThread.hpp"
 #include "control/Recompilation.hpp"
@@ -257,7 +258,7 @@ j9jit_testarossa_err(
    if (oldStartPC)
       {
       // any recompilation attempt using fixUpMethodCode would go here
-      TR_LinkageInfo *linkageInfo = TR_LinkageInfo::get(oldStartPC);
+      J9::PrivateLinkage::LinkageInfo *linkageInfo = J9::PrivateLinkage::LinkageInfo::get(oldStartPC);
       TR_PersistentJittedBodyInfo* jbi = TR::Recompilation::getJittedBodyInfoFromPC(oldStartPC);
 
       if (jbi)
@@ -294,9 +295,9 @@ j9jit_testarossa_err(
             if (fe->isAsyncCompilation())
                return 0; // early return because the method is queued for compilation
             }
-         // If PersistentJittedBody contains the profile Info and has BlockFrequencyInfo, it will set the 
+         // If PersistentJittedBody contains the profile Info and has BlockFrequencyInfo, it will set the
          // isQueuedForRecompilation field which can be used by the jitted code at runtime to skip the profiling
-         // code if it has made request to recompile this method. 
+         // code if it has made request to recompile this method.
          if (jbi && jbi->getProfileInfo() != NULL && jbi->getProfileInfo()->getBlockFrequencyInfo() != NULL)
             jbi->getProfileInfo()->getBlockFrequencyInfo()->setIsQueuedForRecompilation();
 
@@ -403,7 +404,7 @@ retranslateWithPreparation(
       void *oldStartPC,
       UDATA reason)
    {
-   if (!TR::CompilationInfo::get()->asynchronousCompilation() && !TR_LinkageInfo::get(oldStartPC)->recompilationAttempted())
+   if (!TR::CompilationInfo::get()->asynchronousCompilation() && !J9::PrivateLinkage::LinkageInfo::get(oldStartPC)->recompilationAttempted())
       {
       TR::Recompilation::fixUpMethodCode(oldStartPC);
       }
@@ -1132,7 +1133,7 @@ onLoadInternal(
       jitConfig->dataCacheKB = 2048;
 
       //zOS will set the code cache to create at startup after options are enabled below
-#if !defined(J9ZOS390)	
+#if !defined(J9ZOS390)
       if (!isQuickstart) // for -Xquickstart start with one code cache
          numCodeCachesToCreateAtStartup = 4;
 #endif
@@ -1244,9 +1245,9 @@ onLoadInternal(
 
    // Now that the options have been processed we can initialize the RuntimeAssumptionTables
    // If we cannot allocate various runtime assumption hash tables, fail the JVM
-   
+
    // Allocate trampolines for z/OS 64-bit
-#if defined(J9ZOS390)	
+#if defined(J9ZOS390)
    if (TR::Options::getCmdLineOptions()->getOption(TR_EnableRMODE64) && !isQuickstart)
       numCodeCachesToCreateAtStartup = 4;
 #endif
@@ -1508,7 +1509,7 @@ onLoadInternal(
       ((TR_JitPrivateConfig*)(jitConfig->privateConfig))->jProfiler = TR_JProfilerThread::allocate();
       if (!(((TR_JitPrivateConfig*)(jitConfig->privateConfig))->jProfiler))
          {
-         TR::Options::getCmdLineOptions()->setOption(TR_DisableJProfilerThread); 
+         TR::Options::getCmdLineOptions()->setOption(TR_DisableJProfilerThread);
          }
       }
    else

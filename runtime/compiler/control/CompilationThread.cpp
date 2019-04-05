@@ -46,6 +46,7 @@
 #include "objhelp.h"
 #include "codegen/CodeGenerator.hpp"
 #include "codegen/Instruction.hpp"
+#include "codegen/PrivateLinkage.hpp"
 #include "compile/CompilationTypes.hpp"
 #include "compile/ResolvedMethod.hpp"
 #include "control/Recompilation.hpp"
@@ -3891,7 +3892,7 @@ TR::CompilationInfoPerThread::shouldPerformCompilation(TR_MethodToBeCompiled &en
             void *startPC = TR::CompilationInfo::getJ9MethodStartPC(method);
             // A compilation attempt might have already happened for this method
             // (and failed or succeeded)
-            TR_LinkageInfo *linkageInfo = TR_LinkageInfo::get(startPC);
+            J9::PrivateLinkage::LinkageInfo *linkageInfo = J9::PrivateLinkage::LinkageInfo::get(startPC);
             if (!linkageInfo->isBeingCompiled()) // This field is never reset
                {
                // get its level
@@ -3938,7 +3939,7 @@ TR::CompilationInfoPerThread::shouldPerformCompilation(TR_MethodToBeCompiled &en
 
       // A compilation request might have been attempted and failed. The linkage
       // word could tell us if this body has ever been queued for compilation
-      TR_LinkageInfo *linkageInfo = TR_LinkageInfo::get(startPC);
+      J9::PrivateLinkage::LinkageInfo *linkageInfo = J9::PrivateLinkage::LinkageInfo::get(startPC);
       if (linkageInfo->isBeingCompiled()) // This field is never reset
          return false;
       linkageInfo->setIsBeingRecompiled();
@@ -4084,7 +4085,7 @@ TR::CompilationInfo::addMethodToBeCompiled(TR::IlGeneratorMethodDetails & detail
       bool isJNINativeMethodRequest = false;
       if (pc)
          {
-         TR_LinkageInfo *linkageInfo = TR_LinkageInfo::get(pc);
+         J9::PrivateLinkage::LinkageInfo *linkageInfo = J9::PrivateLinkage::LinkageInfo::get(pc);
          linkageInfo->setIsBeingRecompiled(); // mark that we try to compile it
 
          // Update persistentMethodInfo with the level we want to compile to
@@ -4720,7 +4721,7 @@ bool TR::CompilationInfo::isQueuedForCompilation(J9Method * method, void *oldSta
    {
    TR_ASSERT(oldStartPC, "isQueuedForCompilation should not be called for interpreted methods\n");
 
-   TR_LinkageInfo *linkageInfo = TR_LinkageInfo::get(oldStartPC);
+   J9::PrivateLinkage::LinkageInfo *linkageInfo = J9::PrivateLinkage::LinkageInfo::get(oldStartPC);
    return linkageInfo->isBeingCompiled();
    }
 
@@ -4806,7 +4807,7 @@ void *TR::CompilationInfo::startPCIfAlreadyCompiled(J9VMThread * vmThread, TR::I
       }
    else
       {
-      TR_LinkageInfo *linkageInfo = TR_LinkageInfo::get(oldStartPC);
+      J9::PrivateLinkage::LinkageInfo *linkageInfo = J9::PrivateLinkage::LinkageInfo::get(oldStartPC);
       if (linkageInfo->recompilationAttempted() && isCompiled(method))
          startPC = getJ9MethodStartPC(method);
       }
@@ -5045,7 +5046,7 @@ void *TR::CompilationInfo::compileMethod(J9VMThread * vmThread, TR::IlGeneratorM
          {
          if (!(useSeparateCompilationThread() && !fe->isAOT_DEPRECATED_DO_NOT_USE()))
             {
-            TR_LinkageInfo *linkageInfo = TR_LinkageInfo::get(oldStartPC);
+            J9::PrivateLinkage::LinkageInfo *linkageInfo = J9::PrivateLinkage::LinkageInfo::get(oldStartPC);
             if (linkageInfo->recompilationAttempted())
                {
                startPC = getJ9MethodStartPC(method); // provide the new startPC
@@ -5214,7 +5215,7 @@ void *TR::CompilationInfo::compileOnSeparateThread(J9VMThread * vmThread, TR::Il
    bool async = asynchronousCompilation() && requireAsyncCompile != TR_no;
    if (async)
       {
-      TR_LinkageInfo *linkageInfo = oldStartPC ? TR_LinkageInfo::get(oldStartPC) : 0;
+      J9::PrivateLinkage::LinkageInfo *linkageInfo = oldStartPC ? J9::PrivateLinkage::LinkageInfo::get(oldStartPC) : 0;
       if (requireAsyncCompile != TR_yes && !oldStartPC && !details.isMethodInProgress())
          {
          J9ROMMethod *romMethod = J9_ROM_METHOD_FROM_RAM_METHOD(method);
@@ -5964,7 +5965,7 @@ TR::CompilationInfoPerThreadBase::installAotCachedMethod(
          ccMethodHeader = getCodeCacheMethodHeader((char *)metaData->startPC, 32, metaData);
          if (ccMethodHeader && (metaData->bodyInfo != NULL))
             {
-            TR_LinkageInfo *linkageInfo = TR_LinkageInfo::get((void *)metaData->startPC);
+            J9::PrivateLinkage::LinkageInfo *linkageInfo = J9::PrivateLinkage::LinkageInfo::get((void *)metaData->startPC);
             if (linkageInfo->isRecompMethodBody())
                {
                ALWAYS_TRIGGER_J9HOOK_VM_DYNAMIC_CODE_LOAD(_jitConfig->javaVM->hookInterface, vmThread, method, (U_8 *)((char*)ccMethodHeader->_eyeCatcher+4), metaData->startPC - (UDATA)((char*)ccMethodHeader->_eyeCatcher+4), "JIT method header", metaData);
@@ -6099,7 +6100,7 @@ void TR::CompilationInfo::queueForcedAOTUpgrade(TR_MethodToBeCompiled *originalE
    cur->initialize(originalEntry->getMethodDetails(), originalEntry->_newStartPC, CP_ASYNC_BELOW_NORMAL, plan);
    cur->_jitStateWhenQueued = getPersistentInfo()->getJitState();
 
-   TR_LinkageInfo *linkageInfo = TR_LinkageInfo::get(originalEntry->_newStartPC);
+   J9::PrivateLinkage::LinkageInfo *linkageInfo = J9::PrivateLinkage::LinkageInfo::get(originalEntry->_newStartPC);
    linkageInfo->setIsBeingRecompiled(); // mark that we try to compile it
 
    methodInfo->setNextCompileLevel(plan->getOptLevel(), plan->insertInstrumentation());
@@ -9043,7 +9044,7 @@ TR::CompilationInfo::compilationEnd(J9VMThread * vmThread, TR::IlGeneratorMethod
          {
          J9::MethodHandleThunkDetails &mhDetails = static_cast<J9::MethodHandleThunkDetails &>(details);
          uintptrj_t thunks = trvm->getReferenceField(*mhDetails.getHandleRef(), "thunks", "Ljava/lang/invoke/ThunkTuple;");
-         int64_t jitEntryPoint = (int64_t)(intptrj_t)startPC + TR_LinkageInfo::get(startPC)->getJitEntryOffset();
+         int64_t jitEntryPoint = (int64_t)(intptrj_t)startPC + J9::PrivateLinkage::LinkageInfo::get(startPC)->getJitEntryOffset();
 
 #if defined(JIT_METHODHANDLE_TRANSLATED)
          jitMethodHandleTranslated(vmThread, *mhDetails.getHandleRef(), mhDetails.getArgRef()? *mhDetails.getArgRef() : NULL, jitEntryPoint, startPC);
@@ -9320,7 +9321,7 @@ TR::CompilationInfo::compilationEnd(J9VMThread * vmThread, TR::IlGeneratorMethod
                               );
                            if (ccMethodHeader && (relocatedMetaData->bodyInfo != NULL))
                               {
-                              TR_LinkageInfo *linkageInfo = TR_LinkageInfo::get(reinterpret_cast<void *>(relocatedMetaData->startPC));
+                              J9::PrivateLinkage::LinkageInfo *linkageInfo = J9::PrivateLinkage::LinkageInfo::get(reinterpret_cast<void *>(relocatedMetaData->startPC));
                               if (linkageInfo->isRecompMethodBody())
                                  {
                                  ALWAYS_TRIGGER_J9HOOK_VM_DYNAMIC_CODE_LOAD(
@@ -9632,7 +9633,7 @@ void TR::CompilationInfoPerThreadBase::logCompilationSuccess(
             ccMethodHeader = getCodeCacheMethodHeader((char *)metaData->startPC, 32, metaData);
             if (ccMethodHeader && (metaData->bodyInfo != NULL))
                {
-               TR_LinkageInfo *linkageInfo = TR_LinkageInfo::get((void *)metaData->startPC);
+               J9::PrivateLinkage::LinkageInfo *linkageInfo = J9::PrivateLinkage::LinkageInfo::get((void *)metaData->startPC);
                if (linkageInfo->isRecompMethodBody())
                   {
                   ALWAYS_TRIGGER_J9HOOK_VM_DYNAMIC_CODE_LOAD(javaVM->hookInterface, vmThread, method, (void *)((char*)ccMethodHeader->_eyeCatcher+4), metaData->startPC - (UDATA)((char*)ccMethodHeader->_eyeCatcher+4), "JIT method header", metaData);
@@ -10301,7 +10302,7 @@ TR::CompilationInfo::triggerOrderedCompiles(TR_FrontEnd * f, intptr_t tickCount)
          {
          void *startPC = TR::CompilationInfo::getJ9MethodStartPC(ramMethod);
 
-         TR_LinkageInfo           *linkageInfo = TR_LinkageInfo::get(startPC);
+         J9::PrivateLinkage::LinkageInfo *linkageInfo = J9::PrivateLinkage::LinkageInfo::get(startPC);
 
          if (linkageInfo->isRecompMethodBody())
             {

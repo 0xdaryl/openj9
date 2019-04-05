@@ -23,6 +23,7 @@
 #include "x/codegen/X86Recompilation.hpp"
 
 #include "codegen/CodeGenerator.hpp"
+#include "codegen/PrivateLinkage.hpp"
 #include "codegen/Machine.hpp"
 #include "codegen/Linkage.hpp"
 #include "codegen/Linkage_inlines.hpp"
@@ -227,7 +228,7 @@ void TR_X86Recompilation::setMethodReturnInfoBits()
    //    instruction of the method (this is done by OMR::Recompilation::methodCannotBeRecompiled)
    //
    uint8_t  *startPC = _compilation->cg()->getCodeStart();
-   TR_LinkageInfo *linkageInfo = TR_LinkageInfo::get(startPC);
+   J9::PrivateLinkage::LinkageInfo *linkageInfo = J9::PrivateLinkage::LinkageInfo::get(startPC);
 
    if (useSampling())
       {

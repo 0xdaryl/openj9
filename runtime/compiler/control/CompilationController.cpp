@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2018 IBM Corp. and others
+ * Copyright (c) 2000, 2019 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -22,6 +22,7 @@
 
 #include "control/CompilationController.hpp"
 
+#include "codegen/PrivateLinkage.hpp"
 #include "compile/Compilation.hpp"
 #include "compile/CompilationTypes.hpp"
 #include "control/MethodToBeCompiled.hpp"
@@ -217,7 +218,7 @@ TR_OptimizationPlan *TR::DefaultCompilationStrategy::processEvent(TR_MethodEvent
             plan = TR_OptimizationPlan::alloc(hotnessLevel);
             *newPlanCreated = true;
             }
-         
+
          TR_OptimizationPlan::_optimizationPlanMonitor->enter();
          attachedPlan = methodInfo->_optimizationPlan;
          if (attachedPlan)
@@ -569,7 +570,7 @@ TR::DefaultCompilationStrategy::processJittedSample(TR_MethodEvent *event)
             }
          }
       }
-   TR_LinkageInfo *linkageInfo = TR_LinkageInfo::get(startPC);
+   J9::PrivateLinkage::LinkageInfo *linkageInfo = J9::PrivateLinkage::LinkageInfo::get(startPC);
    TR_PersistentJittedBodyInfo *bodyInfo = NULL;
 
       compInfo->_stats._compiledMethodSamples++;
@@ -1538,7 +1539,7 @@ TR::ThresholdCompilationStrategy::processJittedSample(TR_MethodEvent *event)
    // here we may need to write into the vlog
 
 
-   TR_LinkageInfo *linkageInfo = TR_LinkageInfo::get(startPC);
+   J9::PrivateLinkage::LinkageInfo *linkageInfo = J9::PrivateLinkage::LinkageInfo::get(startPC);
    TR_PersistentJittedBodyInfo *bodyInfo = NULL;
 
    if (linkageInfo->hasFailedRecompilation())
