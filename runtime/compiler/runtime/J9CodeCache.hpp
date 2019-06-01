@@ -68,8 +68,6 @@ public:
                                          TR::CodeCacheMemorySegment *codeCacheSegment,
                                          size_t allocatedCodeCacheSizeInBytes);
 
-   static TR::CodeCache *     allocate(TR::CodeCacheManager *cacheManager, size_t segmentSize, int32_t reservingCompThreadID);
-
    // Code Cache Reclamation
    void                       addFreeBlock(OMR::FaintCacheBlock *block);
 

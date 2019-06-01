@@ -76,21 +76,6 @@ J9::CodeCache::j9segment()
    return self()->trj9segment()->j9segment();
    }
 
-
-TR::CodeCache *
-J9::CodeCache::allocate(TR::CodeCacheManager *cacheManager, size_t segmentSize, int32_t reservingCompThreadID)
-   {
-   TR::CodeCache *newCodeCache = OMR::CodeCache::allocate(cacheManager, segmentSize, reservingCompThreadID);
-   if (newCodeCache != NULL)
-      {
-      // Generate a trace point into the Snap file
-      Trc_JIT_CodeCacheAllocated(newCodeCache, newCodeCache->getCodeBase(), newCodeCache->getCodeTop());
-      }
-
-   return newCodeCache;
-   }
-
-
 bool
 J9::CodeCache::initialize(TR::CodeCacheManager *manager,
                           TR::CodeCacheMemorySegment *codeCacheSegment,
