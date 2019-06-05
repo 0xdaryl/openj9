@@ -20,43 +20,48 @@
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0 OR GPL-2.0 WITH Classpath-exception-2.0 OR LicenseRef-GPL-2.0 WITH Assembly-exception
  *******************************************************************************/
 
-#ifndef J9_RESOLVEDMETHODSYMBOL_INCL
-#define J9_RESOLVEDMETHODSYMBOL_INCL
+#ifndef TR_STATICSYMBOL_INCL
+#define TR_STATICSYMBOL_INCL
 
-/*
- * The following #define and typedef must appear before any #includes in this file
+#include <stdint.h>
+#include "il/DataTypes.hpp"
+#include "il/J9StaticSymbol.hpp"
+
+/**
+ * A symbol with an address
  */
-#ifndef J9_RESOLVEDMETHODSYMBOL_CONNECTOR
-#define J9_RESOLVEDMETHODSYMBOL_CONNECTOR
-namespace J9 { class ResolvedMethodSymbol; }
-namespace J9 { typedef J9::ResolvedMethodSymbol ResolvedMethodSymbolConnector; }
-#endif
-
-#include "il/symbol/OMRResolvedMethodSymbol.hpp"
-#include "infra/Annotations.hpp"
-
-class TR_ResolvedMethod;
-namespace TR { class Compilation; }
-
-namespace J9
+namespace TR
 {
 
-class OMR_EXTENSIBLE ResolvedMethodSymbol : public OMR::ResolvedMethodSymbolConnector
+class OMR_EXTENSIBLE StaticSymbol : public J9::StaticSymbolConnector
    {
-public:
-   /*
-    * \brief Get known object index of a parameter if there is any known object information available
-    *
-    * \parm ordinal
-    *     the ordinal of a parameter starting from 0 for the first parameter of a method
-    */
-   TR::KnownObjectTable::Index getKnownObjectIndexForParm(int32_t ordinal);
 
 protected:
 
-   ResolvedMethodSymbol(TR_ResolvedMethod *method, TR::Compilation *comp);
+   StaticSymbol(TR::DataType d) :
+      J9::StaticSymbolConnector(d) { }
+
+   StaticSymbol(TR::DataType d, void * address) :
+      J9::StaticSymbolConnector(d,address) { }
+
+   StaticSymbol(TR::DataType d, uint32_t s) :
+      J9::StaticSymbolConnector(d, s) { }
+
+private:
+
+   // When adding another class to the hierarchy, add it as a friend here
+   friend class J9::StaticSymbol;
+   friend class OMR::StaticSymbol;
+
    };
 
 }
 
+/**
+ * To isolate the addition of the _inlines.hpp file from OMR, where the OMR
+ * layer versions would be empty stubs, I've added this here.
+ */
+#include "il/StaticSymbol_inlines.hpp"
+
 #endif
+

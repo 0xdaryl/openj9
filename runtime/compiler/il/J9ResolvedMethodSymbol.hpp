@@ -20,36 +20,43 @@
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0 OR GPL-2.0 WITH Classpath-exception-2.0 OR LicenseRef-GPL-2.0 WITH Assembly-exception
  *******************************************************************************/
 
-#ifndef TR_METHODSYMBOL_INCL
-#define TR_METHODSYMBOL_INCL
+#ifndef J9_RESOLVEDMETHODSYMBOL_INCL
+#define J9_RESOLVEDMETHODSYMBOL_INCL
 
-#include "il/symbol/J9MethodSymbol.hpp"
+/*
+ * The following #define and typedef must appear before any #includes in this file
+ */
+#ifndef J9_RESOLVEDMETHODSYMBOL_CONNECTOR
+#define J9_RESOLVEDMETHODSYMBOL_CONNECTOR
+namespace J9 { class ResolvedMethodSymbol; }
+namespace J9 { typedef J9::ResolvedMethodSymbol ResolvedMethodSymbolConnector; }
+#endif
 
-#include <stddef.h>
-#include "codegen/LinkageConventionsEnum.hpp"
+#include "il/OMRResolvedMethodSymbol.hpp"
+#include "infra/Annotations.hpp"
 
-class TR_Method;
+class TR_ResolvedMethod;
+namespace TR { class Compilation; }
 
-namespace TR
+namespace J9
 {
 
-class OMR_EXTENSIBLE MethodSymbol : public J9::MethodSymbolConnector
+class OMR_EXTENSIBLE ResolvedMethodSymbol : public OMR::ResolvedMethodSymbolConnector
    {
+public:
+   /*
+    * \brief Get known object index of a parameter if there is any known object information available
+    *
+    * \parm ordinal
+    *     the ordinal of a parameter starting from 0 for the first parameter of a method
+    */
+   TR::KnownObjectTable::Index getKnownObjectIndexForParm(int32_t ordinal);
 
 protected:
 
-   MethodSymbol(TR_LinkageConventions lc = TR_Private, TR_Method* m = NULL) :
-      J9::MethodSymbolConnector(lc, m) { }
-
-private:
-
-   // When adding another class to the hierarchy, add it as a friend here
-   friend class J9::MethodSymbol;
-   friend class OMR::MethodSymbol;
-
+   ResolvedMethodSymbol(TR_ResolvedMethod *method, TR::Compilation *comp);
    };
 
 }
 
 #endif
-

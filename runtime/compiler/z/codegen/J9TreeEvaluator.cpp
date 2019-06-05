@@ -52,17 +52,17 @@
 #include "env/jittypes.h"
 #include "env/VMJ9.h"
 #include "il/DataTypes.hpp"
+#include "il/LabelSymbol.hpp"
+#include "il/MethodSymbol.hpp"
 #include "il/Node.hpp"
 #include "il/Node_inlines.hpp"
+#include "il/ResolvedMethodSymbol.hpp"
+#include "il/RegisterMappedSymbol.hpp"
+#include "il/ParameterSymbol.hpp"
+#include "il/StaticSymbol.hpp"
 #include "il/Symbol.hpp"
 #include "il/TreeTop.hpp"
 #include "il/TreeTop_inlines.hpp"
-#include "il/symbol/LabelSymbol.hpp"
-#include "il/symbol/MethodSymbol.hpp"
-#include "il/symbol/ResolvedMethodSymbol.hpp"
-#include "il/symbol/RegisterMappedSymbol.hpp"
-#include "il/symbol/ParameterSymbol.hpp"
-#include "il/symbol/StaticSymbol.hpp"
 #include "infra/Bit.hpp"
 #include "ras/Delimiter.hpp"
 #include "ras/DebugCounter.hpp"
@@ -3784,7 +3784,7 @@ J9::Z::TreeEvaluator::generateFillInDataBlockSequenceForUnresolvedField(TR::Code
 
    // OOL code start.
    generateS390LabelInstruction(cg, TR::InstOpCode::LABEL, node, unresolvedLabel);
- 
+
    if (isStatic)
       {
       // Fills in J9JITWatchedStaticFieldData.fieldClass.
@@ -3872,7 +3872,7 @@ J9::Z::TreeEvaluator::generateFillInDataBlockSequenceForUnresolvedField(TR::Code
    }
 
 /*
- * This method will prepare the registers and then make a VM Helper call to report that a fieldwatch event has occurred 
+ * This method will prepare the registers and then make a VM Helper call to report that a fieldwatch event has occurred
  * in a Java class with field watch enabled.
  *
  * The possible VM Helpers are:

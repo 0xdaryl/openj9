@@ -20,55 +20,24 @@
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0 OR GPL-2.0 WITH Classpath-exception-2.0 OR LicenseRef-GPL-2.0 WITH Assembly-exception
  *******************************************************************************/
 
-#ifndef J9_METHODSYMBOL_INCL
-#define J9_METHODSYMBOL_INCL
+#ifndef TR_RESOLVEDMETHODSYMBOL_INCL
+#define TR_RESOLVEDMETHODSYMBOL_INCL
 
-/*
- * The following #define and typedef must appear before any #includes in this file
- */
-#ifndef J9_METHODSYMBOL_CONNECTOR
-#define J9_METHODSYMBOL_CONNECTOR
-namespace J9 { class MethodSymbol; }
-namespace J9 { typedef J9::MethodSymbol MethodSymbolConnector; }
-#endif
+#include "il/J9ResolvedMethodSymbol.hpp"
+#include "infra/Annotations.hpp"
 
-#include "il/symbol/OMRMethodSymbol.hpp"
-
-#include <stdint.h>
-#include "codegen/LinkageConventionsEnum.hpp"
-#include "compile/Method.hpp"
-#include "il/DataTypes.hpp"
-#include "runtime/J9Runtime.hpp"
-
+class TR_ResolvedMethod;
 namespace TR { class Compilation; }
 
-namespace J9
+namespace TR
 {
 
-/**
- * Symbol for methods, along with information about the method
- */
-class OMR_EXTENSIBLE MethodSymbol : public OMR::MethodSymbolConnector
+class OMR_EXTENSIBLE ResolvedMethodSymbol : public J9::ResolvedMethodSymbolConnector
    {
-
-protected:
-
-   MethodSymbol(TR_LinkageConventions lc = TR_Private, TR_Method * m = NULL) :
-      OMR::MethodSymbolConnector(lc, m) { }
-
 public:
 
-   bool isPureFunction();
-
-   TR_RuntimeHelper getVMCallHelper() { return TR_j2iTransition; } // deprecated
-
-   bool safeToSkipNullChecks();
-   bool safeToSkipBoundChecks();
-   bool safeToSkipDivChecks();
-   bool safeToSkipCheckCasts();
-   bool safeToSkipArrayStoreChecks();
-   bool safeToSkipZeroInitializationOnNewarrays();
-   bool safeToSkipChecksOnArrayCopies();
+   ResolvedMethodSymbol(TR_ResolvedMethod *method, TR::Compilation *comp) :
+      J9::ResolvedMethodSymbolConnector(method, comp) {}
 
    };
 
