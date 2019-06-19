@@ -23,6 +23,7 @@
 #include "codegen/FrontEnd.hpp"
 #include "env/KnownObjectTable.hpp"
 #include "compile/Compilation.hpp"
+#include "compile/InlineBlock.hpp"
 #include "compile/Method.hpp"
 #include "compile/ResolvedMethod.hpp"
 #include "env/CompilerEnv.hpp"
