@@ -641,7 +641,7 @@ TR_DebugExt::dxAllocateSymRefInternals(TR::SymbolReference *localSymRef, bool co
          localSym = (TR::Symbol*) dxMallocAndRead(sizeof(TR::ResolvedMethodSymbol), sym);
          if (complete)
             {
-            TR_J9MethodBase *localMethod = (TR_J9MethodBase *) dxMallocAndRead(sizeof(TR_J9MethodBase), (void*)localSym->getMethodSymbol()->getMethod());
+            TR::Method *localMethod = (TR::Method *) dxMallocAndRead(sizeof(TR::Method), (void*)localSym->getMethodSymbol()->getMethod());
             localSym->getMethodSymbol()->setMethod(localMethod);
             }
          }
@@ -651,7 +651,7 @@ TR_DebugExt::dxAllocateSymRefInternals(TR::SymbolReference *localSymRef, bool co
          localSym = (TR::Symbol*) dxMallocAndRead(sizeof(TR::MethodSymbol), sym);
          if (complete)
             {
-            TR_J9MethodBase *localMethod = (TR_J9MethodBase *) dxMallocAndRead(sizeof(TR_J9MethodBase), (void*)localSym->getMethodSymbol()->getMethod());
+            TR::Method *localMethod = (TR::Method *) dxMallocAndRead(sizeof(TR::Method), (void*)localSym->getMethodSymbol()->getMethod());
             localSym->getMethodSymbol()->setMethod(localMethod);
             }
          }
@@ -3803,9 +3803,8 @@ TR_DebugExt::dxGetSignature(J9UTF8 *className, J9UTF8 *name, J9UTF8 *signature)
 const char *
 TR_DebugExt::getMethodName(TR::SymbolReference * symRef)
    {
-   TR::Method * method = symRef->getSymbol()->castToMethodSymbol()->getMethod();
-   TR_J9MethodBase *localMethod = (TR_J9MethodBase *) dxMallocAndRead(sizeof(TR_J9MethodBase), (void*)method);
-   //TR_J9MethodBase *localMethod = (TR_J9MethodBase *)symRef->getSymbol()->castToMethodSymbol()->getMethod();
+   TR::Method *method = symRef->getSymbol()->castToMethodSymbol()->getMethod();
+   TR::Method *localMethod = (TR::Method *) dxMallocAndRead(sizeof(TR::Method), (void*)method);
 
    const char *s = dxGetSignature(localMethod->_className, localMethod->_name, localMethod->_signature);
    dxFree(localMethod);

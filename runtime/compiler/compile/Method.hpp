@@ -34,6 +34,12 @@ public:
 
    Method(Type t = J9) : J9::MethodConnector(t) {}
 
+   Method(TR_FrontEnd *trvm, TR_Memory *m, J9Class *aClazz, uintptr_t cpIndex) :
+      J9::MethodConnector(trvm, m, aClazz, cpIndex) {}
+
+   Method(TR_FrontEnd *trvm, TR_Memory *m, TR_OpaqueMethodBlock *aMethod) :
+      J9::MethodConnector(trvm, m, aMethod) {}
+
    };
 
 }

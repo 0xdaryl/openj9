@@ -133,11 +133,12 @@ static X VarHandleMethods[] =
 
 // Recognized method doesn't work for unresolved method, the following code works for both case
 TR::RecognizedMethod TR_VarHandleTransformer::getVarHandleAccessMethod(TR::Node * node)
-{
+   {
    TR::SymbolReference *symRef = node->getSymbolReference();
    TR::RecognizedMethod varHandleAccessMethod = TR::unknownMethod;
    OMR::MethodSymbol *symbol = node->getSymbol()->getMethodSymbol();
-      TR_J9Method * method = (TR_J9Method*)(symbol->getMethod());
+   TR::Method *method = (TR::Method *)(symbol->getMethod());
+
    if (symRef->isUnresolved())
       {
       char *className    = method->classNameChars();
@@ -162,8 +163,9 @@ TR::RecognizedMethod TR_VarHandleTransformer::getVarHandleAccessMethod(TR::Node 
       if (method->isVarHandleAccessMethod(comp()))
          varHandleAccessMethod = method->getMandatoryRecognizedMethod();
       }
+
    return varHandleAccessMethod;
-}
+   }
 
 /**
  *

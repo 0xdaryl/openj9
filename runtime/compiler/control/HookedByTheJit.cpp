@@ -431,7 +431,7 @@ static void jitHookInitializeSendTarget(J9HookInterface * * hook, UDATA eventNum
        || TR::Compiler->target.cpu.getSupportsDecimalFloatingPointFacility()
 #endif
        )
-       && TR_J9MethodBase::isBigDecimalMethod(method)
+       && TR::Method::isBigDecimalMethod(method)
       )
       {
       count = 0;

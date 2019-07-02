@@ -22,6 +22,7 @@
 
 #include "optimizer/RecognizedCallTransformer.hpp"
 
+#include "compile/Method.hpp"
 #include "compile/ResolvedMethod.hpp"
 #include "env/CompilerEnv.hpp"
 #include "env/VMJ9.h"
@@ -81,11 +82,11 @@ void J9::RecognizedCallTransformer::process_java_lang_StringUTF16_toBytes(TR::Tr
 
    int32_t byteArrayType = fej9->getNewArrayTypeFromClass(reinterpret_cast<TR_OpaqueClassBlock*>(fej9->getJ9JITConfig()->javaVM->byteArrayClass));
 
-   TR::Node::recreateWithoutProperties(node, TR::newarray, 2, 
+   TR::Node::recreateWithoutProperties(node, TR::newarray, 2,
       TR::Node::create(TR::ishl, 2,
-         lenNode, 
+         lenNode,
          TR::Node::iconst(1)),
-      TR::Node::iconst(byteArrayType), 
+      TR::Node::iconst(byteArrayType),
 
       getSymRefTab()->findOrCreateNewArraySymbolRef(node->getSymbolReference()->getOwningMethodSymbol(comp())));
 
@@ -93,7 +94,7 @@ void J9::RecognizedCallTransformer::process_java_lang_StringUTF16_toBytes(TR::Tr
    newByteArrayNode->setCanSkipZeroInitialization(true);
    newByteArrayNode->setIsNonNull(true);
 
-   TR::Node* newCallNode = TR::Node::createWithSymRef(node, TR::call, 5, 
+   TR::Node* newCallNode = TR::Node::createWithSymRef(node, TR::call, 5,
       getSymRefTab()->methodSymRefFromName(comp()->getMethodSymbol(), "java/lang/String", "decompressedArrayCopy", "([CI[BII)V", TR::MethodSymbol::Static));
    newCallNode->setAndIncChild(0, valueNode);
    newCallNode->setAndIncChild(1, offNode);
@@ -268,7 +269,7 @@ void J9::RecognizedCallTransformer::processUnsafeAtomicCall(TR::TreeTop* treetop
       // Test if the call is a write to a static final field
       if (!disableIllegalWriteReport
           && !comp()->getOption(TR_DisableGuardedStaticFinalFieldFolding)
-          && TR_J9MethodBase::isUnsafePut(unsafeCall->getSymbol()->castToMethodSymbol()->getMandatoryRecognizedMethod()))
+          && TR::Method::isUnsafePut(unsafeCall->getSymbol()->castToMethodSymbol()->getMandatoryRecognizedMethod()))
          {
          // If the field is static final
          auto isFinalNode = TR::Node::createif(TR::iflcmpeq,
@@ -340,16 +341,16 @@ bool J9::RecognizedCallTransformer::isInlineable(TR::TreeTop* treetop)
    switch(node->getSymbol()->castToMethodSymbol()->getMandatoryRecognizedMethod())
       {
       case TR::sun_misc_Unsafe_getAndAddInt:
-         return !comp()->getOption(TR_DisableUnsafe) && !comp()->compileRelocatableCode() && !TR::Compiler->om.canGenerateArraylets() && 
+         return !comp()->getOption(TR_DisableUnsafe) && !comp()->compileRelocatableCode() && !TR::Compiler->om.canGenerateArraylets() &&
             cg()->supportsNonHelper(TR::SymbolReferenceTable::atomicFetchAndAddSymbol);
       case TR::sun_misc_Unsafe_getAndSetInt:
-         return !comp()->getOption(TR_DisableUnsafe) && !comp()->compileRelocatableCode() && !TR::Compiler->om.canGenerateArraylets() && 
+         return !comp()->getOption(TR_DisableUnsafe) && !comp()->compileRelocatableCode() && !TR::Compiler->om.canGenerateArraylets() &&
             cg()->supportsNonHelper(TR::SymbolReferenceTable::atomicSwapSymbol);
       case TR::sun_misc_Unsafe_getAndAddLong:
-         return !comp()->getOption(TR_DisableUnsafe) && !comp()->compileRelocatableCode() && !TR::Compiler->om.canGenerateArraylets() && TR::Compiler->target.is64Bit() && 
+         return !comp()->getOption(TR_DisableUnsafe) && !comp()->compileRelocatableCode() && !TR::Compiler->om.canGenerateArraylets() && TR::Compiler->target.is64Bit() &&
             cg()->supportsNonHelper(TR::SymbolReferenceTable::atomicFetchAndAddSymbol);
       case TR::sun_misc_Unsafe_getAndSetLong:
-         return !comp()->getOption(TR_DisableUnsafe) && !comp()->compileRelocatableCode() && !TR::Compiler->om.canGenerateArraylets() && TR::Compiler->target.is64Bit() && 
+         return !comp()->getOption(TR_DisableUnsafe) && !comp()->compileRelocatableCode() && !TR::Compiler->om.canGenerateArraylets() && TR::Compiler->target.is64Bit() &&
             cg()->supportsNonHelper(TR::SymbolReferenceTable::atomicSwapSymbol);
       case TR::java_lang_Class_isAssignableFrom:
          return cg()->supportsInliningOfIsAssignableFrom();

@@ -3112,12 +3112,12 @@ int TR_J9VMBase::checkInlineableTarget (TR_CallTarget* target, TR_CallSite* call
          resolvedMethod->getRecognizedMethod() == TR::java_lang_invoke_DirectHandle_invokeExact ||
          resolvedMethod->getRecognizedMethod() == TR::java_lang_invoke_InterfaceHandle_invokeExact ||
          resolvedMethod->getRecognizedMethod() == TR::java_lang_invoke_VirtualHandle_invokeExact ||
-         TR_J9MethodBase::isVarHandleOperationMethod(resolvedMethod->getRecognizedMethod())
+         TR::Method::isVarHandleOperationMethod(resolvedMethod->getRecognizedMethod())
          )
          {
          if ( resolvedMethod->getRecognizedMethod() == TR::java_lang_invoke_MethodHandle_invokeExactTargetAddress ||
              resolvedMethod->getRecognizedMethod() == TR::java_lang_invoke_MutableCallSite_getTarget ||
-             TR_J9MethodBase::isVarHandleOperationMethod(resolvedMethod->getRecognizedMethod()) ||
+             TR::Method::isVarHandleOperationMethod(resolvedMethod->getRecognizedMethod()) ||
              resolvedMethod->getRecognizedMethod() == TR::java_lang_invoke_DirectHandle_invokeExact ||
              resolvedMethod->getRecognizedMethod() == TR::java_lang_invoke_InterfaceHandle_invokeExact ||
              resolvedMethod->getRecognizedMethod() == TR::java_lang_invoke_VirtualHandle_invokeExact

@@ -22,6 +22,7 @@
 
 #include "optimizer/TransformUtil.hpp"
 #include "compile/Compilation.hpp"
+#include "compile/Method.hpp"
 #include "compile/SymbolReferenceTable.hpp"
 #include "env/CompilerEnv.hpp"
 #include "il/Block.hpp"
@@ -45,7 +46,7 @@
 
 /**
  * Walks the TR_RegionStructure counting loops to get the nesting depth of the block
- */ 
+ */
 int32_t J9::TransformUtil::getLoopNestingDepth(TR::Compilation *comp, TR::Block *block)
    {
    TR_RegionStructure *region = block->getParentStructureIfExists(comp->getFlowGraph());
@@ -2224,9 +2225,9 @@ J9::TransformUtil::truncateBooleanForUnsafeGetPut(TR::Compilation *comp, TR::Tre
    {
    TR::Node* unsafeCall = tree->getNode()->getFirstChild();
    TR::RecognizedMethod rm = unsafeCall->getSymbol()->castToMethodSymbol()->getMandatoryRecognizedMethod();
-   TR_ASSERT(TR_J9MethodBase::isUnsafeGetPutBoolean(rm), "Not unsafe get/put boolean method");
+   TR_ASSERT(TR::Method::isUnsafeGetPutBoolean(rm), "Not unsafe get/put boolean method");
 
-   if (TR_J9MethodBase::isUnsafePut(rm))
+   if (TR::Method::isUnsafePut(rm))
       {
       int32_t valueChildIndex = unsafeCall->getFirstArgumentIndex() + 3;
       TR::Node* value = unsafeCall->getChild(valueChildIndex);
