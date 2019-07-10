@@ -64,7 +64,7 @@ extern "C" {
 #define WALK_O_SLOT(slot) WALK_INDIRECT_O_SLOT((slot), NULL)
 #define WALK_I_SLOT(slot) WALK_INDIRECT_I_SLOT((slot), NULL)
 
-#if defined(J9VM_INTERP_STACKWALK_TRACING) 
+#if defined(J9VM_INTERP_STACKWALK_TRACING)
 #define MARK_SLOT_AS_OBJECT(walkState, slot) swMarkSlotAsObject((walkState), (slot))
 #else
 #define MARK_SLOT_AS_OBJECT(walkState, slot)
@@ -338,12 +338,12 @@ extern "C" {
 #define JIT_RESOLVE_PARM(parmNumber) (walkState->walkedEntryLocalStorage->jitGlobalStorageBase[jitArgumentRegisterNumbers[(parmNumber) - 1]])
 #define J9SW_JIT_STACK_SLOTS_USED_BY_CALL 0x0
 #define J9SW_POTENTIAL_SAVED_REGISTERS 0x20
-#define J9SW_REGISTER_MAP_MASK 0xFFFFFFFF
+#define J9SW_REGISTER_MAP_MASK 0xFFFF0000
 #define J9SW_JIT_FIRST_RESOLVE_PARM_REGISTER 0x0
 #undef  J9SW_JIT_LOOKUP_INTERFACE_RESOLVE_OFFSET_TO_SAVED_RECEIVER
 #undef  J9SW_JIT_VIRTUAL_METHOD_RESOLVE_OFFSET_TO_SAVED_RECEIVER
-#define J9SW_LOWEST_MEMORY_PRESERVED_REGISTER jit_r18
-#define J9SW_JIT_CALLEE_PRESERVED_SIZE 11
+#define J9SW_LOWEST_MEMORY_PRESERVED_REGISTER jit_r21
+#define J9SW_JIT_CALLEE_PRESERVED_SIZE 8
 
 #else
 #error Unsupported platform

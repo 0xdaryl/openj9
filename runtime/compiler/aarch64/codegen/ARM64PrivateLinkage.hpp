@@ -76,6 +76,10 @@ class ARM64PrivateLinkage : public TR::Linkage
     */
    virtual void initARM64RealRegisterLinkage();
 
+   int32_t calculatePreservedRegisterSaveSize(
+      uint32_t &registerSaveDescription,
+      uint32_t &numGPRsSaved);
+
    /**
     * @brief Creates method prologue
     * @param[in] cursor : instruction cursor
