@@ -22,6 +22,8 @@
 
 #include "codegen/ARM64Instruction.hpp"
 #include "codegen/ARM64PrivateLinkage.hpp"
+#include "codegen/CallSnippet.hpp"
+#include "codegen/CodeGeneratorUtils.hpp"
 #include "codegen/CodeGenerator.hpp"
 #include "codegen/GCStackAtlas.hpp"
 #include "codegen/GenerateInstructions.hpp"
@@ -33,6 +35,9 @@
 #include "codegen/StackCheckFailureSnippet.hpp"
 #include "compile/Compilation.hpp"
 #include "env/CompilerEnv.hpp"
+#include "env/StackMemoryRegion.hpp"
+#include "il/Node_inlines.hpp"
+#include "il/SymbolReference.hpp"
 #include "infra/Assert.hpp"
 
 
@@ -61,8 +66,8 @@ TR::ARM64PrivateLinkage::ARM64PrivateLinkage(TR::CodeGenerator *cg)
 
    _properties._registerFlags[TR::RealRegister::x18]   = Preserved;
 
-   _properties._registerFlags[TR::RealRegister::x19]   = ARM64_Reserved; // vmThread
-   _properties._registerFlags[TR::RealRegister::x20]   = ARM64_Reserved; // Java SP
+   _properties._registerFlags[TR::RealRegister::x19]   = Preserved|ARM64_Reserved; // vmThread
+   _properties._registerFlags[TR::RealRegister::x20]   = Preserved|ARM64_Reserved; // Java SP
 
    for (i = TR::RealRegister::x21; i <= TR::RealRegister::x28; i++)
       _properties._registerFlags[i] = Preserved; // x18 - x28 Preserved
@@ -553,18 +558,435 @@ void TR::ARM64PrivateLinkage::createEpilogue(TR::Instruction *cursor)
 int32_t TR::ARM64PrivateLinkage::buildArgs(TR::Node *callNode,
    TR::RegisterDependencyConditions *dependencies)
    {
-   TR_UNIMPLEMENTED();
-   return 0;
+   return buildPrivateLinkageArgs(callNode, dependencies, TR_Private);
+   }
+
+int32_t TR::ARM64PrivateLinkage::buildPrivateLinkageArgs(TR::Node *callNode,
+   TR::RegisterDependencyConditions *dependencies,
+   TR_LinkageConventions linkage)
+   {
+   TR_ASSERT(linkage == TR_Private || linkage == TR_Helper || linkage == TR_CHelper, "Unexpected linkage convention");
+   TR_ASSERT_FATAL(linkage == TR_Private, "Helper and CHelper linkages are not implemented yet");
+
+   const TR::ARM64LinkageProperties& properties = getProperties();
+   TR::ARM64MemoryArgument *pushToMemory = NULL;
+   TR::Register *argMemReg;
+   TR::Register *tempReg;
+   int32_t argIndex = 0;
+   int32_t numMemArgs = 0;
+   int32_t from, to, step;
+   int32_t totalSize = 0;
+
+   uint32_t numIntegerArgs = 0;
+   uint32_t numFloatArgs = 0;
+
+   TR::Node *child;
+   TR::DataType childType;
+   TR::DataType resType = callNode->getType();
+
+   uint32_t firstArgumentChild = callNode->getFirstArgumentIndex();
+
+   TR::MethodSymbol *callSymbol = callNode->getSymbol()->castToMethodSymbol();
+
+   bool isHelperCall = linkage == TR_Helper || linkage == TR_CHelper;
+   bool rightToLeft = isHelperCall &&
+                      //we want the arguments for induceOSR to be passed from left to right as in any other non-helper call
+                      !callNode->getSymbolReference()->isOSRInductionHelper();
+
+   if (rightToLeft)
+      {
+      from = callNode->getNumChildren() - 1;
+      to   = firstArgumentChild;
+      step = -1;
+      }
+   else
+      {
+      from = firstArgumentChild;
+      to   = callNode->getNumChildren() - 1;
+      step = 1;
+      }
+
+   uint32_t numIntArgRegs = properties.getNumIntArgRegs();
+   uint32_t numFloatArgRegs = properties.getNumFloatArgRegs();
+
+   TR::RealRegister::RegNum specialArgReg = TR::RealRegister::NoReg;
+   switch (callSymbol->getMandatoryRecognizedMethod())
+      {
+      // Node: special long args are still only passed in one GPR
+      case TR::java_lang_invoke_ComputedCalls_dispatchJ9Method:
+         specialArgReg = getProperties().getJ9MethodArgumentRegister();
+         // Other args go in memory
+         numIntArgRegs   = 0;
+         numFloatArgRegs = 0;
+         break;
+      case TR::java_lang_invoke_ComputedCalls_dispatchVirtual:
+         specialArgReg = getProperties().getVTableIndexArgumentRegister();
+         break;
+      case TR::java_lang_invoke_MethodHandle_invokeWithArgumentsHelper:
+         numIntArgRegs   = 0;
+         numFloatArgRegs = 0;
+         break;
+      }
+   if (specialArgReg != TR::RealRegister::NoReg)
+      {
+      TR_UNIMPLEMENTED();
+      }
+
+   for (int32_t i = from; (rightToLeft && i >= to) || (!rightToLeft && i <= to); i += step)
+      {
+      child = callNode->getChild(i);
+      childType = child->getDataType();
+
+      switch (childType)
+         {
+         case TR::Int8:
+         case TR::Int16:
+         case TR::Int32:
+         case TR::Address:
+            if (numIntegerArgs >= numIntArgRegs)
+               numMemArgs++;
+            numIntegerArgs++;
+            totalSize += TR::Compiler->om.sizeofReferenceAddress();
+            break;
+         case TR::Int64:
+            if (numIntegerArgs >= numIntArgRegs)
+               numMemArgs++;
+            numIntegerArgs++;
+            totalSize += 2*TR::Compiler->om.sizeofReferenceAddress();
+            break;
+         case TR::Float:
+            if (numFloatArgs >= numFloatArgRegs)
+               numMemArgs++;
+            numFloatArgs++;
+            totalSize += TR::Compiler->om.sizeofReferenceAddress();
+            break;
+         case TR::Double:
+            if (numFloatArgs >= numFloatArgRegs)
+               numMemArgs++;
+            numFloatArgs++;
+            totalSize += 2*TR::Compiler->om.sizeofReferenceAddress();
+            break;
+         default:
+            TR_ASSERT(false, "Argument type %s is not supported\n", childType.toString());
+         }
+      }
+
+   // From here, down, any new stack allocations will expire / die when the function returns
+   TR::StackMemoryRegion stackMemoryRegion(*trMemory());
+
+   if (numMemArgs > 0)
+      {
+      pushToMemory = new (trStackMemory()) TR::ARM64MemoryArgument[numMemArgs];
+
+      argMemReg = cg()->allocateRegister();
+      }
+
+   numIntegerArgs = 0;
+   numFloatArgs = 0;
+
+   // Helper linkage preserves all argument registers except the return register
+   // TODO: C helper linkage does not, this code needs to make sure argument registers are killed in post dependencies
+   for (int32_t i = from; (rightToLeft && i >= to) || (!rightToLeft && i <= to); i += step)
+      {
+      TR::MemoryReference *mref = NULL;
+      TR::Register *argRegister;
+      TR::InstOpCode::Mnemonic op;
+
+      child = callNode->getChild(i);
+      childType = child->getDataType();
+
+      switch (childType)
+         {
+         case TR::Int8:
+         case TR::Int16:
+         case TR::Int32:
+         case TR::Address: // have to do something for GC maps here
+            if (child->getDataType() == TR::Address)
+               {
+               argRegister = pushAddressArg(child);
+               }
+            else
+               {
+               argRegister = pushIntegerWordArg(child);
+               }
+            if (numIntegerArgs < numIntArgRegs)
+               {
+               if (!cg()->canClobberNodesRegister(child, 0))
+                  {
+                  if (argRegister->containsCollectedReference())
+                     tempReg = cg()->allocateCollectedReferenceRegister();
+                  else
+                     tempReg = cg()->allocateRegister();
+                  generateMovInstruction(cg(), callNode, tempReg, argRegister);
+                  argRegister = tempReg;
+                  }
+               TR::addDependency(dependencies, argRegister, properties.getIntegerArgumentRegister(numIntegerArgs), TR_GPR, cg());
+               }
+            else // numIntegerArgs >= numIntArgRegs
+               {
+               if (childType == TR::Address)
+                  {
+                  op = TR::InstOpCode::strpostx;
+                  }
+               else
+                  {
+                  op = TR::InstOpCode::strpostw;
+                  }
+               mref = getOutgoingArgumentMemRef(argMemReg, argRegister, op, pushToMemory[argIndex++]);
+               }
+            numIntegerArgs++;
+            break;
+         case TR::Int64:
+            argRegister = pushLongArg(child);
+            if (numIntegerArgs < numIntArgRegs)
+               {
+               if (!cg()->canClobberNodesRegister(child, 0))
+                  {
+                  if (argRegister->containsCollectedReference())
+                     tempReg = cg()->allocateCollectedReferenceRegister();
+                  else
+                     tempReg = cg()->allocateRegister();
+                  generateMovInstruction(cg(), callNode, tempReg, argRegister);
+                  argRegister = tempReg;
+                  }
+               TR::addDependency(dependencies, argRegister, properties.getIntegerArgumentRegister(numIntegerArgs), TR_GPR, cg());
+               }
+            else // numIntegerArgs >= numIntArgRegs
+               {
+               mref = getOutgoingArgumentMemRef(argMemReg, argRegister, TR::InstOpCode::strpostx, pushToMemory[argIndex++]);
+               }
+            numIntegerArgs++;
+            break;
+         case TR::Float:
+            argRegister = pushFloatArg(child);
+            if (numFloatArgs < numFloatArgRegs)
+               {
+               if (!cg()->canClobberNodesRegister(child, 0))
+                  {
+                  tempReg = cg()->allocateRegister(TR_FPR);
+                  generateTrg1Src1Instruction(cg(), TR::InstOpCode::fmovs, callNode, tempReg, argRegister);
+                  argRegister = tempReg;
+                  }
+               if (numFloatArgs == 0 && resType.isFloatingPoint())
+                  {
+                  TR::Register *resultReg;
+                  if (resType.getDataType() == TR::Float)
+                     resultReg = cg()->allocateSinglePrecisionRegister();
+                  else
+                     resultReg = cg()->allocateRegister(TR_FPR);
+                  dependencies->addPreCondition(argRegister, TR::RealRegister::v0);
+                  dependencies->addPostCondition(resultReg, TR::RealRegister::v0);
+                  }
+               else
+                  TR::addDependency(dependencies, argRegister, properties.getFloatArgumentRegister(numFloatArgs), TR_FPR, cg());
+               }
+            else // numFloatArgs >= numFloatArgRegs
+               {
+               mref = getOutgoingArgumentMemRef(argMemReg, argRegister, TR::InstOpCode::vstrposts, pushToMemory[argIndex++]);
+               }
+            numFloatArgs++;
+            break;
+         case TR::Double:
+            argRegister = pushDoubleArg(child);
+            if (numFloatArgs < numFloatArgRegs)
+               {
+               if (!cg()->canClobberNodesRegister(child, 0))
+                  {
+                  tempReg = cg()->allocateRegister(TR_FPR);
+                  generateTrg1Src1Instruction(cg(), TR::InstOpCode::fmovd, callNode, tempReg, argRegister);
+                  argRegister = tempReg;
+                  }
+               if (numFloatArgs == 0 && resType.isFloatingPoint())
+                  {
+                  TR::Register *resultReg;
+                  if (resType.getDataType() == TR::Float)
+                     resultReg = cg()->allocateSinglePrecisionRegister();
+                  else
+                     resultReg = cg()->allocateRegister(TR_FPR);
+                  dependencies->addPreCondition(argRegister, TR::RealRegister::v0);
+                  dependencies->addPostCondition(resultReg, TR::RealRegister::v0);
+                  }
+               else
+                  TR::addDependency(dependencies, argRegister, properties.getFloatArgumentRegister(numFloatArgs), TR_FPR, cg());
+               }
+            else // numFloatArgs >= numFloatArgRegs
+               {
+               mref = getOutgoingArgumentMemRef(argMemReg, argRegister, TR::InstOpCode::vstrpostd, pushToMemory[argIndex++]);
+               }
+            numFloatArgs++;
+            break;
+         }
+      }
+
+   for (int32_t i = TR::RealRegister::FirstGPR; i <= TR::RealRegister::LastGPR; ++i)
+      {
+      TR::RealRegister::RegNum realReg = (TR::RealRegister::RegNum)i;
+      if (properties.getPreserved(realReg))
+         continue;
+      if (realReg == specialArgReg)
+         continue; // already added deps above.  No need to add them here.
+      if (!dependencies->searchPreConditionRegister(realReg))
+         {
+         if (realReg == properties.getIntegerArgumentRegister(0) && callNode->getDataType() == TR::Address)
+            {
+            dependencies->addPreCondition(cg()->allocateRegister(), TR::RealRegister::x0);
+            dependencies->addPostCondition(cg()->allocateCollectedReferenceRegister(), TR::RealRegister::x0);
+            }
+         else
+            {
+            // Helper linkage preserves all registers that are not argument registers, so we don't need to spill them.
+            if (linkage != TR_Helper)
+               TR::addDependency(dependencies, NULL, realReg, TR_GPR, cg());
+            }
+         }
+      }
+
+   if (callNode->getType().isFloatingPoint())
+      {
+      //add return floating-point register dependency
+      TR::addDependency(dependencies, NULL, (TR::RealRegister::RegNum)getProperties().getFloatReturnRegister(), TR_FPR, cg());
+      }
+
+   if (numMemArgs > 0)
+      {
+      TR::RealRegister *sp = cg()->machine()->getRealRegister(properties.getStackPointerRegister());
+      generateTrg1Src1ImmInstruction(cg(), TR::InstOpCode::subimmx, callNode, argMemReg, sp, totalSize);
+
+      for (argIndex = 0; argIndex < numMemArgs; argIndex++)
+         {
+         TR::Register *aReg = pushToMemory[argIndex].argRegister;
+         generateMemSrc1Instruction(cg(), pushToMemory[argIndex].opCode, callNode, pushToMemory[argIndex].argMemory, aReg);
+         cg()->stopUsingRegister(aReg);
+         }
+
+      cg()->stopUsingRegister(argMemReg);
+      }
+
+   return totalSize;
+   }
+
+void TR::ARM64PrivateLinkage::buildDirectCall(TR::Node *callNode,
+   TR::SymbolReference *callSymRef,
+   TR::RegisterDependencyConditions *dependencies,
+   const TR::ARM64LinkageProperties &pp,
+   uint32_t argSize)
+   {
+   TR::Instruction *gcPoint;
+   TR::MethodSymbol *callSymbol = callSymRef->getSymbol()->castToMethodSymbol();
+
+      TR::LabelSymbol *label = generateLabelSymbol(cg());
+      TR::Snippet *snippet;
+
+      if (callSymRef->isUnresolved())
+         {
+         snippet = new (trHeapMemory()) TR::ARM64UnresolvedCallSnippet(cg(), callNode, label, argSize);
+         }
+      else
+         {
+         snippet = new (trHeapMemory()) TR::ARM64CallSnippet(cg(), callNode, label, argSize);
+         snippet->gcMap().setGCRegisterMask(pp.getPreservedRegisterMapForGC());
+         }
+
+      cg()->addSnippet(snippet);
+      gcPoint = generateImmSymInstruction(cg(), TR::InstOpCode::bl, callNode,
+         0,
+         dependencies,
+         new (trHeapMemory()) TR::SymbolReference(comp()->getSymRefTab(), label),
+         snippet);
+
+   gcPoint->ARM64NeedsGCMap(cg(), callSymbol->getLinkageConvention() == TR_Helper ? 0xffffffff : pp.getPreservedRegisterMapForGC());
    }
 
 TR::Register *TR::ARM64PrivateLinkage::buildDirectDispatch(TR::Node *callNode)
    {
+   TR::SymbolReference *callSymRef = callNode->getSymbolReference();
+   const TR::ARM64LinkageProperties &pp = getProperties();
+   TR::RegisterDependencyConditions *dependencies =
+      new (trHeapMemory()) TR::RegisterDependencyConditions(
+         pp.getNumberOfDependencyGPRegisters(),
+         pp.getNumberOfDependencyGPRegisters(), trMemory());
+
+   int32_t argSize = buildArgs(callNode, dependencies);
+
+   buildDirectCall(callNode, callSymRef, dependencies, pp, argSize);
+   cg()->machine()->setLinkRegisterKilled(true);
+
+   TR::Register *retReg;
+   switch(callNode->getOpCodeValue())
+      {
+      case TR::icall:
+         retReg = dependencies->searchPostConditionRegister(
+                     pp.getIntegerReturnRegister());
+         break;
+      case TR::lcall:
+      case TR::acall:
+         retReg = dependencies->searchPostConditionRegister(
+                     pp.getLongReturnRegister());
+         break;
+      case TR::fcall:
+      case TR::dcall:
+         retReg = dependencies->searchPostConditionRegister(
+                     pp.getFloatReturnRegister());
+         break;
+      case TR::call:
+         retReg = NULL;
+         break;
+      default:
+         retReg = NULL;
+         TR_ASSERT(false, "Unsupported direct call Opcode.");
+      }
+
+   callNode->setRegister(retReg);
+   return retReg;
+   }
+
+void TR::ARM64PrivateLinkage::buildVirtualDispatch(TR::Node *callNode,
+   TR::RegisterDependencyConditions *dependencies,
+   uint32_t argSize)
+   {
    TR_UNIMPLEMENTED();
-   return NULL;
    }
 
 TR::Register *TR::ARM64PrivateLinkage::buildIndirectDispatch(TR::Node *callNode)
    {
-   TR_UNIMPLEMENTED();
-   return NULL;
+   const TR::ARM64LinkageProperties &pp = getProperties();
+   TR::RealRegister *sp = cg()->machine()->getRealRegister(pp.getStackPointerRegister());
+
+   TR::RegisterDependencyConditions *dependencies =
+      new (trHeapMemory()) TR::RegisterDependencyConditions(
+         pp.getNumberOfDependencyGPRegisters(),
+         pp.getNumberOfDependencyGPRegisters(), trMemory());
+
+   int32_t argSize = buildArgs(callNode, dependencies);
+
+   buildVirtualDispatch(callNode, dependencies, argSize);
+   cg()->machine()->setLinkRegisterKilled(true);
+
+   TR::Register *retReg;
+   switch(callNode->getOpCodeValue())
+      {
+      case TR::icalli:
+         retReg = dependencies->searchPostConditionRegister(
+                     pp.getIntegerReturnRegister());
+         break;
+      case TR::lcalli:
+      case TR::acalli:
+         retReg = dependencies->searchPostConditionRegister(
+                     pp.getLongReturnRegister());
+         break;
+      case TR::fcalli:
+      case TR::dcalli:
+         retReg = dependencies->searchPostConditionRegister(
+                     pp.getFloatReturnRegister());
+         break;
+      case TR::calli:
+         retReg = NULL;
+         break;
+      default:
+         retReg = NULL;
+         TR_ASSERT(false, "Unsupported indirect call Opcode.");
+      }
+
+   callNode->setRegister(retReg);
+   return retReg;
    }

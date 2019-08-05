@@ -39,6 +39,17 @@ class ARM64PrivateLinkage : public TR::Linkage
 
    TR::ARM64LinkageProperties _properties;
 
+   /**
+    * @brief Builds method arguments
+    * @param[in] node : caller node
+    * @param[in] dependencies : register dependency conditions
+    * @param[in] linkage : linkage type
+    */
+   int32_t buildPrivateLinkageArgs(
+         TR::Node *callNode,
+         TR::RegisterDependencyConditions *dependencies,
+         TR_LinkageConventions linkage);
+
    public:
 
    /**
@@ -111,6 +122,32 @@ class ARM64PrivateLinkage : public TR::Linkage
     * @param[in] node : caller node
     */
    virtual TR::Register *buildIndirectDispatch(TR::Node *callNode);
+
+   /**
+    * @brief Builds direct call to method
+    * @param[in] node : caller node
+    * @param[in] callSymRef : target symbol reference
+    * @param[in] dependencies : register dependency conditions
+    * @param[in] pp : linkage properties
+    * @param[in] argSize : size of arguments
+    */
+   void buildDirectCall(
+      TR::Node *callNode,
+      TR::SymbolReference *callSymRef,
+      TR::RegisterDependencyConditions *dependencies,
+      const TR::ARM64LinkageProperties &pp,
+      uint32_t argSize);
+
+   /**
+    * @brief Builds virtual dispatch to method
+    * @param[in] node : caller node
+    * @param[in] dependencies : register dependency conditions
+    * @param[in] argSize : size of arguments
+    */
+   virtual void buildVirtualDispatch(
+      TR::Node *callNode,
+      TR::RegisterDependencyConditions *dependencies,
+      uint32_t argSize);
    };
 
 class ARM64HelperLinkage : public TR::ARM64PrivateLinkage
