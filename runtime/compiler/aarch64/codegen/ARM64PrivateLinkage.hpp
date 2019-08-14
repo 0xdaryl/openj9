@@ -96,6 +96,21 @@ class ARM64PrivateLinkage : public TR::Linkage
     * @param[in] cursor : instruction cursor
     */
    virtual void createPrologue(TR::Instruction *cursor);
+
+   /**
+    * @brief Creates an additional prologue prior to the formal prologue
+    *        required by this linkage.  This is useful, for example, for
+    *        providing an alternate entry point into the method that might
+    *        have different linkage.  This preprologue will fall through to
+    *        the formal prologue.
+    *
+    * @param[in] cursor : the TR::Instruction to begin generating
+    *        this prologue at.
+    *
+    * @return : the instruction cursor after preprologue creation
+    */
+   virtual TR::Instruction *createPrePrologue(TR::Instruction *cursor);
+
    /**
     * @brief Creates method epilogue
     * @param[in] cursor : instruction cursor

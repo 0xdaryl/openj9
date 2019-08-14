@@ -340,6 +340,13 @@ TR::ARM64PrivateLinkage::calculatePreservedRegisterSaveSize(
    }
 
 
+TR::Instruction *
+TR::ARM64PrivateLinkage::createPrePrologue(TR::Instruction *cursor)
+   {
+   return cursor;
+   }
+
+
 void TR::ARM64PrivateLinkage::createPrologue(TR::Instruction *cursor)
    {
 
