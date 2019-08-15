@@ -112,6 +112,17 @@ class ARM64PrivateLinkage : public TR::Linkage
    virtual TR::Instruction *createPrePrologue(TR::Instruction *cursor);
 
    /**
+    * @brief Loads all parameters passed on the stack from the interpreter into
+    *        the corresponding JITed method private linkage register.
+    *
+    * @param[in] cursor : the TR::Instruction to begin generating
+    *        the load sequence at.
+    *
+    * @return : the instruction cursor after the load sequence
+    */
+   TR::Instruction *loadStackParametersToLinkageRegisters(TR::Instruction *cursor);
+
+   /**
     * @brief Creates method epilogue
     * @param[in] cursor : instruction cursor
     */

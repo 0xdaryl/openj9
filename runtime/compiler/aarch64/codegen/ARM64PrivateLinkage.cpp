@@ -341,9 +341,52 @@ TR::ARM64PrivateLinkage::calculatePreservedRegisterSaveSize(
 
 
 TR::Instruction *
+TR::ARM64PrivateLinkage::loadStackParametersToLinkageRegisters(TR::Instruction *cursor)
+   {
+   TR::Machine *machine = cg()->machine();
+   TR::ARM64LinkageProperties& properties = getProperties();
+   TR::RealRegister *javaSP = machine->getRealRegister(properties.getStackPointerRegister());       // x20
+
+   TR::ResolvedMethodSymbol *bodySymbol = comp()->getJittedMethodSymbol();
+   ListIterator<TR::ParameterSymbol> parmIterator(&(bodySymbol->getParameterList()));
+   TR::ParameterSymbol *parmCursor;
+
+   // Copy from stack all parameters that belong in linkage regs
+   //
+   for (parmCursor = parmIterator.getFirst();
+        parmCursor != NULL;
+        parmCursor = parmIterator.getNext())
+      {
+      if (parmCursor->isParmPassedInRegister())
+         {
+         int8_t lri = parmCursor->getLinkageRegisterIndex();
+         TR::RealRegister *linkageReg;
+         TR::InstOpCode::Mnemonic op;
+
+         if (parmCursor->getDataType() == TR::Double || parmCursor->getDataType() == TR::Float)
+            {
+            linkageReg = machine->getRealRegister(properties.getFloatArgumentRegister(lri));
+            op = (parmCursor->getDataType() == TR::Double) ? TR::InstOpCode::vldrimmd : TR::InstOpCode::vldrimms;
+            }
+         else
+            {
+            linkageReg = machine->getRealRegister(properties.getIntegerArgumentRegister(lri));
+            op = TR::InstOpCode::ldrimmx;
+            }
+
+         TR::MemoryReference *stackMR = new (cg()->trHeapMemory()) TR::MemoryReference(javaSP, parmCursor->getParameterOffset(), cg());
+         cursor = generateTrg1MemInstruction(cg(), op, NULL, linkageReg, stackMR, cursor);
+         }
+      }
+
+   return cursor;
+   }
+
+
+TR::Instruction *
 TR::ARM64PrivateLinkage::createPrePrologue(TR::Instruction *cursor)
    {
-   return cursor;
+   return loadStackParametersToLinkageRegisters(cursor);
    }
 
 
