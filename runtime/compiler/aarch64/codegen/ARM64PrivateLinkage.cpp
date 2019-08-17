@@ -38,6 +38,7 @@
 #include "env/StackMemoryRegion.hpp"
 #include "il/Node_inlines.hpp"
 #include "il/SymbolReference.hpp"
+#include "il/symbol/ResolvedMethodSymbol.hpp"
 #include "infra/Assert.hpp"
 
 
@@ -311,6 +312,50 @@ void TR::ARM64PrivateLinkage::initARM64RealRegisterLinkage()
    // assign "maximum" weight to registers v0-v31
    for (icount = TR::RealRegister::v0; icount <= TR::RealRegister::v31; icount++)
       machine->getRealRegister((TR::RealRegister::RegNum)icount)->setWeight(0xf000);
+   }
+
+
+void
+TR::ARM64PrivateLinkage::setParameterLinkageRegisterIndex(TR::ResolvedMethodSymbol *method)
+   {
+   ListIterator<TR::ParameterSymbol> paramIterator(&(method->getParameterList()));
+   TR::ParameterSymbol *paramCursor = paramIterator.getFirst();
+   int32_t numIntArgs = 0, numFloatArgs = 0;
+   const TR::ARM64LinkageProperties& properties = getProperties();
+
+   while ( (paramCursor!=NULL) &&
+           ( (numIntArgs < properties.getNumIntArgRegs()) ||
+             (numFloatArgs < properties.getNumFloatArgRegs()) ) )
+      {
+      int32_t index = -1;
+
+      switch (paramCursor->getDataType())
+         {
+         case TR::Int8:
+         case TR::Int16:
+         case TR::Int32:
+         case TR::Int64:
+         case TR::Address:
+            if (numIntArgs < properties.getNumIntArgRegs())
+               {
+               index = numIntArgs;
+               }
+            numIntArgs++;
+            break;
+
+         case TR::Float:
+         case TR::Double:
+            if (numFloatArgs < properties.getNumFloatArgRegs())
+               {
+               index = numFloatArgs;
+               }
+            numFloatArgs++;
+            break;
+         }
+
+      paramCursor->setLinkageRegisterIndex(index);
+      paramCursor = paramIterator.getNext();
+      }
    }
 
 
