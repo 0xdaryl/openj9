@@ -73,7 +73,7 @@ class PrivateLinkage : public J9::X86::PrivateLinkage
  * class moves into the J9 namespace they can be easily removed in OMR and will
  * be subsequently deleted here.
  */
-namespace TR
+namespace J9
 {
 
 typedef J9::X86::I386::PrivateLinkage IA32PrivateLinkage;
