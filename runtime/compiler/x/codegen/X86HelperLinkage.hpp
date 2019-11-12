@@ -23,8 +23,10 @@
 #ifndef X86_HELPERLINKAGE_INCL
 #define X86_HELPERLINKAGE_INCL
 
+#include "codegen/CodeGenerator.hpp"
 #include "codegen/Linkage.hpp"
 #include "env/jittypes.h"
+#include "infra/Array.hpp"
 
 namespace TR { class CodeGenerator; }
 namespace TR { class Instruction; }
