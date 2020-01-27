@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 1991, 2019 IBM Corp. and others
+ * Copyright (c) 1991, 2020 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -150,9 +150,22 @@ public:
 	{
 		UDATA jitVTableIndex = interfaceVTableIndex;
 #if defined(J9VM_ARCH_X86)
-		if (0xE8 != ((U_8*)jitReturnAddress)[-5]) {
-			/* Virtual call - decode from instruction */
-			jitVTableIndex = (UDATA)(IDATA)(((I_32*)jitReturnAddress)[-1]);
+		if (0 != ((U_32*)jitReturnAddress)[-1]) {
+			/**
+			 * Patchable code cache.  Distinguish the dispatch through compiler vtable
+			 * case from the interface dispatch case.
+			 */
+			if (0xE8 != ((U_8*)jitReturnAddress)[-5]) {
+				/* Virtual call - decode from instruction */
+				jitVTableIndex = (UDATA)(IDATA)(((I_32*)jitReturnAddress)[-1]);
+			}
+		} else {
+			/**
+			 * Read only code cache.  When dispatching through the compiler vtable
+			 * the form of the instruction is CALL [Rclass + Rindex*1 + 0x00000000].
+			 * The disp32 of 0 distinguishes the patchable and read-only cases, and
+			 * the vtable index (Rindex) can be found in r8.
+			 */
 		}
 #elif defined(J9VM_ARCH_POWER)
 		if (0x7D8903A6 == ((U_32*)jitReturnAddress)[-2]) {

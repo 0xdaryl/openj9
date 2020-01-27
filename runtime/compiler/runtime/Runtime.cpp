@@ -309,6 +309,7 @@ JIT_HELPER(arrayTranslateTROT);
 JIT_HELPER(SSEdoubleRemainder);
 JIT_HELPER(SSEfloatRemainder);
 
+JIT_HELPER(resolveVirtualDispatchReadOnly);
 
 JIT_HELPER(icallVMprJavaSendVirtual0);
 JIT_HELPER(icallVMprJavaSendVirtual1);
@@ -1140,6 +1141,7 @@ void initializeCodeRuntimeHelperTable(J9JITConfig *jitConfig, char isSMP)
    SET(TR_X86dispatchInterpretedFromVPicSlot,         (void *)dispatchInterpretedFromVPicSlot, TR_Helper);
    SET(TR_X86populateVPicVTableDispatch,              (void *)populateVPicVTableDispatch,      TR_Helper);
 
+
    SET(TR_X86interpreterUnresolvedStaticGlue,         (void *)interpreterUnresolvedStaticGlue,  TR_Helper);
    SET(TR_X86interpreterUnresolvedSpecialGlue,        (void *)interpreterUnresolvedSpecialGlue,  TR_Helper);
 
@@ -1167,6 +1169,8 @@ void initializeCodeRuntimeHelperTable(J9JITConfig *jitConfig, char isSMP)
 
    SET(TR_AMD64floatRemainder,                        (void *)SSEfloatRemainder,  TR_Helper);
    SET(TR_AMD64doubleRemainder,                       (void *)SSEdoubleRemainder, TR_Helper);
+
+   SET(TR_AMD64resolveVirtualDispatchReadOnly,        (void *)resolveVirtualDispatchReadOnly, TR_Helper);
 
    SET(TR_AMD64icallVMprJavaSendVirtual0,             (void *)icallVMprJavaSendVirtual0, TR_Helper);
    SET(TR_AMD64icallVMprJavaSendVirtual1,             (void *)icallVMprJavaSendVirtual1, TR_Helper);

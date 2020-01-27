@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2019 IBM Corp. and others
+ * Copyright (c) 2000, 2020 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -26,6 +26,7 @@
 #include "codegen/AMD64JNILinkage.hpp"
 
 #include <stdint.h>
+#include "codegen/AMD64CallSnippet.hpp"
 #include "codegen/CodeGenerator.hpp"
 #include "codegen/Linkage_inlines.hpp"
 #include "codegen/Machine.hpp"
@@ -1359,6 +1360,93 @@ void J9::X86::AMD64::PrivateLinkage::buildIPIC(TR::X86CallSite &site, TR::LabelS
    cg()->reserveNTrampolines(numIPICs);
    }
 
+
+void
+J9::X86::AMD64::PrivateLinkage::buildNoPatchingVirtualDispatchWithResolve(
+      TR::X86CallSite &site,
+      TR::Register *vftRegister,
+      TR::LabelSymbol *entryLabel,
+      TR::LabelSymbol *doneLabel)
+   {
+   if (entryLabel)
+      generateLabelInstruction(LABEL, site.getCallNode(), entryLabel, cg());
+
+   struct ccResolveVirtualData
+      {
+      intptr_t cpAddress;
+      intptr_t cpIndex;
+      intptr_t directMethod;
+      intptr_t j2iThunk;
+      int32_t vtableOffset;
+      };
+
+   ccResolveVirtualData *ccResolveVirtualDataAddress =
+      reinterpret_cast<ccResolveVirtualData *>(cg()->allocateCodeMemory(sizeof(ccResolveVirtualData), false));
+
+   if (!ccResolveVirtualDataAddress)
+      {
+      comp()->failCompilation<TR::CompilationException>("Could not allocate resolve virtual dispatch metadata");
+      }
+
+   ccResolveVirtualDataAddress->cpAddress = reinterpret_cast<intptr_t>(site.getSymbolReference()->getOwningMethod(comp())->constantPool());
+   ccResolveVirtualDataAddress->cpIndex = static_cast<intptr_t>(site.getSymbolReference()->getCPIndexForVM());
+   ccResolveVirtualDataAddress->directMethod = 0;
+   ccResolveVirtualDataAddress->j2iThunk = reinterpret_cast<intptr_t>(site.getThunkAddress());
+   ccResolveVirtualDataAddress->vtableOffset = 0;
+
+   intptr_t resolveVirtualDataAddress = reinterpret_cast<intptr_t>(ccResolveVirtualDataAddress);
+
+   TR::StaticSymbol *resolveVirtualDataSymbol =
+      TR::StaticSymbol::createWithAddress(comp()->trHeapMemory(), TR::Int32, reinterpret_cast<void *>(resolveVirtualDataAddress + offsetof(ccResolveVirtualData, vtableOffset)));
+   TR::SymbolReference *resolveVirtualDataSymRef = new (comp()->trHeapMemory()) TR::SymbolReference(comp()->getSymRefTab(), resolveVirtualDataSymbol, 0);
+
+   // loadResolvedVtableOffset:
+   //    movsx RvtableOffset, dword [RIP + resolvedVtableOffset]
+   //
+   TR::LabelSymbol *loadResolvedVtableOffsetLabel = generateLabelSymbol(cg());
+   generateLabelInstruction(LABEL, site.getCallNode(), loadResolvedVtableOffsetLabel, cg());
+
+   TR::Register *vtableOffsetReg = cg()->allocateRegister();
+   generateRegMemInstruction(MOVSXReg8Mem4, site.getCallNode(),
+                             vtableOffsetReg,
+                             new (comp()->trHeapMemory()) TR::MemoryReference(resolveVirtualDataSymRef, cg(), true),
+                             cg());
+
+   // The following test will only succeed once.  Once resolved, the vtable offset
+   // will be known, the test will fail, and the dispatch will be done through the vtable.
+   //
+   //    test RvtableOffset, RvtableOffset
+   //    jz resolveVirtualDispatchReadOnlyDataSnippet
+   //
+   TR::LabelSymbol *resolveVirtualDispatchReadOnlyDataSnippetLabel = generateLabelSymbol(cg());
+
+   TR::X86ResolveVirtualDispatchReadOnlyDataSnippet *snippet = new (trHeapMemory()) TR::X86ResolveVirtualDispatchReadOnlyDataSnippet(
+      resolveVirtualDispatchReadOnlyDataSnippetLabel,
+      site.getCallNode(),
+      resolveVirtualDataAddress,
+      loadResolvedVtableOffsetLabel,
+      doneLabel,
+      cg());
+
+   snippet->gcMap().setGCRegisterMask(site.getPreservedRegisterMask());
+   cg()->addSnippet(snippet);
+
+   generateRegRegInstruction(TEST8RegReg, site.getCallNode(), vtableOffsetReg, vtableOffsetReg, cg());
+   generateLabelInstruction(JE4, site.getCallNode(), resolveVirtualDispatchReadOnlyDataSnippetLabel, cg());
+
+   //    call [Rclass + RvtableOffset + 0x00000000]
+   //
+   TR::MemoryReference *dispatchMR = generateX86MemoryReference(vftRegister, vtableOffsetReg, 0, 0, cg());
+   dispatchMR->setForceWideDisplacement();
+   TR::Instruction *callInstr = generateMemInstruction(CALLMem, site.getCallNode(), dispatchMR, cg());
+   callInstr->setNeedsGCMap(site.getPreservedRegisterMask());
+
+   site.getPostConditionsUnderConstruction()->addPostCondition(vtableOffsetReg, TR::RealRegister::r8, cg());
+
+   generateLabelInstruction(LABEL, site.getCallNode(), doneLabel, cg());
+   }
+
+
 void J9::X86::AMD64::PrivateLinkage::buildVirtualOrComputedCall(TR::X86CallSite &site, TR::LabelSymbol *entryLabel, TR::LabelSymbol *doneLabel, uint8_t *thunk)
    {
    TR_J9VMBase *fej9 = (TR_J9VMBase *)(comp()->fe());
@@ -1376,21 +1464,46 @@ void J9::X86::AMD64::PrivateLinkage::buildVirtualOrComputedCall(TR::X86CallSite 
       {
       buildVFTCall(site, CALLReg, site.evaluateVFT(), NULL);
       }
-   else if (evaluateVftEarly)
-      {
-      site.evaluateVFT(); // We must evaluate the VFT here to avoid a later evaluation that pollutes the VPic shape.
-      buildVPIC(site, entryLabel, doneLabel);
-      }
-   else if (site.resolvedVirtualShouldUseVFTCall())
+   else if (!evaluateVftEarly && site.resolvedVirtualShouldUseVFTCall())
       {
       // Call through VFT
       //
-      buildVFTCall(site, CALLMem, NULL, generateX86MemoryReference(site.evaluateVFT(), methodSymRef->getOffset(), cg()));
+      TR::MemoryReference *dispatchMR;
+      TR::Register *vftRegister = site.evaluateVFT();
+
+      if (comp()->getGenerateReadOnlyCode())
+         {
+         TR::Register *vtableOffsetReg = cg()->allocateRegister();
+         generateRegImmInstruction(MOV8RegImm4, site.getCallNode(), vtableOffsetReg, methodSymRef->getOffset(), cg());
+
+         // [ Rclass + RvtableOffset + 0x00000000 ]
+         //
+         dispatchMR = generateX86MemoryReference(vftRegister, vtableOffsetReg, 0, 0, cg());
+         dispatchMR->setForceWideDisplacement();
+
+         site.getPostConditionsUnderConstruction()->addPostCondition(vtableOffsetReg, TR::RealRegister::r8, cg());
+         }
+      else
+         {
+         // [ Rclass + disp32 ]
+         //
+         dispatchMR = generateX86MemoryReference(vftRegister, methodSymRef->getOffset(), cg());
+         }
+
+      buildVFTCall(site, CALLMem, NULL, dispatchMR);
       }
    else
       {
-      site.evaluateVFT(); // We must evaluate the VFT here to avoid a later evaluation that pollutes the VPic shape.
-      buildVPIC(site, entryLabel, doneLabel);
+      TR::Register *vftRegister = site.evaluateVFT(); // We must evaluate the VFT here to avoid a later evaluation that pollutes the VPic shape.
+
+      if (!comp()->getGenerateReadOnlyCode())
+         {
+         buildVPIC(site, entryLabel, doneLabel);
+         }
+      else
+         {
+         buildNoPatchingVirtualDispatchWithResolve(site, vftRegister, entryLabel, doneLabel);
+         }
       }
    }
 
