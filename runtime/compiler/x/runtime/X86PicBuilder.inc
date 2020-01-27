@@ -1,4 +1,4 @@
-; Copyright (c) 2000, 2019 IBM Corp. and others
+; Copyright (c) 2000, 2020 IBM Corp. and others
 ;
 ; This program and the accompanying materials are made available under
 ; the terms of the Eclipse Public License 2.0 which accompanies this
@@ -92,6 +92,14 @@ eq_IPicData_movabsRexAndOpcode equ 20h
 eq_IPicData_j2iThunk           equ 22h    ; only present if direct invoke is possible
 ; IPIC data size is either 22h or 2ah, due to the optional j2iThunk.
 ; It's omitted here since it would be unused anyway.
+
+
+eq_ResolveVirtual_cpAddr        equ 00h
+eq_ResolveVirtual_cpIndex       equ 08h
+eq_ResolveVirtual_directMethod  equ 10h
+eq_ResolveVirtual_j2iThunk      equ 18h
+eq_ResolveVirtual_vtableOffset  equ 20h
+
 
 %macro LoadHelperIndex 2 ; args: targetReg, helperIndexSym
         mov     %1, dword [rel + %2]

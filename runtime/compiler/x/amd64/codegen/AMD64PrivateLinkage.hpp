@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2019 IBM Corp. and others
+ * Copyright (c) 2000, 2020 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -81,6 +81,7 @@ class PrivateLinkage : public J9::X86::PrivateLinkage
          bool rightToLeftHelperLinkage,
          bool passArgsOnStack = false);
 
+   virtual void buildNoPatchingVirtualDispatchWithResolve(TR::X86CallSite &site, TR::Register *, TR::LabelSymbol *entryLabel, TR::LabelSymbol *doneLabel);
    virtual void buildVirtualOrComputedCall(TR::X86CallSite &site, TR::LabelSymbol *entryLabel, TR::LabelSymbol *doneLabel, uint8_t *thunk);
    virtual TR::Instruction *buildPICSlot(TR::X86PICSlot picSlot, TR::LabelSymbol *mismatchLabel, TR::LabelSymbol *doneLabel, TR::X86CallSite &site);
    virtual void buildIPIC(TR::X86CallSite &site, TR::LabelSymbol *entryLabel, TR::LabelSymbol *doneLabel, uint8_t *thunk);

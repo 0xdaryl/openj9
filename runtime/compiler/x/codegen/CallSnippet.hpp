@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2019 IBM Corp. and others
+ * Copyright (c) 2000, 2020 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -30,6 +30,7 @@ namespace TR { class CodeGenerator; }
 namespace TR { class Instruction; }
 namespace TR { class LabelSymbol; }
 namespace TR { class MethodSymbol; }
+namespace TR { class Node; }
 namespace TR { class SymbolReference; }
 
 namespace TR {
@@ -101,6 +102,44 @@ class X86PicDataSnippet : public TR::Snippet
    private:
    bool shouldEmitJ2IThunkPointer();
    };
+
+
+class X86ResolveVirtualDispatchSnippet : public TR::Snippet
+   {
+private:
+
+   TR::LabelSymbol *_loadResolvedVtableOffsetLabel;
+
+   TR::LabelSymbol *_doneLabel;
+
+   intptr_t _resolveVirtualDataAddress;
+
+   TR::Node *_callNode;
+
+public:
+
+   X86ResolveVirtualDispatchSnippet(
+      TR::LabelSymbol *resolveVirtualDispatchSnippetLabel,
+      TR::Node *callNode,
+      intptr_t resolveVirtualDataAddress,
+      TR::LabelSymbol *loadResolvedVtableOffsetLabel,
+      TR::LabelSymbol *doneLabel,
+      TR::CodeGenerator *cg) :
+         TR::Snippet(cg, NULL, resolveVirtualDispatchSnippetLabel, true),
+         _resolveVirtualDataAddress(resolveVirtualDataAddress),
+         _callNode(callNode),
+         _loadResolvedVtableOffsetLabel(loadResolvedVtableOffsetLabel),
+         _doneLabel(doneLabel)
+      {}
+
+   virtual Kind getKind() { return IsResolveVirtualDispatch; }
+
+   virtual uint8_t *emitSnippetBody();
+
+   virtual uint32_t getLength(int32_t estimatedSnippetStart);
+
+   };
+
 
 class X86CallSnippet : public TR::Snippet
    {

@@ -752,6 +752,73 @@ uint32_t TR::X86PicDataSnippet::getLength(int32_t estimatedSnippetStart)
    }
 
 
+uint32_t TR::X86ResolveVirtualDispatchSnippet::getLength(int32_t estimatedSnippetStart)
+   {
+   // call (5) + dd (4) + dd (4) + dd (4)
+   //
+   return 5 + 4 + 4 + 4;
+   }
+
+
+uint8_t *TR::X86ResolveVirtualDispatchSnippet::emitSnippetBody()
+   {
+   // doResolve:
+   //    call resolveVirtualDispatch
+
+   uint8_t *cursor = cg()->getBinaryBufferCursor();
+
+   getSnippetLabel()->setCodeLocation(cursor);
+
+   TR::SymbolReference *resolveVirtualDispatchSymRef = cg()->symRefTab()->findOrCreateRuntimeHelper(TR_AMD64resolveVirtualDispatch, false, false, false);
+
+   *cursor++ = 0xe8;  // CALL
+   *(int32_t *)cursor = cg()->branchDisplacementToHelperOrTrampoline(cursor+4, resolveVirtualDispatchSymRef);
+
+   cg()->addExternalRelocation(new (cg()->trHeapMemory())
+      TR::ExternalRelocation(cursor,
+                                 (uint8_t *)resolveVirtualDispatchSymRef,
+                                 TR_HelperAddress,
+                                 cg()), __FILE__, __LINE__, _callNode);
+   cursor += 4;
+
+   gcMap().registerStackMap(cursor, cg());
+
+
+   //   dd [RIP offset to vtableData]      ; 32-bit (position independent).  Relative to the start of the RA
+   //                                      ;    of the call to `resolveVirtualDispatch`
+   //
+   TR_ASSERT_FATAL(IS_32BIT_RIP(_resolveVirtualDataAddress, cursor), "resolve data is out of RIP-relative range");
+   *(int32_t*)cursor = (int32_t)(_resolveVirtualDataAddress - (intptr_t)cursor);
+   cursor += 4;
+
+   //   dd [RIP offset to vtable index load in mainline]  ; 32-bit (position independent).  Relative to the start of the RA
+   //                                                     ;    of the call to `resolveVirtualDispatch`
+   //
+   intptr_t loadResolvedVtableOffsetLabelAddress = reinterpret_cast<intptr_t>(_loadResolvedVtableOffsetLabel->getCodeLocation());
+   TR_ASSERT_FATAL(IS_32BIT_RIP(loadResolvedVtableOffsetLabelAddress, cursor-4), "load resolved vtable label is out of RIP-relative range");
+   *(int32_t*)cursor = (int32_t)(loadResolvedVtableOffsetLabelAddress - (intptr_t)cursor + 4);
+   cursor += 4;
+
+   //   dd [RIP offset to post vtable dispatch instruction]  ; 32-bit (position independent).  Relative to the start of the RA
+   //                                                        ;    of the call to `resolveVirtualDispatch`
+   //
+   intptr_t doneLabelAddress = reinterpret_cast<intptr_t>(_doneLabel->getCodeLocation());
+   TR_ASSERT_FATAL(IS_32BIT_RIP(doneLabelAddress, cursor-8), "done label is out of RIP-relative range");
+   *(int32_t*)cursor = (int32_t)(doneLabelAddress - (intptr_t)cursor + 8);
+   cursor += 4;
+
+   return cursor;
+   }
+
+
+void
+TR_Debug::print(TR::FILE *pOutFile, TR::X86ResolveVirtualDispatchSnippet *snippet)
+   {
+   if (pOutFile == NULL)
+      return;
+   }
+
+
 uint8_t *
 TR::X86CallSnippet::alignCursorForCodePatching(
       uint8_t *cursor,
