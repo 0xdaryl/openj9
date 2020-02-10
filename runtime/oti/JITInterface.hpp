@@ -152,13 +152,31 @@ public:
 #if defined(J9VM_ARCH_X86)
 		if (0 != ((U_32*)jitReturnAddress)[-1]) {
 			/**
-			 * Patchable code cache.  Distinguish the dispatch through compiler vtable
-			 * case from the interface dispatch case.
+			 * Patchable code cache for virtual dispatch or an interface dispatch.
+			 * For interface dispatches, distinguish the patchable code cache case
+			 * from the read only case.
 			 */
 			if (0xE8 != ((U_8*)jitReturnAddress)[-5]) {
-				/* Virtual call - decode from instruction */
-				jitVTableIndex = (UDATA)(IDATA)(((I_32*)jitReturnAddress)[-1]);
+				if (0x15 != ((U_8*)jitReturnAddress)[-5]) {
+					/**
+					 * Virtual call in patchable code cache  - decode the vtable
+					 * index from the disp32 on the call instruction.
+					 */
+					jitVTableIndex = (UDATA)(IDATA)(((I_32*)jitReturnAddress)[-1]);
+				} else {
+					/**
+					 * Interface dispatch in a read only code cache uses a RIP-relative
+					 * addressing mode.  The vtable index is in register r8.
+					 */
+				}
+			} else {
+				/**
+				 * E8 is a direct call encoding, which is used for interface
+				 * dispatches in a patchable code cache.  The vtable index is
+				 * in register r8.
+				 */
 			}
+
 		} else {
 			/**
 			 * Read only code cache.  When dispatching through the compiler vtable

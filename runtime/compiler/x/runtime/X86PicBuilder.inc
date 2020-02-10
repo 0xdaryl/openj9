@@ -101,6 +101,17 @@ eq_ResolveVirtual_j2iThunk      equ 18h
 eq_ResolveVirtual_vtableOffset  equ 20h
 
 
+eq_InterfaceDispatch_slot1Class  equ 00h
+eq_InterfaceDispatch_slot1Method equ 08h
+eq_InterfaceDispatch_slot2Class  equ 10h
+eq_InterfaceDispatch_slot2Method equ 18h
+eq_InterfaceDispatch_slowInterfaceDispatchMethod equ 20h
+eq_InterfaceDispatch_cpAddr      equ 28h
+eq_InterfaceDispatch_cpIndex     equ 30h
+eq_InterfaceDispatch_interfaceClass equ 38h
+eq_InterfaceDispatch_itableOffset equ 40h
+
+
 %macro LoadHelperIndex 2 ; args: targetReg, helperIndexSym
         mov     %1, dword [rel + %2]
 %endmacro

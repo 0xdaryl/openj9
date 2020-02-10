@@ -1250,6 +1250,12 @@ static TR_AtomicRegion amd64IPicAtomicRegions[] =
 
 void J9::X86::AMD64::PrivateLinkage::buildIPIC(TR::X86CallSite &site, TR::LabelSymbol *entryLabel, TR::LabelSymbol *doneLabel, uint8_t *thunk)
    {
+   if (comp()->getGenerateReadOnlyCode())
+      {
+      buildNoPatchingIPIC(site, entryLabel, doneLabel, thunk);
+      return;
+      }
+
    TR_J9VMBase *fej9 = (TR_J9VMBase *)(cg()->fe());
    int32_t numIPICs = 0;
 
@@ -1289,7 +1295,6 @@ void J9::X86::AMD64::PrivateLinkage::buildIPIC(TR::X86CallSite &site, TR::LabelS
          generateInstruction(BADIA32Op, site.getCallNode(), cg());
          }
       }
-
 
    if (numIPicSlots > 1)
       {
@@ -1358,6 +1363,120 @@ void J9::X86::AMD64::PrivateLinkage::buildIPIC(TR::X86CallSite &site, TR::LabelS
    numIPICs = IPicParameters.defaultNumberOfSlots;
 
    cg()->reserveNTrampolines(numIPICs);
+   }
+
+
+void J9::X86::AMD64::PrivateLinkage::buildNoPatchingIPIC(TR::X86CallSite &site, TR::LabelSymbol *entryLabel, TR::LabelSymbol *doneLabel, uint8_t *thunk)
+   {
+
+   TR_ASSERT(doneLabel, "a doneLabel is required for PIC dispatches");
+
+   if (entryLabel)
+      generateLabelInstruction(LABEL, site.getCallNode(), entryLabel, cg());
+
+   ccInterfaceData *ccInterfaceDataAddress =
+      reinterpret_cast<ccInterfaceData *>(cg()->allocateCodeMemory(sizeof(ccInterfaceData), false));
+
+   if (!ccInterfaceDataAddress)
+      {
+      comp()->failCompilation<TR::CompilationException>("Could not allocate interface dispatch metadata");
+      }
+
+   ccInterfaceDataAddress->slot1Class = static_cast<intptr_t>(-1);
+   TR::SymbolReference *dispatchIPicSlot1MethodReadOnlySymRef =
+      cg()->symRefTab()->findOrCreateRuntimeHelper(TR_AMD64dispatchIPicSlot1MethodReadOnly, false, false, false);
+   ccInterfaceDataAddress->slot1Method = reinterpret_cast<intptr_t>(dispatchIPicSlot1MethodReadOnlySymRef->getMethodAddress());
+
+   ccInterfaceDataAddress->slot2Class = static_cast<intptr_t>(-1);
+   TR::SymbolReference *dispatchIPicSlot2MethodReadOnlySymRef =
+      cg()->symRefTab()->findOrCreateRuntimeHelper(TR_AMD64dispatchIPicSlot2MethodReadOnly, false, false, false);
+   ccInterfaceDataAddress->slot2Method = reinterpret_cast<intptr_t>(dispatchIPicSlot2MethodReadOnlySymRef->getMethodAddress());
+
+   TR::SymbolReference *IPicResolveReadOnlySymRef =
+      cg()->symRefTab()->findOrCreateRuntimeHelper(TR_AMD64IPicResolveReadOnly, false, false, false);
+   ccInterfaceDataAddress->slowInterfaceDispatchMethod = reinterpret_cast<intptr_t>(IPicResolveReadOnlySymRef->getMethodAddress());
+
+   ccInterfaceDataAddress->cpAddress = reinterpret_cast<intptr_t>(site.getSymbolReference()->getOwningMethod(comp())->constantPool());
+   ccInterfaceDataAddress->cpIndex = static_cast<intptr_t>(site.getSymbolReference()->getCPIndexForVM());
+   ccInterfaceDataAddress->interfaceClassAddress = 0;
+   ccInterfaceDataAddress->itableIndex = 0;
+
+   intptr_t interfaceDataAddress = reinterpret_cast<intptr_t>(ccInterfaceDataAddress);
+
+   TR::StaticSymbol *interfaceDataSlot1ClassSymbol  =
+      TR::StaticSymbol::createWithAddress(comp()->trHeapMemory(), TR::Address, reinterpret_cast<void *>(interfaceDataAddress + offsetof(ccInterfaceData, slot1Class)));
+   TR::SymbolReference *interfaceDataSlot1ClassSymRef = new (comp()->trHeapMemory()) TR::SymbolReference(comp()->getSymRefTab(), interfaceDataSlot1ClassSymbol, 0);
+
+   TR::Register *vftRegister = site.evaluateVFT();
+
+   // startSlot1:
+   //    cmp Rclass, [RIP + slot1Class]
+   //    jne short startSlot2
+   //    call [RIP + slot1Method]
+   //    jmp short done
+   //
+   TR::LabelSymbol *startSlot1Label = generateLabelSymbol(cg());
+   generateLabelInstruction(LABEL, site.getCallNode(), startSlot1Label, cg());
+   generateRegMemInstruction(CMP8RegMem, site.getCallNode(),
+                             vftRegister,
+                             new (comp()->trHeapMemory()) TR::MemoryReference(interfaceDataSlot1ClassSymRef, cg(), true),
+                             cg());
+
+   TR::LabelSymbol *startSlot2Label = generateLabelSymbol(cg());
+   generateLabelInstruction(JNE4, site.getCallNode(), startSlot2Label, cg());
+
+   TR::StaticSymbol *interfaceDataSlot1MethodSymbol  =
+      TR::StaticSymbol::createWithAddress(comp()->trHeapMemory(), TR::Address, reinterpret_cast<void *>(interfaceDataAddress + offsetof(ccInterfaceData, slot1Method)));
+   TR::SymbolReference *interfaceDataSlot1MethodSymRef = new (comp()->trHeapMemory()) TR::SymbolReference(comp()->getSymRefTab(), interfaceDataSlot1MethodSymbol, 0);
+   TR::Instruction *slotCallInstruction = generateMemInstruction(CALLMem, site.getCallNode(),
+      new (comp()->trHeapMemory()) TR::MemoryReference(interfaceDataSlot1MethodSymRef, cg(), true),
+      cg());
+   slotCallInstruction->setNeedsGCMap(site.getPreservedRegisterMask());
+
+   generateLabelInstruction(JMP4, site.getCallNode(), doneLabel, cg());
+
+   // startSlot2:
+   //    cmp Rclass, [RIP + slot2Class]
+   //    jne short interfaceDispatchReadOnlySnippet
+   //    call [RIP + slot2Method]
+   // done:
+   //
+   generateLabelInstruction(LABEL, site.getCallNode(), startSlot2Label, cg());
+
+   TR::StaticSymbol *interfaceDataSlot2ClassSymbol  =
+      TR::StaticSymbol::createWithAddress(comp()->trHeapMemory(), TR::Address, reinterpret_cast<void *>(interfaceDataAddress + offsetof(ccInterfaceData, slot2Class)));
+   TR::SymbolReference *interfaceDataSlot2ClassSymRef = new (comp()->trHeapMemory()) TR::SymbolReference(comp()->getSymRefTab(), interfaceDataSlot2ClassSymbol, 0);
+   generateRegMemInstruction(CMP8RegMem, site.getCallNode(),
+                             vftRegister,
+                             new (comp()->trHeapMemory()) TR::MemoryReference(interfaceDataSlot2ClassSymRef, cg(), true),
+                             cg());
+
+   TR::LabelSymbol *interfaceDispatchReadOnlySnippetLabel = generateLabelSymbol(cg());
+
+   TR::X86InterfaceDispatchReadOnlySnippet *snippet = new (trHeapMemory()) TR::X86InterfaceDispatchReadOnlySnippet(
+      interfaceDispatchReadOnlySnippetLabel,
+      site.getCallNode(),
+      interfaceDataAddress,
+      startSlot1Label,
+      doneLabel,
+      cg());
+
+   snippet->gcMap().setGCRegisterMask(site.getPreservedRegisterMask());
+   cg()->addSnippet(snippet);
+
+   generateLabelInstruction(JNE4, site.getCallNode(), interfaceDispatchReadOnlySnippetLabel, cg());
+
+   TR::StaticSymbol *interfaceDataSlot2MethodSymbol  =
+      TR::StaticSymbol::createWithAddress(comp()->trHeapMemory(), TR::Address, reinterpret_cast<void *>(interfaceDataAddress + offsetof(ccInterfaceData, slot2Method)));
+   TR::SymbolReference *interfaceDataSlot2MethodSymRef = new (comp()->trHeapMemory()) TR::SymbolReference(comp()->getSymRefTab(), interfaceDataSlot2MethodSymbol, 0);
+
+   slotCallInstruction = generateMemInstruction(CALLMem, site.getCallNode(),
+      new (comp()->trHeapMemory()) TR::MemoryReference(interfaceDataSlot2MethodSymRef, cg(), true),
+      cg());
+   slotCallInstruction->setNeedsGCMap(site.getPreservedRegisterMask());
+
+   generateLabelInstruction(LABEL, site.getCallNode(), doneLabel, cg());
+
    }
 
 

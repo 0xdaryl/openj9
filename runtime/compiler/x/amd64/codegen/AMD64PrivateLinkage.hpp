@@ -46,6 +46,25 @@ class PrivateLinkage : public J9::X86::PrivateLinkage
    PrivateLinkage(TR::CodeGenerator *cg);
    virtual TR::Register *buildJNIDispatch(TR::Node *callNode);
 
+   /**
+    * For interface dispatch that does not patch the code cache, the following
+    * structure describes the metadata that is necessary in order for a patchless
+    * dispatch sequence to work.  The structure must be allocated in a data area
+    * that can be written to at runtime.
+    */
+   struct ccInterfaceData
+      {
+      intptr_t slot1Class;
+      intptr_t slot1Method;
+      intptr_t slot2Class;
+      intptr_t slot2Method;
+      intptr_t slowInterfaceDispatchMethod;
+      intptr_t cpAddress;
+      intptr_t cpIndex;
+      intptr_t interfaceClassAddress;
+      intptr_t itableIndex;
+      };
+
    protected:
 
    virtual TR::Instruction *savePreservedRegisters(TR::Instruction *cursor);
@@ -85,6 +104,7 @@ class PrivateLinkage : public J9::X86::PrivateLinkage
    virtual void buildVirtualOrComputedCall(TR::X86CallSite &site, TR::LabelSymbol *entryLabel, TR::LabelSymbol *doneLabel, uint8_t *thunk);
    virtual TR::Instruction *buildPICSlot(TR::X86PICSlot picSlot, TR::LabelSymbol *mismatchLabel, TR::LabelSymbol *doneLabel, TR::X86CallSite &site);
    virtual void buildIPIC(TR::X86CallSite &site, TR::LabelSymbol *entryLabel, TR::LabelSymbol *doneLabel, uint8_t *thunk);
+   virtual void buildNoPatchingIPIC(TR::X86CallSite &site, TR::LabelSymbol *entryLabel, TR::LabelSymbol *doneLabel, uint8_t *thunk);
    virtual uint8_t *generateVirtualIndirectThunk(TR::Node *callNode);
    virtual TR_J2IThunk *generateInvokeExactJ2IThunk(TR::Node *callNode, char *signature);
 

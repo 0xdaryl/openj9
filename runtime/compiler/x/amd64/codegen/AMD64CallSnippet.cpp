@@ -23,6 +23,7 @@
 #include "x/codegen/CallSnippet.hpp"
 
 #include "codegen/AMD64CallSnippet.hpp"
+#include "codegen/AMD64PrivateLinkage.hpp"
 #include "codegen/CodeGenerator.hpp"
 #include "codegen/Linkage_inlines.hpp"
 #include "codegen/Relocation.hpp"
@@ -145,3 +146,116 @@ TR_Debug::print(TR::FILE *pOutFile, TR::X86ResolveVirtualDispatchReadOnlyDataSni
       commentString());
 
    }
+
+
+uint32_t TR::X86InterfaceDispatchReadOnlySnippet::getLength(int32_t estimatedSnippetStart)
+   {
+   // call (6) + dd (4) + dd (4) + dd (4)
+   //
+   return 6 + 4 + 4 + 4;
+   }
+
+
+uint8_t *TR::X86InterfaceDispatchReadOnlySnippet::emitSnippetBody()
+   {
+   // slowInterfaceDispatch:
+   //
+   uint8_t *cursor = cg()->getBinaryBufferCursor();
+
+   getSnippetLabel()->setCodeLocation(cursor);
+
+   // call [RIP + slowInterfaceDispatchMethod]
+   //
+   intptr_t slowDispatchDataAddress = _interfaceDispatchDataAddress + offsetof(J9::X86::AMD64::PrivateLinkage::ccInterfaceData, slowInterfaceDispatchMethod);
+   TR_ASSERT_FATAL(IS_32BIT_RIP(slowDispatchDataAddress, cursor+6), "slowDispatchDataAddress is out of RIP-relative range");
+
+   *cursor++ = 0xff;  // CALLMem
+   *cursor++ = 0x15;  // RIP+disp32
+   *(int32_t*)cursor = (int32_t)(slowDispatchDataAddress - (reinterpret_cast<intptr_t>(cursor) + 4));
+   cursor += 4;
+
+   gcMap().registerStackMap(cursor, cg());
+
+   //   dd [RIP offset to interfaceDispatchData]  ; 32-bit (position independent).  Relative to the start of the RA
+   //                                             ;    of the call to `slowInterfaceDisptchMethod`
+   //
+   TR_ASSERT_FATAL(IS_32BIT_RIP(_interfaceDispatchDataAddress, cursor), "interface dispatch data is out of RIP-relative range");
+   *(int32_t*)cursor = (int32_t)(_interfaceDispatchDataAddress - (intptr_t)cursor);
+   cursor += 4;
+
+   //   dd [RIP offset to first slot compare in mainline]  ; 32-bit (position independent).  Relative to the start of the RA
+   //                                                      ;    of the call to `slowInterfaceDisptchMethod`
+   //
+   intptr_t slotRestartLabelAddress = reinterpret_cast<intptr_t>(_slotRestartLabel->getCodeLocation());
+   TR_ASSERT_FATAL(IS_32BIT_RIP(slotRestartLabelAddress, cursor-4), "slot restart label is out of RIP-relative range");
+   *(int32_t*)cursor = (int32_t)(slotRestartLabelAddress - (intptr_t)cursor + 4);
+   cursor += 4;
+
+   //   dd [RIP offset to post interface dispatch instruction]  ; 32-bit (position independent).  Relative to the start of the RA
+   //                                                           ;    of the call to `slowInterfaceDisptchMethod`
+   //
+   intptr_t doneLabelAddress = reinterpret_cast<intptr_t>(_doneLabel->getCodeLocation());
+   TR_ASSERT_FATAL(IS_32BIT_RIP(doneLabelAddress, cursor-8), "done label is out of RIP-relative range");
+   *(int32_t*)cursor = (int32_t)(doneLabelAddress - (intptr_t)cursor + 8);
+   cursor += 4;
+
+   return cursor;
+   }
+
+
+void
+TR_Debug::print(TR::FILE *pOutFile, TR::X86InterfaceDispatchReadOnlySnippet *snippet)
+   {
+   if (pOutFile == NULL)
+      return;
+
+   uint8_t *bufferPos = snippet->getSnippetLabel()->getCodeLocation();
+
+   printSnippetLabel(pOutFile, snippet->getSnippetLabel(), bufferPos, getName(snippet));
+
+   // call [RIP + slowInterfaceDispatchMethod]
+   //
+   TR::SymbolReference *resolveVirtualDispatchReadOnlySymRef = _cg->symRefTab()->findOrCreateRuntimeHelper(TR_AMD64resolveVirtualDispatchReadOnly, false, false, false);
+
+   printPrefix(pOutFile, NULL, bufferPos, 6);
+   trfprintf(pOutFile, "call\t[rip + slowInterfaceDispatchSlot]  \t\t%s ", commentString());
+   bufferPos += 6;
+
+   //   dd [RIP offset to interfaceDispatchData]  ; 32-bit (position independent).  Relative to the start of the RA
+   //                                             ;    of the call to `slowInterfaceDisptchMethod`
+   //
+   printPrefix(pOutFile, NULL, bufferPos, sizeof(int32_t));
+   trfprintf(
+      pOutFile,
+      "%s\t" POINTER_PRINTF_FORMAT "\t\t%s RIP offset to interfaceDispatchData",
+      ddString(),
+      (void*)*(int32_t *)bufferPos,
+      commentString());
+   bufferPos += sizeof(int32_t);
+
+   //   dd [RIP offset to first slot compare in mainline]  ; 32-bit (position independent).  Relative to the start of the RA
+   //                                                      ;    of the call to `slowInterfaceDisptchMethod`
+   //
+   printPrefix(pOutFile, NULL, bufferPos, sizeof(int32_t));
+   trfprintf(
+      pOutFile,
+      "%s\t" POINTER_PRINTF_FORMAT "\t\t%s RIP offset to first slot compare in mainling",
+      ddString(),
+      (void*)*(int32_t *)bufferPos,
+      commentString());
+   bufferPos += sizeof(int32_t);
+
+   //   dd [RIP offset to post interface dispatch instruction]  ; 32-bit (position independent).  Relative to the start of the RA
+   //                                                           ;    of the call to `slowInterfaceDisptchMethod`
+   //
+   printPrefix(pOutFile, NULL, bufferPos, sizeof(int32_t));
+   trfprintf(
+      pOutFile,
+      "%s\t" POINTER_PRINTF_FORMAT "\t\t%s RIP offset to post interface dispatch instruction",
+      ddString(),
+      (void*)*(int32_t *)bufferPos,
+      commentString());
+
+   }
+
+

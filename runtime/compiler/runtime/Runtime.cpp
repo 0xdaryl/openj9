@@ -310,6 +310,10 @@ JIT_HELPER(SSEdoubleRemainder);
 JIT_HELPER(SSEfloatRemainder);
 
 JIT_HELPER(resolveVirtualDispatchReadOnly);
+JIT_HELPER(dispatchIPicSlot1MethodReadOnly);
+JIT_HELPER(dispatchIPicSlot2MethodReadOnly);
+JIT_HELPER(IPicResolveReadOnly);
+JIT_HELPER(IPicLookupDispatchReadOnly);
 
 JIT_HELPER(icallVMprJavaSendVirtual0);
 JIT_HELPER(icallVMprJavaSendVirtual1);
@@ -1171,6 +1175,11 @@ void initializeCodeRuntimeHelperTable(J9JITConfig *jitConfig, char isSMP)
    SET(TR_AMD64doubleRemainder,                       (void *)SSEdoubleRemainder, TR_Helper);
 
    SET(TR_AMD64resolveVirtualDispatchReadOnly,        (void *)resolveVirtualDispatchReadOnly, TR_Helper);
+
+   SET(TR_AMD64dispatchIPicSlot1MethodReadOnly,       (void *)dispatchIPicSlot1MethodReadOnly, TR_Helper);
+   SET(TR_AMD64dispatchIPicSlot2MethodReadOnly,       (void *)dispatchIPicSlot2MethodReadOnly, TR_Helper);
+   SET(TR_AMD64IPicResolveReadOnly,                   (void *)IPicResolveReadOnly, TR_Helper);
+   SET(TR_AMD64IPicLookupDispatchReadOnly,            (void *)IPicLookupDispatchReadOnly, TR_Helper);
 
    SET(TR_AMD64icallVMprJavaSendVirtual0,             (void *)icallVMprJavaSendVirtual0, TR_Helper);
    SET(TR_AMD64icallVMprJavaSendVirtual1,             (void *)icallVMprJavaSendVirtual1, TR_Helper);
