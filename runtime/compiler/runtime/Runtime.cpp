@@ -310,6 +310,10 @@ JIT_HELPER(SSEdoubleRemainder);
 JIT_HELPER(SSEfloatRemainder);
 
 JIT_HELPER(resolveVirtualDispatch);
+JIT_HELPER(populateMethodInIPICDataSlot);
+JIT_HELPER(dispatchInterpretedFromIPICDataSlot);
+JIT_HELPER(IPICResolveNoPatching);
+JIT_HELPER(IPicLookupDispatchNoPatching);
 
 JIT_HELPER(icallVMprJavaSendVirtual0);
 JIT_HELPER(icallVMprJavaSendVirtual1);
@@ -1170,6 +1174,11 @@ void initializeCodeRuntimeHelperTable(J9JITConfig *jitConfig, char isSMP)
    SET(TR_AMD64doubleRemainder,                       (void *)SSEdoubleRemainder, TR_Helper);
 
    SET(TR_AMD64resolveVirtualDispatch,                (void *)resolveVirtualDispatch, TR_Helper);
+
+   SET(TR_AMD64populateMethodInIPICDataSlot,          (void *)populateMethodInIPICDataSlot, TR_Helper);
+   SET(TR_AMD64dispatchInterpretedFromIPICDataSlot,   (void *)dispatchInterpretedFromIPICDataSlot, TR_Helper);
+   SET(TR_AMD64IPICResolveNoPatching,                 (void *)IPICResolveNoPatching, TR_Helper);
+   SET(TR_AMD64IPicLookupDispatchNoPatching,          (void *)IPicLookupDispatchNoPatching, TR_Helper);
 
    SET(TR_AMD64icallVMprJavaSendVirtual0,             (void *)icallVMprJavaSendVirtual0, TR_Helper);
    SET(TR_AMD64icallVMprJavaSendVirtual1,             (void *)icallVMprJavaSendVirtual1, TR_Helper);

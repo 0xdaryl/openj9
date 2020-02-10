@@ -1061,6 +1061,11 @@ populateVPicVTableDispatch:
       DECLARE_GLOBAL dispatchInterpretedFromIPicSlot
       DECLARE_GLOBAL IPicLookupDispatch
 
+      DECLARE_GLOBAL populateMethodInIPICDataSlot
+      DECLARE_GLOBAL dispatchInterpretedFromIPICDataSlot
+      DECLARE_GLOBAL IPICResolveNoPatching
+      DECLARE_GLOBAL IPicLookupDispatchNoPatching
+
       DECLARE_GLOBAL resolveVPicClass
       DECLARE_GLOBAL populateVPicSlotClass
       DECLARE_GLOBAL populateVPicSlotCall
@@ -2329,6 +2334,114 @@ resolveVirtualDispatchDirectMethodInterpreted:
       mov         rdi, qword [rdx+eq_ResolveVirtual_j2iThunk]        ; j2i virtual thunk
       jmp         mergeResolveVirtualDispatchDirectMethod
 
+      ret
+
+
+      align 16
+populateMethodInIPICDataSlot:
+      push        rdi                                          ; preserve
+      push        rax                                          ; preserve GP arg0 (the receiver)
+      push        rsi                                          ; preserve GP arg1
+      push        rdx                                          ; preserve GP arg2
+      push        rcx                                          ; preserve GP arg3
+
+      ; Stack shape:
+      ;
+      ; +40 RA in code cache (call to helper)
+      ; +32 saved rdi
+      ; +24 saved rax (receiver)
+      ; +16 saved rsi
+      ; +8 saved rdx
+      ; +0 saved rcx
+      ;
+      int3
+
+      pop         rcx                                          ; restore
+      pop         rdx                                          ; restore
+      pop         rsi                                          ; restore
+      pop         rax                                          ; restore
+      pop         rdi                                          ; restore
+      ret
+
+
+      align 16
+dispatchInterpretedFromIPICDataSlot:
+      push        rdi                                          ; preserve
+      push        rax                                          ; preserve GP arg0 (the receiver)
+      push        rsi                                          ; preserve GP arg1
+      push        rdx                                          ; preserve GP arg2
+      push        rcx                                          ; preserve GP arg3
+
+      ; Stack shape:
+      ;
+      ; +40 RA in code cache (call to helper)
+      ; +32 saved rdi
+      ; +24 saved rax (receiver)
+      ; +16 saved rsi
+      ; +8 saved rdx
+      ; +0 saved rcx
+      ;
+      int3
+
+      pop         rcx                                          ; restore
+      pop         rdx                                          ; restore
+      pop         rsi                                          ; restore
+      pop         rax                                          ; restore
+      pop         rdi                                          ; restore
+      ret
+
+
+      align 16
+IPICResolveNoPatching:
+      push        rdi                                          ; preserve
+      push        rax                                          ; preserve GP arg0 (the receiver)
+      push        rsi                                          ; preserve GP arg1
+      push        rdx                                          ; preserve GP arg2
+      push        rcx                                          ; preserve GP arg3
+
+      ; Stack shape:
+      ;
+      ; +40 RA in code cache (call to helper)
+      ; +32 saved rdi
+      ; +24 saved rax (receiver)
+      ; +16 saved rsi
+      ; +8 saved rdx
+      ; +0 saved rcx
+      ;
+      int3
+
+      pop         rcx                                          ; restore
+      pop         rdx                                          ; restore
+      pop         rsi                                          ; restore
+      pop         rax                                          ; restore
+      pop         rdi                                          ; restore
+      ret
+
+
+      align 16
+IPicLookupDispatchNoPatching:
+      push        rdi                                          ; preserve
+      push        rax                                          ; preserve GP arg0 (the receiver)
+      push        rsi                                          ; preserve GP arg1
+      push        rdx                                          ; preserve GP arg2
+      push        rcx                                          ; preserve GP arg3
+
+      ; Stack shape:
+      ;
+      ; +40 RA in code cache (call to helper)
+      ; +32 saved rdi
+      ; +24 saved rax (receiver)
+      ; +16 saved rsi
+      ; +8 saved rdx
+      ; +0 saved rcx
+      ;
+      int3
+
+      pop         rcx                                          ; restore
+      pop         rdx                                          ; restore
+      pop         rsi                                          ; restore
+      pop         rax                                          ; restore
+      pop         rdi                                          ; restore
       ret
 
 %endif

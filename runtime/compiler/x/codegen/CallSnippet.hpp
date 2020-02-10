@@ -141,6 +141,43 @@ public:
    };
 
 
+class X86InterfaceDispatchSnippet : public TR::Snippet
+   {
+private:
+
+   intptr_t _interfaceDispatchDataAddress;
+
+   TR::LabelSymbol *_slotRestartLabel;
+
+   TR::LabelSymbol *_doneLabel;
+
+   TR::Node *_callNode;
+
+public:
+
+   X86InterfaceDispatchSnippet(
+      TR::LabelSymbol *interfaceDispatchSnippetLabel,
+      TR::Node *callNode,
+      intptr_t interfaceDispatchDataAddress,
+      TR::LabelSymbol *slotRestartLabel,
+      TR::LabelSymbol *doneLabel,
+      TR::CodeGenerator *cg) :
+         TR::Snippet(cg, NULL, interfaceDispatchSnippetLabel, true),
+         _interfaceDispatchDataAddress(interfaceDispatchDataAddress),
+         _slotRestartLabel(slotRestartLabel),
+         _callNode(callNode),
+         _doneLabel(doneLabel)
+      {}
+
+   virtual Kind getKind() { return IsInterfaceDispatch; }
+
+   virtual uint8_t *emitSnippetBody();
+
+   virtual uint32_t getLength(int32_t estimatedSnippetStart);
+
+   };
+
+
 class X86CallSnippet : public TR::Snippet
    {
    public:

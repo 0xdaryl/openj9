@@ -819,6 +819,69 @@ TR_Debug::print(TR::FILE *pOutFile, TR::X86ResolveVirtualDispatchSnippet *snippe
    }
 
 
+uint32_t TR::X86InterfaceDispatchSnippet::getLength(int32_t estimatedSnippetStart)
+   {
+   // call (6) + dd (4) + dd (4) + dd (4)
+   //
+   return 6 + 4 + 4 + 4;
+   }
+
+
+uint8_t *TR::X86InterfaceDispatchSnippet::emitSnippetBody()
+   {
+   // slowInterfaceDispatch:
+   //
+   uint8_t *cursor = cg()->getBinaryBufferCursor();
+
+   getSnippetLabel()->setCodeLocation(cursor);
+
+   // call [RIP + slowInterfaceDispatchMethod]
+   //
+   intptr_t slowDispatchDataAddress = _interfaceDispatchDataAddress + offsetof(J9::X86::AMD64::PrivateLinkage::ccInterfaceData, slowInterfaceDispatchMethod);
+   TR_ASSERT_FATAL(IS_32BIT_RIP(slowDispatchDataAddress, cursor+6), "slowDispatchDataAddress is out of RIP-relative range");
+
+   *cursor++ = 0xff;  // CALLMem
+   *cursor++ = 0x15;  // RIP+disp32
+   *(int32_t*)cursor = (int32_t)(slowDispatchDataAddress - (reinterpret_cast<intptr_t>(cursor) + 6));
+   cursor += 4;
+
+   gcMap().registerStackMap(cursor, cg());
+
+   //   dd [RIP offset to interfaceDispatchData]  ; 32-bit (position independent).  Relative to the start of the RA
+   //                                             ;    of the call to `slowInterfaceDisptchMethod`
+   //
+   TR_ASSERT_FATAL(IS_32BIT_RIP(_interfaceDispatchDataAddress, cursor), "interface dispatch data is out of RIP-relative range");
+   *(int32_t*)cursor = (int32_t)(_interfaceDispatchDataAddress - (intptr_t)cursor);
+   cursor += 4;
+
+   //   dd [RIP offset to first slot compare in mainline]  ; 32-bit (position independent).  Relative to the start of the RA
+   //                                                      ;    of the call to `slowInterfaceDisptchMethod`
+   //
+   intptr_t slotRestartLabelAddress = reinterpret_cast<intptr_t>(_slotRestartLabel->getCodeLocation());
+   TR_ASSERT_FATAL(IS_32BIT_RIP(slotRestartLabelAddress, cursor-4), "slot restart label is out of RIP-relative range");
+   *(int32_t*)cursor = (int32_t)(slotRestartLabelAddress - (intptr_t)cursor + 4);
+   cursor += 4;
+
+   //   dd [RIP offset to post interface dispatch instruction]  ; 32-bit (position independent).  Relative to the start of the RA
+   //                                                           ;    of the call to `slowInterfaceDisptchMethod`
+   //
+   intptr_t doneLabelAddress = reinterpret_cast<intptr_t>(_doneLabel->getCodeLocation());
+   TR_ASSERT_FATAL(IS_32BIT_RIP(doneLabelAddress, cursor-8), "done label is out of RIP-relative range");
+   *(int32_t*)cursor = (int32_t)(doneLabelAddress - (intptr_t)cursor + 8);
+   cursor += 4;
+
+   return cursor;
+   }
+
+
+void
+TR_Debug::print(TR::FILE *pOutFile, TR::X86InterfaceDispatchSnippet *snippet)
+   {
+   if (pOutFile == NULL)
+      return;
+   }
+
+
 uint8_t *
 TR::X86CallSnippet::alignCursorForCodePatching(
       uint8_t *cursor,
