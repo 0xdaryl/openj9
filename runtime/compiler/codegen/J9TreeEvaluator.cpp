@@ -39,20 +39,20 @@
 TR::Snippet *
 J9::TreeEvaluator::getFieldWatchInstanceSnippet(TR::CodeGenerator *cg, TR::Node *node, J9Method *m, UDATA loc, UDATA os)
    {
-   return new (cg->trHeapMemory()) TR::J9WatchedInstanceFieldSnippet(cg, node, m, loc, os);
+   return new (cg->comp()->trHeapMemory()) TR::J9WatchedInstanceFieldSnippet(cg, node, m, loc, os);
    }
 
 TR::Snippet *
 J9::TreeEvaluator::getFieldWatchStaticSnippet(TR::CodeGenerator *cg, TR::Node *node, J9Method *m, UDATA loc, void *fieldAddress, J9Class *fieldClass)
    {
-   return new (cg->trHeapMemory()) TR::J9WatchedStaticFieldSnippet(cg, node, m, loc, fieldAddress, fieldClass);
+   return new (cg->comp()->trHeapMemory()) TR::J9WatchedStaticFieldSnippet(cg, node, m, loc, fieldAddress, fieldClass);
    }
 
 void
 J9::TreeEvaluator::rdWrtbarHelperForFieldWatch(TR::Node *node, TR::CodeGenerator *cg, TR::Register *sideEffectRegister, TR::Register *valueReg)
    {
    TR_ASSERT_FATAL(J9ClassHasWatchedFields >= std::numeric_limits<uint16_t>::min() && J9ClassHasWatchedFields <= std::numeric_limits<uint16_t>::max(), "Expecting value of J9ClassHasWatchedFields to be within 16 bits. Currently it's %d(%p).", J9ClassHasWatchedFields, J9ClassHasWatchedFields);
-   
+
    // Populate a data snippet with the required information so we can call a VM helper to report the Field Watch event.
    TR::SymbolReference *symRef = node->getSymbolReference();
    J9Method *owningMethod = reinterpret_cast<J9Method *>(node->getOwningMethod());
@@ -60,7 +60,7 @@ J9::TreeEvaluator::rdWrtbarHelperForFieldWatch(TR::Node *node, TR::CodeGenerator
    bool isWrite = node->getOpCode().isWrtBar();
    bool isUnresolved = symRef->isUnresolved();
    int32_t bcIndex = node->getByteCodeInfo().getByteCodeIndex();
-   
+
    TR::Snippet *dataSnippet = NULL;
    if (symRef->getSymbol()->isStatic())
       {
@@ -738,7 +738,7 @@ uint32_t J9::TreeEvaluator::calculateInstanceOfOrCheckCastSequences(TR::Node *in
       {
       if (instanceOfOrCheckCastNode->getOpCodeValue() == TR::checkcastAndNULLCHK)
          sequences[i++] = NullTest;
-      sequences[i++] = HelperCall;  
+      sequences[i++] = HelperCall;
       }
    // Object is known to be null, usually removed by the optimizer, but in case they're not we know the result of the cast/instanceof.
    //

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2019, 2019 IBM Corp. and others
+ * Copyright (c) 2019, 2020 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -54,14 +54,14 @@ uint8_t *TR::J9WatchedInstanceFieldSnippet::emitSnippetBody()
    if (cg()->comp()->getOption(TR_UseSymbolValidationManager))
       {
       cg()->addExternalRelocation(
-         new (cg()->trHeapMemory()) TR::ExternalRelocation(cursor + offsetof(J9JITWatchedInstanceFieldData, method), reinterpret_cast<uint8_t *>(instanceFieldData.method), reinterpret_cast<uint8_t *>(TR::SymbolType::typeMethod), TR_SymbolFromManager, cg()),
+         new (cg()->comp()->trHeapMemory()) TR::ExternalRelocation(cursor + offsetof(J9JITWatchedInstanceFieldData, method), reinterpret_cast<uint8_t *>(instanceFieldData.method), reinterpret_cast<uint8_t *>(TR::SymbolType::typeMethod), TR_SymbolFromManager, cg()),
          __FILE__,
          __LINE__,
          node);
       }
    else
       {
-      cg()->addExternalRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation(cursor  + offsetof(J9JITWatchedInstanceFieldData, method), NULL, TR_RamMethod, cg()), __FILE__, __LINE__, node);
+      cg()->addExternalRelocation(new (cg()->comp()->trHeapMemory()) TR::ExternalRelocation(cursor  + offsetof(J9JITWatchedInstanceFieldData, method), NULL, TR_RamMethod, cg()), __FILE__, __LINE__, node);
       }
    cursor += sizeof(J9JITWatchedInstanceFieldData);
 

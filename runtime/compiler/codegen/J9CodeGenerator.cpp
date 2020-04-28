@@ -1444,7 +1444,7 @@ J9::CodeGenerator::zeroOutAutoOnEdge(
             }
          }
 
-      newBlock->setLiveLocals(new (self()->trHeapMemory()) TR_BitVector(*succBlock->getLiveLocals()));
+      newBlock->setLiveLocals(new (self()->comp()->trHeapMemory()) TR_BitVector(*succBlock->getLiveLocals()));
       newBlock->getEntry()->getNode()->setLabel(generateLabelSymbol(self()));
 
 
@@ -1477,24 +1477,26 @@ J9::CodeGenerator::zeroOutAutoOnEdge(
 void
 J9::CodeGenerator::doInstructionSelection()
    {
-   self()->setNextAvailableBlockIndex(self()->comp()->getFlowGraph()->getNextNodeNumber() + 1);
+   TR::Compilation *comp = self()->comp();
+
+   self()->setNextAvailableBlockIndex(comp->getFlowGraph()->getNextNodeNumber() + 1);
 
    J9::SetMonitorStateOnBlockEntry::LiveMonitorStacks liveMonitorStacks(
       (J9::SetMonitorStateOnBlockEntry::LiveMonitorStacksComparator()),
-      J9::SetMonitorStateOnBlockEntry::LiveMonitorStacksAllocator(self()->comp()->trMemory()->heapMemoryRegion()));
+      J9::SetMonitorStateOnBlockEntry::LiveMonitorStacksAllocator(comp->trMemory()->heapMemoryRegion()));
 
 
 
    // Set default value for pre-prologue size
    //
-   TR::ResolvedMethodSymbol * methodSymbol = self()->comp()->getJittedMethodSymbol();
+   TR::ResolvedMethodSymbol * methodSymbol = comp->getJittedMethodSymbol();
    self()->setPrePrologueSize(4 + (methodSymbol->isJNI() ? 4 : 0));
 
-   if (self()->comp()->getOption(TR_TraceCG))
+   if (comp->getOption(TR_TraceCG))
       diagnostic("\n<selection>");
 
-   if (self()->comp()->getOption(TR_TraceCG) || debug("traceGRA"))
-      self()->comp()->getDebug()->setupToDumpTreesAndInstructions("Performing Instruction Selection");
+   if (comp->getOption(TR_TraceCG) || debug("traceGRA"))
+      comp->getDebug()->setupToDumpTreesAndInstructions("Performing Instruction Selection");
 
    self()->beginInstructionSelection();
 
@@ -1502,7 +1504,7 @@ J9::CodeGenerator::doInstructionSelection()
    TR::StackMemoryRegion stackMemoryRegion(*self()->trMemory());
 
    TR_BitVector * liveLocals = self()->getLiveLocals();
-   TR_BitVector nodeChecklistBeforeDump(self()->comp()->getNodeCount(), self()->trMemory(), stackAlloc, growable);
+   TR_BitVector nodeChecklistBeforeDump(comp->getNodeCount(), self()->trMemory(), stackAlloc, growable);
 
    /*
      To enable instruction scheduling (both in the compiler and in out-of-order hardware),
@@ -1519,67 +1521,67 @@ J9::CodeGenerator::doInstructionSelection()
    TR_Stack<TR::SymbolReference *> * liveMonitorStack = 0;
    int32_t numMonitorLocals = 0;
    static bool traceLiveMonEnv = feGetEnv("TR_traceLiveMonitors") ? true : false;
-   bool traceLiveMon = self()->comp()->getOption(TR_TraceLiveMonitorMetadata) || traceLiveMonEnv;
+   bool traceLiveMon = comp->getOption(TR_TraceLiveMonitorMetadata) || traceLiveMonEnv;
 
    _lmmdFailed = false;
-   if (self()->comp()->getMethodSymbol()->mayContainMonitors())
+   if (comp->getMethodSymbol()->mayContainMonitors())
       {
       if(traceLiveMon)
-         traceMsg(self()->comp(),"In doInstructionSelection: Method may contain monitors\n");
+         traceMsg(comp,"In doInstructionSelection: Method may contain monitors\n");
 
       if (!liveLocals)
-         self()->comp()->getMethodSymbol()->resetLiveLocalIndices();
+         comp->getMethodSymbol()->resetLiveLocalIndices();
 
-      ListIterator<TR::AutomaticSymbol> locals(&self()->comp()->getMethodSymbol()->getAutomaticList());
+      ListIterator<TR::AutomaticSymbol> locals(&comp->getMethodSymbol()->getAutomaticList());
       for (TR::AutomaticSymbol * a = locals.getFirst(); a; a = locals.getNext())
          if (a->holdsMonitoredObject())
             {
             if(traceLiveMon)
-               traceMsg(self()->comp(),"\tSymbol %p contains monitored object\n",a);
+               traceMsg(comp,"\tSymbol %p contains monitored object\n",a);
             if (!liveLocals)
                {
                if(traceLiveMon)
-                  traceMsg(self()->comp(),"\tsetting LiveLocalIndex to %d on symbol %p\n",numMonitorLocals+1,a);
+                  traceMsg(comp,"\tsetting LiveLocalIndex to %d on symbol %p\n",numMonitorLocals+1,a);
                a->setLiveLocalIndex(numMonitorLocals++, self()->fe());
                }
             else if (a->getLiveLocalIndex() + 1 > numMonitorLocals)
                {
                if(traceLiveMon)
-                  traceMsg(self()->comp(),"\tsetting numMonitorLocals to %d while considering symbol %p\n",a->getLiveLocalIndex()+1,a);
+                  traceMsg(comp,"\tsetting numMonitorLocals to %d while considering symbol %p\n",a->getLiveLocalIndex()+1,a);
                numMonitorLocals = a->getLiveLocalIndex() + 1;
                }
             }
 
       if (numMonitorLocals)
          {
-         J9::SetMonitorStateOnBlockEntry monitorState(self()->comp(), &liveMonitorStacks);
+         J9::SetMonitorStateOnBlockEntry monitorState(comp, &liveMonitorStacks);
 
          if(traceLiveMon)
-            traceMsg(self()->comp(),"\tCreated monitorState %p\n",&monitorState);
+            traceMsg(comp,"\tCreated monitorState %p\n",&monitorState);
 
          monitorState.set(_lmmdFailed, traceLiveMon);
          if (traceLiveMon)
-            traceMsg(self()->comp(), "found numMonitorLocals %d\n", numMonitorLocals);
+            traceMsg(comp, "found numMonitorLocals %d\n", numMonitorLocals);
          }
       else if(traceLiveMon)
-         traceMsg(self()->comp(),"\tnumMonitorLocals = %d\n",numMonitorLocals);
+         traceMsg(comp,"\tnumMonitorLocals = %d\n",numMonitorLocals);
       }
 
    TR::SymbolReference **liveLocalSyms = NULL;
    TR_BitVector *unsharedSymsBitVector = NULL;
    int32_t maxLiveLocalIndex = -1;
-   TR::list<TR::Block*> newBlocks(getTypedAllocator<TR::Block*>(self()->comp()->allocator()));
+   TR::list<TR::Block*> newBlocks(getTypedAllocator<TR::Block*>(comp->allocator()));
    TR_ScratchList<TR::Node> fsdStores(self()->trMemory());
-   if (self()->comp()->getOption(TR_MimicInterpreterFrameShape) || self()->comp()->getOption(TR_PoisonDeadSlots))
+   if (comp->getOption(TR_MimicInterpreterFrameShape) || comp->getOption(TR_PoisonDeadSlots))
       {
-      if (self()->comp()->areSlotsSharedByRefAndNonRef() || self()->comp()->getOption(TR_PoisonDeadSlots))
+      if (comp->areSlotsSharedByRefAndNonRef() || comp->getOption(TR_PoisonDeadSlots))
          {
          TR_ScratchList<TR::SymbolReference> participatingLocals(self()->trMemory());
 
          TR::SymbolReference *autoSymRef = NULL;
          int32_t symRefNumber;
-         int32_t symRefCount = self()->comp()->getSymRefCount();
-         TR::SymbolReferenceTable *symRefTab = self()->comp()->getSymRefTab();
+         int32_t symRefCount = comp->getSymRefCount();
+         TR::SymbolReferenceTable *symRefTab = comp->getSymRefTab();
          for (symRefNumber = symRefTab->getIndexOfFirstSymRef(); symRefNumber < symRefCount; symRefNumber++)
             {
             autoSymRef = symRefTab->getSymRef(symRefNumber);
@@ -1621,10 +1623,10 @@ J9::CodeGenerator::doInstructionSelection()
 
    bool fixedUpBlock = false;
 
-   for (TR::TreeTop *tt = self()->comp()->getStartTree(); tt; tt = self()->getCurrentEvaluationTreeTop()->getNextTreeTop())
+   for (TR::TreeTop *tt = comp->getStartTree(); tt; tt = self()->getCurrentEvaluationTreeTop()->getNextTreeTop())
       {
       if(traceLiveMon)
-         traceMsg(self()->comp(),"\tWalking TreeTops at tt %p with node %p\n",tt,tt->getNode());
+         traceMsg(comp,"\tWalking TreeTops at tt %p with node %p\n",tt,tt->getNode());
 
       TR::Instruction *prevInstr = self()->getAppendInstruction();
       TR::Node * node = tt->getNode();
@@ -1652,14 +1654,14 @@ J9::CodeGenerator::doInstructionSelection()
             if (liveLocals)
                {
                if (block->getLiveLocals())
-                  liveLocals = new (self()->trHeapMemory()) TR_BitVector(*block->getLiveLocals());
+                  liveLocals = new (comp->trHeapMemory()) TR_BitVector(*block->getLiveLocals());
                else
                   {
-                  liveLocals = new (self()->trHeapMemory()) TR_BitVector(*liveLocals);
+                  liveLocals = new (comp->trHeapMemory()) TR_BitVector(*liveLocals);
                   liveLocals->empty();
                   }
 
-               if (self()->comp()->areSlotsSharedByRefAndNonRef() && unsharedSymsBitVector)
+               if (comp->areSlotsSharedByRefAndNonRef() && unsharedSymsBitVector)
                   {
                   *liveLocals |= *unsharedSymsBitVector;
                   }
@@ -1668,18 +1670,18 @@ J9::CodeGenerator::doInstructionSelection()
 
             if (liveMonitorStack)
                {
-               liveMonitors = new (self()->trHeapMemory()) TR_BitVector(numMonitorLocals, self()->trMemory());
+               liveMonitors = new (comp->trHeapMemory()) TR_BitVector(numMonitorLocals, self()->trMemory());
                if (traceLiveMon)
-                  traceMsg(self()->comp(), "created liveMonitors bitvector at block_%d for stack  %p size %d\n",
+                  traceMsg(comp, "created liveMonitors bitvector at block_%d for stack  %p size %d\n",
                                                             block->getNumber(), liveMonitorStack,
                                                             liveMonitorStack->size());
                for (int32_t i = liveMonitorStack->size() - 1; i >= 0; --i)
                   {
                   if (traceLiveMon)
-                     traceMsg(self()->comp(), "about to set liveMonitors for symbol %p\n",(*liveMonitorStack)[i]->getSymbol());
+                     traceMsg(comp, "about to set liveMonitors for symbol %p\n",(*liveMonitorStack)[i]->getSymbol());
                   liveMonitors->set((*liveMonitorStack)[i]->getSymbol()->castToRegisterMappedSymbol()->getLiveLocalIndex());
                   if (traceLiveMon)
-                     traceMsg(self()->comp(), "setting livemonitor %d at block_%d\n",
+                     traceMsg(comp, "setting livemonitor %d at block_%d\n",
                                                             (*liveMonitorStack)[i]->getSymbol()->castToRegisterMappedSymbol()->getLiveLocalIndex(),
                                                             block->getNumber());
                   }
@@ -1688,7 +1690,7 @@ J9::CodeGenerator::doInstructionSelection()
                {
                liveMonitors = 0;
                if (traceLiveMon)
-                  traceMsg(self()->comp(), "no liveMonitorStack for block_%d\n", block->getNumber());
+                  traceMsg(comp, "no liveMonitorStack for block_%d\n", block->getNumber());
                }
             numEBBsSinceFreeingVariableSizeSymRefs++;
             }
@@ -1717,7 +1719,7 @@ J9::CodeGenerator::doInstructionSelection()
          // checks for consistent monitorStack
          //
          for (auto e = b->getSuccessors().begin(); e != b->getSuccessors().end(); ++e)
-            if ((*e)->getTo() == self()->comp()->getFlowGraph()->getEnd())
+            if ((*e)->getTo() == comp->getFlowGraph()->getEnd())
                {
                // block could end in a throw,
                //
@@ -1751,17 +1753,17 @@ J9::CodeGenerator::doInstructionSelection()
                if (liveMonitorStack &&
                      liveMonitorStack->size() != 0 &&
                      !endsInThrow)
-                  dumpOptDetails(self()->comp(), "liveMonitorStack must be empty, unbalanced monitors found! %d\n",
+                  dumpOptDetails(comp, "liveMonitorStack must be empty, unbalanced monitors found! %d\n",
                                                                            liveMonitorStack->size());
 
                if (traceLiveMon)
                   {
-                  traceMsg(self()->comp(), "liveMonitorStack %p at CFG end (syncMethod %d)", liveMonitorStack,
-                                                         self()->comp()->getMethodSymbol()->isSynchronised());
+                  traceMsg(comp, "liveMonitorStack %p at CFG end (syncMethod %d)", liveMonitorStack,
+                                                         comp->getMethodSymbol()->isSynchronised());
                   if (liveMonitorStack)
-                     traceMsg(self()->comp(), "   size %d\n", liveMonitorStack->size());
+                     traceMsg(comp, "   size %d\n", liveMonitorStack->size());
                   else
-                     traceMsg(self()->comp(), "   size empty\n");
+                     traceMsg(comp, "   size empty\n");
                   }
                break;
                }
@@ -1772,7 +1774,7 @@ J9::CodeGenerator::doInstructionSelection()
               numEBBsSinceFreeingVariableSizeSymRefs > MAX_EBBS_BEFORE_FREEING_VARIABLE_SIZED_SYMREFS))
             {
             if (self()->traceBCDCodeGen())
-               traceMsg(self()->comp(),"\tblock_%d branches backwards, so free all symbols in the _variableSizeSymRefPendingFreeList\n",b->getNumber());
+               traceMsg(comp,"\tblock_%d branches backwards, so free all symbols in the _variableSizeSymRefPendingFreeList\n",b->getNumber());
             self()->freeAllVariableSizeSymRefs();
             numEBBsSinceFreeingVariableSizeSymRefs = 0;
             }
@@ -1784,19 +1786,19 @@ J9::CodeGenerator::doInstructionSelection()
          {
          fixedUpBlock = true;
          //GCMAP
-         if ( (self()->comp()->getOption(TR_MimicInterpreterFrameShape) && self()->comp()->areSlotsSharedByRefAndNonRef() ) || self()->comp()->getOption(TR_PoisonDeadSlots))
+         if ( (comp->getOption(TR_MimicInterpreterFrameShape) && comp->areSlotsSharedByRefAndNonRef() ) || comp->getOption(TR_PoisonDeadSlots))
             {
             // TODO : look at last warm block code above
             //
-            if ((!self()->comp()->getOption(TR_PoisonDeadSlots)&& liveLocals) || (self()->comp()->getOption(TR_PoisonDeadSlots) &&  self()->getCurrentEvaluationBlock()->getLiveLocals()))
+            if ((!comp->getOption(TR_PoisonDeadSlots)&& liveLocals) || (comp->getOption(TR_PoisonDeadSlots) &&  self()->getCurrentEvaluationBlock()->getLiveLocals()))
                {
                newBlocks.clear();
                TR::Block *block = self()->getCurrentEvaluationBlock();
 
-               TR_BitVectorIterator bvi(self()->comp()->getOption(TR_PoisonDeadSlots) ? *block->getLiveLocals(): *liveLocals);
+               TR_BitVectorIterator bvi(comp->getOption(TR_PoisonDeadSlots) ? *block->getLiveLocals(): *liveLocals);
 
-               if (self()->comp()->getOption(TR_TraceCG) && self()->comp()->getOption(TR_PoisonDeadSlots))
-                  traceMsg(self()->comp(), "POISON DEAD SLOTS --- Parent Block Number: %d\n", block->getNumber());
+               if (comp->getOption(TR_TraceCG) && comp->getOption(TR_PoisonDeadSlots))
+                  traceMsg(comp, "POISON DEAD SLOTS --- Parent Block Number: %d\n", block->getNumber());
 
 
                while (bvi.hasMoreElements())
@@ -1805,10 +1807,10 @@ J9::CodeGenerator::doInstructionSelection()
                   TR_ASSERT((liveLocalIndex <= maxLiveLocalIndex), "Symbol has live local index higher than computed max\n");
                   TR::SymbolReference * liveAutoSymRef = liveLocalSyms[liveLocalIndex];
 
-                  if (self()->comp()->getOption(TR_TraceCG) && self()->comp()->getOption(TR_PoisonDeadSlots))
-                     traceMsg(self()->comp(), "POISON DEAD SLOTS --- Parent Block: %d, Maintained Live Local: %d\n", block->getNumber(), liveAutoSymRef->getReferenceNumber());
+                  if (comp->getOption(TR_TraceCG) && comp->getOption(TR_PoisonDeadSlots))
+                     traceMsg(comp, "POISON DEAD SLOTS --- Parent Block: %d, Maintained Live Local: %d\n", block->getNumber(), liveAutoSymRef->getReferenceNumber());
 
-                  if(self()->comp()->getOption(TR_PoisonDeadSlots) && (!liveAutoSymRef || block->isCreatedAtCodeGen()))
+                  if(comp->getOption(TR_PoisonDeadSlots) && (!liveAutoSymRef || block->isCreatedAtCodeGen()))
                   {
                      //Don't process a block we created to poison a dead slot.
                      continue;
@@ -1822,29 +1824,29 @@ J9::CodeGenerator::doInstructionSelection()
 
                   //For slot poisoning, a monitored object is still in the GCMaps even if its liveness has ended.
                   //
-                  if ((liveAutoSym->getType().isAddress() && liveAutoSym->isSlotSharedByRefAndNonRef()) || (self()->comp()->getOption(TR_PoisonDeadSlots) && !liveAutoSymRef->getSymbol()->holdsMonitoredObject()))
+                  if ((liveAutoSym->getType().isAddress() && liveAutoSym->isSlotSharedByRefAndNonRef()) || (comp->getOption(TR_PoisonDeadSlots) && !liveAutoSymRef->getSymbol()->holdsMonitoredObject()))
                      {
                      for (auto succ = block->getSuccessors().begin(); succ != block->getSuccessors().end();)
                         {
                         auto next = succ;
                         ++next;
-                        if ((*succ)->getTo() == self()->comp()->getFlowGraph()->getEnd())
+                        if ((*succ)->getTo() == comp->getFlowGraph()->getEnd())
                            {
                            succ = next;
                            continue;
                            }
                         TR::Block *succBlock = (*succ)->getTo()->asBlock();
 
-                        if (self()->comp()->getOption(TR_PoisonDeadSlots) && succBlock->isExtensionOfPreviousBlock())
+                        if (comp->getOption(TR_PoisonDeadSlots) && succBlock->isExtensionOfPreviousBlock())
                            {
-                           if (self()->comp()->getOption(TR_TraceCG) && self()->comp()->getOption(TR_PoisonDeadSlots))
-                              traceMsg(self()->comp(), "POISON DEAD SLOTS --- Successor Block Number %d is extension of Parent Block %d ... skipping \n", succBlock->getNumber(), block->getNumber());
+                           if (comp->getOption(TR_TraceCG) && comp->getOption(TR_PoisonDeadSlots))
+                              traceMsg(comp, "POISON DEAD SLOTS --- Successor Block Number %d is extension of Parent Block %d ... skipping \n", succBlock->getNumber(), block->getNumber());
                            succ = next;
                            continue;  //We cannot poison in an extended block as gcmaps are still live for maintained live locals  !!!! if target of jump, ignore, could be extension
                            }
 
-                        if (self()->comp()->getOption(TR_TraceCG) && self()->comp()->getOption(TR_PoisonDeadSlots))
-                           traceMsg(self()->comp(), "POISON DEAD SLOTS --- Successor Block Number %d, of Parent Block %d \n", succBlock->getNumber(), block->getNumber());
+                        if (comp->getOption(TR_TraceCG) && comp->getOption(TR_PoisonDeadSlots))
+                           traceMsg(comp, "POISON DEAD SLOTS --- Successor Block Number %d, of Parent Block %d \n", succBlock->getNumber(), block->getNumber());
 
                         TR_BitVector *succLiveLocals = succBlock->getLiveLocals();
                         if (succLiveLocals && !succLiveLocals->get(liveLocalIndex)) //added
@@ -1856,11 +1858,11 @@ J9::CodeGenerator::doInstructionSelection()
                               int32_t succLiveLocalIndex = sbvi.getNextElement();
                               TR_ASSERT((succLiveLocalIndex <= maxLiveLocalIndex), "Symbol has live local index higher than computed max\n");
                               TR::SymbolReference * succLiveAutoSymRef = liveLocalSyms[succLiveLocalIndex];
-                              if (self()->comp()->getOption(TR_TraceCG) && self()->comp()->getOption(TR_PoisonDeadSlots))
-                                 traceMsg(self()->comp(), "POISON DEAD SLOTS --- Successor Block %d contains live local %d\n", succBlock->getNumber(), succLiveAutoSymRef->getReferenceNumber());
+                              if (comp->getOption(TR_TraceCG) && comp->getOption(TR_PoisonDeadSlots))
+                                 traceMsg(comp, "POISON DEAD SLOTS --- Successor Block %d contains live local %d\n", succBlock->getNumber(), succLiveAutoSymRef->getReferenceNumber());
 
                               TR::AutomaticSymbol * succLiveAutoSym = succLiveAutoSymRef->getSymbol()->castToAutoSymbol();
-                              if ( (succLiveAutoSym->getType().isAddress() && succLiveAutoSym->isSlotSharedByRefAndNonRef()) || self()->comp()->getOption(TR_PoisonDeadSlots))
+                              if ( (succLiveAutoSym->getType().isAddress() && succLiveAutoSym->isSlotSharedByRefAndNonRef()) || comp->getOption(TR_PoisonDeadSlots))
                                  {
                                  if ((succLiveAutoSym->getGCMapIndex() == liveAutoSym->getGCMapIndex()) ||
                                      ((TR::Symbol::convertTypeToNumberOfSlots(succLiveAutoSym->getDataType()) == 2) &&
@@ -1874,7 +1876,7 @@ J9::CodeGenerator::doInstructionSelection()
 
                            if (zeroOut)
                               {
-                              self()->comp()->getFlowGraph()->setStructure(0);
+                              comp->getFlowGraph()->setStructure(0);
                               self()->zeroOutAutoOnEdge(liveAutoSymRef, block, succBlock, &newBlocks, &fsdStores);
                               }
                            }
@@ -1903,7 +1905,7 @@ J9::CodeGenerator::doInstructionSelection()
                               TR_ASSERT((succLiveLocalIndex <= maxLiveLocalIndex), "Symbol has live local index higher than computed max\n");
                               TR::SymbolReference * succLiveAutoSymRef = liveLocalSyms[succLiveLocalIndex];
                               TR::AutomaticSymbol * succLiveAutoSym = succLiveAutoSymRef->getSymbol()->castToAutoSymbol();
-                              if ( succLiveAutoSym->getType().isAddress() && ( succLiveAutoSym->isSlotSharedByRefAndNonRef() || self()->comp()->getOption(TR_PoisonDeadSlots)))
+                              if ( succLiveAutoSym->getType().isAddress() && ( succLiveAutoSym->isSlotSharedByRefAndNonRef() || comp->getOption(TR_PoisonDeadSlots)))
                                  {
                                  if ((succLiveAutoSym->getGCMapIndex() == liveAutoSym->getGCMapIndex()) ||
                                      ((TR::Symbol::convertTypeToNumberOfSlots(succLiveAutoSym->getDataType()) == 2) &&
@@ -1942,13 +1944,13 @@ J9::CodeGenerator::doInstructionSelection()
                               if (!storeExists)
                                  {
                                  TR::Node *storeNode;
-                                 if (self()->comp()->getOption(TR_PoisonDeadSlots))
+                                 if (comp->getOption(TR_PoisonDeadSlots))
                                     storeNode = self()->generatePoisonNode(block, liveAutoSymRef);
                                  else
                                     storeNode = TR::Node::createStore(liveAutoSymRef, TR::Node::aconst(block->getEntry()->getNode(), 0));
                                  if (storeNode)
                                     {
-                                    TR::TreeTop *storeTree = TR::TreeTop::create(self()->comp(), storeNode);
+                                    TR::TreeTop *storeTree = TR::TreeTop::create(comp, storeNode);
                                     esuccBlock->prepend(storeTree);
                                     fsdStores.add(storeNode);
                                    }
@@ -1965,14 +1967,14 @@ J9::CodeGenerator::doInstructionSelection()
       self()->setLiveLocals(liveLocals);
       self()->setLiveMonitors(liveMonitors);
 
-      if (self()->comp()->getOption(TR_TraceCG) || debug("traceGRA"))
+      if (comp->getOption(TR_TraceCG) || debug("traceGRA"))
          {
          // any evaluator that handles multiple trees will need to dump
          // the others
-         self()->comp()->getDebug()->saveNodeChecklist(nodeChecklistBeforeDump);
-         self()->comp()->getDebug()->dumpSingleTreeWithInstrs(tt, NULL, true, false, true, true);
-         trfprintf(self()->comp()->getOutFile(),"\n------------------------------\n");
-         trfflush(self()->comp()->getOutFile());
+         comp->getDebug()->saveNodeChecklist(nodeChecklistBeforeDump);
+         comp->getDebug()->dumpSingleTreeWithInstrs(tt, NULL, true, false, true, true);
+         trfprintf(comp->getOutFile(),"\n------------------------------\n");
+         trfflush(comp->getOutFile());
          }
 
       self()->setLastInstructionBeforeCurrentEvaluationTreeTop(self()->getAppendInstruction());
@@ -1986,21 +1988,21 @@ J9::CodeGenerator::doInstructionSelection()
          {
          if (traceLiveMon)
             {
-            traceMsg(self()->comp(), "liveMonitorStack %p ", liveMonitorStack);
+            traceMsg(comp, "liveMonitorStack %p ", liveMonitorStack);
             if (liveMonitorStack)
-               traceMsg(self()->comp(), "   size %d\n", liveMonitorStack->size());
+               traceMsg(comp, "   size %d\n", liveMonitorStack->size());
             else
-               traceMsg(self()->comp(), "   size empty\n");
-            traceMsg(self()->comp(), "Looking at Node %p with symbol %p",node,node->getSymbol());
+               traceMsg(comp, "   size empty\n");
+            traceMsg(comp, "Looking at Node %p with symbol %p",node,node->getSymbol());
             }
          bool isMonent = node->getOpCode().getOpCodeValue() != TR::monexitfence;
          if (isMonent)
             {
             // monent
             if (liveMonitors)
-               liveMonitors = new (self()->trHeapMemory()) TR_BitVector(*liveMonitors);
+               liveMonitors = new (comp->trHeapMemory()) TR_BitVector(*liveMonitors);
             else
-               liveMonitors = new (self()->trHeapMemory()) TR_BitVector(numMonitorLocals, self()->trMemory());
+               liveMonitors = new (comp->trHeapMemory()) TR_BitVector(numMonitorLocals, self()->trMemory());
 
             // add this monent to the block's stack
             //
@@ -2008,13 +2010,13 @@ J9::CodeGenerator::doInstructionSelection()
                {
                liveMonitorStack->push(node->getSymbolReference());
                if (traceLiveMon)
-                  traceMsg(self()->comp(), "pushing symref %p (#%u) onto monitor stack\n", node->getSymbolReference(), node->getSymbolReference()->getReferenceNumber());
+                  traceMsg(comp, "pushing symref %p (#%u) onto monitor stack\n", node->getSymbolReference(), node->getSymbolReference()->getReferenceNumber());
                }
 
             liveMonitors->set(node->getSymbol()->castToRegisterMappedSymbol()->getLiveLocalIndex());
 
             if (traceLiveMon)
-               traceMsg(self()->comp(), "monitor %p went live at node %p\n", node->getSymbol(), node);
+               traceMsg(comp, "monitor %p went live at node %p\n", node->getSymbol(), node);
             }
          else if (!isMonent)
             {
@@ -2027,21 +2029,21 @@ J9::CodeGenerator::doInstructionSelection()
                //
                if (!liveMonitorStack->isEmpty())
                   {
-                  liveMonitors = new (self()->trHeapMemory()) TR_BitVector(*liveMonitors);
+                  liveMonitors = new (comp->trHeapMemory()) TR_BitVector(*liveMonitors);
 
-                  if (self()->comp()->getOption(TR_PoisonDeadSlots))
+                  if (comp->getOption(TR_PoisonDeadSlots))
                      {
                      TR::SymbolReference *symRef = liveMonitorStack->pop();
                      liveMonitors->reset(symRef->getSymbol()->castToRegisterMappedSymbol()->getLiveLocalIndex());
                      TR::Node *storeNode = NULL;
 
-                     if (self()->comp()->getOption(TR_TraceCG) && self()->comp()->getOption(TR_PoisonDeadSlots))
-                        traceMsg(self()->comp(), "POISON DEAD SLOTS --- MonExit Block Number: %d\n", self()->getCurrentEvaluationBlock()->getNumber());
+                     if (comp->getOption(TR_TraceCG) && comp->getOption(TR_PoisonDeadSlots))
+                        traceMsg(comp, "POISON DEAD SLOTS --- MonExit Block Number: %d\n", self()->getCurrentEvaluationBlock()->getNumber());
 
                      storeNode = self()->generatePoisonNode(self()->getCurrentEvaluationBlock(), symRef);
                      if (storeNode)
                         {
-                        TR::TreeTop *storeTree = TR::TreeTop::create(self()->comp(), storeNode);
+                        TR::TreeTop *storeTree = TR::TreeTop::create(comp, storeNode);
                         self()->getCurrentEvaluationBlock()->prepend(storeTree);
                         fsdStores.add(storeNode);
                         }
@@ -2051,20 +2053,20 @@ J9::CodeGenerator::doInstructionSelection()
                      TR::SymbolReference *symref = liveMonitorStack->pop();
 
                      if (traceLiveMon)
-                        traceMsg(self()->comp(), "popping symref %p (#%u) off monitor stack\n", symref, symref->getReferenceNumber());
+                        traceMsg(comp, "popping symref %p (#%u) off monitor stack\n", symref, symref->getReferenceNumber());
                      liveMonitors->reset(symref->getSymbol()->castToRegisterMappedSymbol()->getLiveLocalIndex());
                      }
 
                   }
                else
                   {
-                  dumpOptDetails(self()->comp(), "liveMonitorStack %p is inconsistently empty at node %p!\n", liveMonitorStack, node);
+                  dumpOptDetails(comp, "liveMonitorStack %p is inconsistently empty at node %p!\n", liveMonitorStack, node);
                   if (liveMonitors)
                      liveMonitors->empty();
                   }
 
                if (traceLiveMon)
-                  traceMsg(self()->comp(), "monitor %p went dead at node %p\n", node->getSymbol(), node);
+                  traceMsg(comp, "monitor %p went dead at node %p\n", node->getSymbol(), node);
                }
            // no need to generate code for this store
             //
@@ -2082,7 +2084,7 @@ J9::CodeGenerator::doInstructionSelection()
          self()->evaluate(node);
 
 
-      if (self()->comp()->getOption(TR_TraceCG) || debug("traceGRA"))
+      if (comp->getOption(TR_TraceCG) || debug("traceGRA"))
          {
          TR::Instruction *lastInstr = self()->getAppendInstruction();
          tt->setLastInstruction(lastInstr == prevInstr ? 0 : lastInstr);
@@ -2118,8 +2120,8 @@ J9::CodeGenerator::doInstructionSelection()
             // If so, this local becomes live at this point.
             //
             if ((opCode == TR::astore) &&
-                ((!self()->comp()->getOption(TR_MimicInterpreterFrameShape)) ||
-                 (!self()->comp()->areSlotsSharedByRefAndNonRef()) ||
+                ((!comp->getOption(TR_MimicInterpreterFrameShape)) ||
+                 (!comp->areSlotsSharedByRefAndNonRef()) ||
                  (!fsdStores.find(node))))
                {
                liveSym = node->getSymbol()->getAutoSymbol();
@@ -2140,7 +2142,7 @@ J9::CodeGenerator::doInstructionSelection()
          bool newLiveLocals = false;
          if (liveSym)
             {
-            liveLocals = new (self()->trHeapMemory()) TR_BitVector(*liveLocals);
+            liveLocals = new (comp->trHeapMemory()) TR_BitVector(*liveLocals);
             newLiveLocals = true;
             if (liveSym)
                liveLocals->set(liveSym->getLiveLocalIndex());
@@ -2149,7 +2151,7 @@ J9::CodeGenerator::doInstructionSelection()
          // In interpreter-frame mode a reference can share a slot with a nonreference so when we see a store to a nonreference
          // we need to make sure that any reference that it shares a slot with is marked as dead
          //
-         if (self()->comp()->getOption(TR_MimicInterpreterFrameShape) && node->getOpCode().isStore() && opCode != TR::astore)
+         if (comp->getOption(TR_MimicInterpreterFrameShape) && node->getOpCode().isStore() && opCode != TR::astore)
             {
             TR::AutomaticSymbol * nonRefStoreSym = node->getSymbol()->getAutoSymbol();
             if (nonRefStoreSym && (nonRefStoreSym->getGCMapIndex() != -1))  //defect 147894: don't check this for GCMapIndex = -1
@@ -2159,7 +2161,7 @@ J9::CodeGenerator::doInstructionSelection()
                   {
                   ListIterator<TR::AutomaticSymbol> autoIterator(&methodSymbol->getAutomaticList());
                   if (!newLiveLocals)
-                     liveLocals = new (self()->trHeapMemory()) TR_BitVector(*liveLocals);
+                     liveLocals = new (comp->trHeapMemory()) TR_BitVector(*liveLocals);
                   for (TR::AutomaticSymbol * autoSym = autoIterator.getFirst(); autoSym; autoSym = autoIterator.getNext())
                      if (autoSym->getType().isAddress() && autoSym->getLiveLocalIndex() != (uint16_t)-1)
                         {
@@ -2174,11 +2176,11 @@ J9::CodeGenerator::doInstructionSelection()
          }
 
       bool compactVSSStack = false;
-      if (!self()->comp()->getOption(TR_DisableVSSStackCompaction))
+      if (!comp->getOption(TR_DisableVSSStackCompaction))
          {
-         if (self()->comp()->getMethodHotness() < hot)
+         if (comp->getMethodHotness() < hot)
             compactVSSStack = true;
-         else if (self()->comp()->getOption(TR_ForceVSSStackCompaction))
+         else if (comp->getOption(TR_ForceVSSStackCompaction))
             compactVSSStack = true;
          }
 
@@ -2198,11 +2200,11 @@ J9::CodeGenerator::doInstructionSelection()
             if (self()->traceBCDCodeGen())
                {
                if (sym->getNodeToFreeAfter())
-                  traceMsg(self()->comp(),"pending free temps : looking at symRef #%d (%s) refCount %d sym->getNodeToFreeAfter() %p ttNode %p (find sym in list %d)\n",
+                  traceMsg(comp,"pending free temps : looking at symRef #%d (%s) refCount %d sym->getNodeToFreeAfter() %p ttNode %p (find sym in list %d)\n",
                 		  (*it)->getReferenceNumber(),self()->getDebug()->getName(sym),sym->getReferenceCount(),
                      sym->getNodeToFreeAfter(),ttNode,found);
                else
-                  traceMsg(self()->comp(),"pending free temps : looking at symRef #%d (%s) refCount %d (find sym in list %d)\n",
+                  traceMsg(comp,"pending free temps : looking at symRef #%d (%s) refCount %d (find sym in list %d)\n",
                 		  (*it)->getReferenceNumber(),self()->getDebug()->getName(sym),sym->getReferenceCount(),found);
                }
             if (!sym->isAddressTaken() && !found)
@@ -2217,7 +2219,7 @@ J9::CodeGenerator::doInstructionSelection()
                else if (sym->getReferenceCount() > 0 && nodeToFreeAfterIsCurrentNode)
                   {
                   if (self()->traceBCDCodeGen())
-                     traceMsg(self()->comp(),"\treset nodeToFreeAfter %p->NULL for sym %p with refCount %d > 0\n",nodeToFreeAfter,sym,sym->getReferenceCount());
+                     traceMsg(comp,"\treset nodeToFreeAfter %p->NULL for sym %p with refCount %d > 0\n",nodeToFreeAfter,sym,sym->getReferenceCount());
                   sym->setNodeToFreeAfter(NULL);
                   }
                else
@@ -2230,32 +2232,32 @@ J9::CodeGenerator::doInstructionSelection()
             }
          }
 
-      if (self()->comp()->getOption(TR_TraceCG) || debug("traceGRA"))
+      if (comp->getOption(TR_TraceCG) || debug("traceGRA"))
          {
-         self()->comp()->getDebug()->restoreNodeChecklist(nodeChecklistBeforeDump);
+         comp->getDebug()->restoreNodeChecklist(nodeChecklistBeforeDump);
          if (tt == self()->getCurrentEvaluationTreeTop())
             {
-            trfprintf(self()->comp()->getOutFile(),"------------------------------\n");
-            self()->comp()->getDebug()->dumpSingleTreeWithInstrs(tt, prevInstr->getNext(), true, true, true, false);
+            trfprintf(comp->getOutFile(),"------------------------------\n");
+            comp->getDebug()->dumpSingleTreeWithInstrs(tt, prevInstr->getNext(), true, true, true, false);
             }
          else
             {
             // dump all the trees that the evaluator handled
-            trfprintf(self()->comp()->getOutFile(),"------------------------------");
+            trfprintf(comp->getOutFile(),"------------------------------");
             for (TR::TreeTop *dumptt = tt; dumptt != self()->getCurrentEvaluationTreeTop()->getNextTreeTop(); dumptt = dumptt->getNextTreeTop())
                {
-               trfprintf(self()->comp()->getOutFile(),"\n");
-               self()->comp()->getDebug()->dumpSingleTreeWithInstrs(dumptt, NULL, true, false, true, false);
+               trfprintf(comp->getOutFile(),"\n");
+               comp->getDebug()->dumpSingleTreeWithInstrs(dumptt, NULL, true, false, true, false);
                }
             // all instructions are on the tt tree
-            self()->comp()->getDebug()->dumpSingleTreeWithInstrs(tt, prevInstr->getNext(), false, true, false, false);
+            comp->getDebug()->dumpSingleTreeWithInstrs(tt, prevInstr->getNext(), false, true, false, false);
             }
-         trfflush(self()->comp()->getOutFile());
+         trfflush(comp->getOutFile());
          }
       }
 
    if (self()->traceBCDCodeGen())
-      traceMsg(self()->comp(),"\tinstruction selection is complete so free all symbols in the _variableSizeSymRefPendingFreeList\n");
+      traceMsg(comp,"\tinstruction selection is complete so free all symbols in the _variableSizeSymRefPendingFreeList\n");
 
    self()->freeAllVariableSizeSymRefs();
 
@@ -2267,15 +2269,15 @@ J9::CodeGenerator::doInstructionSelection()
 #endif
    } // Stack memory region ends
 
-   if (self()->comp()->getOption(TR_TraceCG) || debug("traceGRA"))
-      self()->comp()->incVisitCount();
+   if (comp->getOption(TR_TraceCG) || debug("traceGRA"))
+      comp->incVisitCount();
 
    if (self()->getDebug())
       self()->getDebug()->roundAddressEnumerationCounters();
 
    self()->endInstructionSelection();
 
-   if (self()->comp()->getOption(TR_TraceCG))
+   if (comp->getOption(TR_TraceCG))
       diagnostic("</selection>\n");
    }
 
@@ -2492,23 +2494,24 @@ J9::CodeGenerator::populateOSRBuffer()
 void
 J9::CodeGenerator::processRelocations()
    {
-   TR_J9VMBase *fej9 = (TR_J9VMBase *)(self()->comp()->fe());
+   TR::Compilation *comp = self()->comp();
+   TR_J9VMBase *fej9 = (TR_J9VMBase *)(comp->fe());
 
    //Project neutral non-AOT processRelocation
    OMR::CodeGenerator::processRelocations();
 
    int32_t missedSite = -1;
 
-   if (self()->comp()->compileRelocatableCode())
+   if (comp->compileRelocatableCode())
       {
-      uint32_t inlinedCallSize = self()->comp()->getNumInlinedCallSites();
+      uint32_t inlinedCallSize = comp->getNumInlinedCallSites();
 
       // Create temporary hashtable for ordering AOT guard relocations
       int32_t counter = inlinedCallSize;
       TR_InlinedSiteHastTableEntry *orderedInlinedSiteListTable;
       if (inlinedCallSize > 0)
          {
-         orderedInlinedSiteListTable= (TR_InlinedSiteHastTableEntry*)self()->comp()->trMemory()->allocateMemory(sizeof(TR_InlinedSiteHastTableEntry) * inlinedCallSize, heapAlloc);
+         orderedInlinedSiteListTable= (TR_InlinedSiteHastTableEntry*)comp->trMemory()->allocateMemory(sizeof(TR_InlinedSiteHastTableEntry) * inlinedCallSize, heapAlloc);
          memset(orderedInlinedSiteListTable, 0, sizeof(TR_InlinedSiteHastTableEntry)*inlinedCallSize);
          }
       else
@@ -2517,7 +2520,7 @@ J9::CodeGenerator::processRelocations()
       TR_InlinedSiteLinkedListEntry *entry = NULL;
 
       // Traverse list of AOT-specific guards and create relocation records
-      TR::list<TR_AOTGuardSite*> *aotGuardSites = self()->comp()->getAOTGuardPatchSites();
+      TR::list<TR_AOTGuardSite*> *aotGuardSites = comp->getAOTGuardPatchSites();
       for(auto it = aotGuardSites->begin(); it != aotGuardSites->end(); ++it)
          {
          intptr_t inlinedSiteIndex = -1;
@@ -2548,7 +2551,7 @@ J9::CodeGenerator::processRelocations()
                type = TR_InlinedInterfaceMethodWithNopGuard;
                break;
             case TR_RemovedInterfaceGuard:
-               traceMsg(self()->comp(), "TR_RemovedInterfaceMethod\n");
+               traceMsg(comp, "TR_RemovedInterfaceMethod\n");
                type = TR_InlinedInterfaceMethod;
                break;
 
@@ -2566,7 +2569,7 @@ J9::CodeGenerator::processRelocations()
                // (TR_RedefinedClassUPicSite), which would (hopefully) never
                // get patched. If it were patched, it seems like it would
                // replace code with a J9Method pointer.
-               if (!self()->comp()->getOption(TR_UseOldHCRGuardAOTRelocations))
+               if (!comp->getOption(TR_UseOldHCRGuardAOTRelocations))
                   continue;
                type = TR_HCR;
                break;
@@ -2582,7 +2585,7 @@ J9::CodeGenerator::processRelocations()
                break;
 
             case TR_RemovedProfiledGuard:
-               traceMsg(self()->comp(), "TR_ProfiledInlinedMethodRelocation\n");
+               traceMsg(comp, "TR_ProfiledInlinedMethodRelocation\n");
                type = TR_ProfiledInlinedMethodRelocation;
                break;
 
@@ -2590,12 +2593,12 @@ J9::CodeGenerator::processRelocations()
                if ((*it)->getGuard()->getTestType() == TR_MethodTest)
                   {
                   type = TR_ProfiledMethodGuardRelocation;
-                  traceMsg(self()->comp(), "TR_ProfiledMethodGuardRelocation\n");
+                  traceMsg(comp, "TR_ProfiledMethodGuardRelocation\n");
                   }
                else if ((*it)->getGuard()->getTestType() == TR_VftTest)
                   {
                   type = TR_ProfiledClassGuardRelocation;
-                  traceMsg(self()->comp(), "TR_ProfiledClassGuardRelocation\n");
+                  traceMsg(comp, "TR_ProfiledClassGuardRelocation\n");
                   }
                else
                   TR_ASSERT(false, "unexpected profiled guard test type");
@@ -2620,7 +2623,7 @@ J9::CodeGenerator::processRelocations()
             case TR_InlinedInterfaceMethod:
                TR_ASSERT(inlinedCallSize, "TR_AOT expect inlinedCallSize to be larger than 0\n");
                inlinedSiteIndex = (intptr_t)(*it)->getGuard()->getCurrentInlinedSiteIndex();
-               entry = (TR_InlinedSiteLinkedListEntry *)self()->comp()->trMemory()->allocateMemory(sizeof(TR_InlinedSiteLinkedListEntry), heapAlloc);
+               entry = (TR_InlinedSiteLinkedListEntry *)comp->trMemory()->allocateMemory(sizeof(TR_InlinedSiteLinkedListEntry), heapAlloc);
 
                entry->reloType = type;
                entry->location = (uint8_t *)(*it)->getLocation();
@@ -2643,7 +2646,7 @@ J9::CodeGenerator::processRelocations()
             case TR_CheckMethodEnter:
             case TR_CheckMethodExit:
             case TR_HCR:
-               self()->addExternalRelocation(new (self()->trHeapMemory()) TR::ExternalRelocation((uint8_t *)(*it)->getLocation(),
+               self()->addExternalRelocation(new (comp->trHeapMemory()) TR::ExternalRelocation((uint8_t *)(*it)->getLocation(),
                                                                                 (uint8_t *)(*it)->getDestination(),
                                                                                 type, self()),
                                 __FILE__, __LINE__, NULL);
@@ -2655,52 +2658,52 @@ J9::CodeGenerator::processRelocations()
             }
          }
 
-      TR::list<TR::AOTClassInfo*>* classInfo = self()->comp()->_aotClassInfo;
+      TR::list<TR::AOTClassInfo*>* classInfo = comp->_aotClassInfo;
       if (!classInfo->empty())
          {
          for (auto info = classInfo->begin(); info != classInfo->end(); ++info)
             {
-            traceMsg(self()->comp(), "processing AOT class info: %p in %s\n", *info, self()->comp()->signature());
-            traceMsg(self()->comp(), "ramMethod: %p cp: %p cpIndex: %x relo %d\n", (*info)->_method, (*info)->_constantPool, (*info)->_cpIndex, (*info)->_reloKind);
-            traceMsg(self()->comp(), "clazz: %p classChain: %p\n", (*info)->_clazz, (*info)->_classChain);
+            traceMsg(comp, "processing AOT class info: %p in %s\n", *info, comp->signature());
+            traceMsg(comp, "ramMethod: %p cp: %p cpIndex: %x relo %d\n", (*info)->_method, (*info)->_constantPool, (*info)->_cpIndex, (*info)->_reloKind);
+            traceMsg(comp, "clazz: %p classChain: %p\n", (*info)->_clazz, (*info)->_classChain);
 
             TR_OpaqueMethodBlock *ramMethod = (*info)->_method;
 
             int32_t siteIndex = -1;
 
-            if (ramMethod != self()->comp()->getCurrentMethod()->getPersistentIdentifier()) // && info->_reloKind != TR_ValidateArbitraryClass)
+            if (ramMethod != comp->getCurrentMethod()->getPersistentIdentifier()) // && info->_reloKind != TR_ValidateArbitraryClass)
                {
                int32_t i;
-               for (i = 0; i < self()->comp()->getNumInlinedCallSites(); i++)
+               for (i = 0; i < comp->getNumInlinedCallSites(); i++)
                   {
-                  TR_InlinedCallSite &ics = self()->comp()->getInlinedCallSite(i);
+                  TR_InlinedCallSite &ics = comp->getInlinedCallSite(i);
                   TR_OpaqueMethodBlock *inlinedMethod = fej9->getInlinedCallSiteMethod(&ics);
 
-                  traceMsg(self()->comp(), "\tinline site %d inlined method %p\n", i, inlinedMethod);
+                  traceMsg(comp, "\tinline site %d inlined method %p\n", i, inlinedMethod);
                   if (ramMethod == inlinedMethod)
                      {
-                     traceMsg(self()->comp(), "\t\tmatch!\n");
+                     traceMsg(comp, "\t\tmatch!\n");
                      siteIndex = i;
                      break;
                      }
                   }
 
-               if (i >= (int32_t) self()->comp()->getNumInlinedCallSites())
+               if (i >= (int32_t) comp->getNumInlinedCallSites())
                   {
                   // this assumption isn't associated with a method directly in the compilation
                   // so we can't use a constant pool approach to validate: transform into TR_ValidateArbitraryClass
                   // kind of overkill for TR_ValidateStaticField, but still correct
                   (*info)->_reloKind = TR_ValidateArbitraryClass;
                   siteIndex = -1;   // invalidate main compiled method
-                  traceMsg(self()->comp(), "\ttransformed into TR_ValidateArbitraryClass\n");
+                  traceMsg(comp, "\ttransformed into TR_ValidateArbitraryClass\n");
                   }
                }
 
-            traceMsg(self()->comp(), "Found inlined site %d\n", siteIndex);
+            traceMsg(comp, "Found inlined site %d\n", siteIndex);
 
-            TR_ASSERT(siteIndex < (int32_t) self()->comp()->getNumInlinedCallSites(), "did not find AOTClassInfo %p method in inlined site table", *info);
+            TR_ASSERT(siteIndex < (int32_t) comp->getNumInlinedCallSites(), "did not find AOTClassInfo %p method in inlined site table", *info);
 
-            self()->addExternalRelocation(new (self()->trHeapMemory()) TR::ExternalRelocation(NULL,
+            self()->addExternalRelocation(new (comp->trHeapMemory()) TR::ExternalRelocation(NULL,
                                                                              (uint8_t *)(intptr_t)siteIndex,
                                                                              (uint8_t *)(*info),
                                                                              (*info)->_reloKind, self()),
@@ -2721,7 +2724,7 @@ J9::CodeGenerator::processRelocations()
 
             while (currentSite)
                {
-               self()->addExternalRelocation(new (self()->trHeapMemory()) TR::ExternalRelocation(currentSite->location,
+               self()->addExternalRelocation(new (comp->trHeapMemory()) TR::ExternalRelocation(currentSite->location,
                                                                                 currentSite->destination,
                                                                                 currentSite->guard,
                                                                                 currentSite->reloType, self()),
@@ -2734,22 +2737,22 @@ J9::CodeGenerator::processRelocations()
       }
 
 #if defined(J9VM_OPT_JITSERVER)
-   if (self()->comp()->compileRelocatableCode() || self()->comp()->isOutOfProcessCompilation())
+   if (comp->compileRelocatableCode() || comp->isOutOfProcessCompilation())
 #else
-   if (self()->comp()->compileRelocatableCode())
+   if (comp->compileRelocatableCode())
 #endif /* defined(J9VM_OPT_JITSERVER) */
       {
-      TR::SymbolValidationManager::SymbolValidationRecordList &validationRecords = self()->comp()->getSymbolValidationManager()->getValidationRecordList();
-      if (self()->comp()->getOption(TR_UseSymbolValidationManager))
+      TR::SymbolValidationManager::SymbolValidationRecordList &validationRecords = comp->getSymbolValidationManager()->getValidationRecordList();
+      if (comp->getOption(TR_UseSymbolValidationManager))
          {
          // Add the flags in TR_AOTMethodHeader on the compile run
-         J9JITDataCacheHeader *aotMethodHeader = (J9JITDataCacheHeader *)self()->comp()->getAotMethodDataStart();
+         J9JITDataCacheHeader *aotMethodHeader = (J9JITDataCacheHeader *)comp->getAotMethodDataStart();
          TR_AOTMethodHeader *aotMethodHeaderEntry = (TR_AOTMethodHeader *)(aotMethodHeader + 1);
          aotMethodHeaderEntry->flags |= TR_AOTMethodHeader_UsesSymbolValidationManager;
 
          for (auto it = validationRecords.begin(); it != validationRecords.end(); it++)
             {
-            self()->addExternalRelocation(new (self()->trHeapMemory()) TR::ExternalRelocation(NULL,
+            self()->addExternalRelocation(new (comp->trHeapMemory()) TR::ExternalRelocation(NULL,
                                                                              (uint8_t *)(*it),
                                                                              (*it)->_kind, self()),
                                                                              __FILE__, __LINE__, NULL);
@@ -2770,10 +2773,12 @@ J9::CodeGenerator::processRelocations()
 #if defined(J9VM_OPT_JITSERVER)
 void J9::CodeGenerator::addExternalRelocation(TR::Relocation *r, const char *generatingFileName, uintptr_t generatingLineNumber, TR::Node *node, TR::ExternalRelocationPositionRequest where)
    {
+   TR::Compilation *comp = self()->comp();
+
    TR_ASSERT(generatingFileName, "External relocation location has improper NULL filename specified");
-   if (self()->comp()->compileRelocatableCode() || self()->comp()->isOutOfProcessCompilation())
+   if (comp->compileRelocatableCode() || comp->isOutOfProcessCompilation())
       {
-      TR::RelocationDebugInfo *genData = new(self()->trHeapMemory()) TR::RelocationDebugInfo;
+      TR::RelocationDebugInfo *genData = new(comp->trHeapMemory()) TR::RelocationDebugInfo;
       genData->file = generatingFileName;
       genData->line = generatingLineNumber;
       genData->node = node;
@@ -2812,9 +2817,9 @@ void J9::CodeGenerator::addProjectSpecializedRelocation(uint8_t *location, uint8
       TR_ExternalRelocationTargetKind kind, char *generatingFileName, uintptr_t generatingLineNumber, TR::Node *node)
    {
    (target2 == NULL) ?
-         self()->addExternalRelocation(new (self()->trHeapMemory()) TR::ExternalRelocation(location, target, kind, self()),
+         self()->addExternalRelocation(new (self()->comp()->trHeapMemory()) TR::ExternalRelocation(location, target, kind, self()),
                generatingFileName, generatingLineNumber, node) :
-         self()->addExternalRelocation(new (self()->trHeapMemory()) TR::ExternalRelocation(location, target, target2, kind, self()),
+         self()->addExternalRelocation(new (self()->comp()->trHeapMemory()) TR::ExternalRelocation(location, target, target2, kind, self()),
                generatingFileName, generatingLineNumber, node);
    }
 
@@ -2822,16 +2827,16 @@ void J9::CodeGenerator::addProjectSpecializedRelocation(TR::Instruction *instr, 
       TR_ExternalRelocationTargetKind kind, char *generatingFileName, uintptr_t generatingLineNumber, TR::Node *node)
    {
    (target2 == NULL) ?
-         self()->addExternalRelocation(new (self()->trHeapMemory()) TR::BeforeBinaryEncodingExternalRelocation(instr, target, kind, self()),
+         self()->addExternalRelocation(new (self()->comp()->trHeapMemory()) TR::BeforeBinaryEncodingExternalRelocation(instr, target, kind, self()),
                generatingFileName, generatingLineNumber, node) :
-         self()->addExternalRelocation(new (self()->trHeapMemory()) TR::BeforeBinaryEncodingExternalRelocation(instr, target, target2, kind, self()),
+         self()->addExternalRelocation(new (self()->comp()->trHeapMemory()) TR::BeforeBinaryEncodingExternalRelocation(instr, target, target2, kind, self()),
                generatingFileName, generatingLineNumber, node);
    }
 
 void J9::CodeGenerator::addProjectSpecializedPairRelocation(uint8_t *location, uint8_t *location2, uint8_t *target,
       TR_ExternalRelocationTargetKind kind, char *generatingFileName, uintptr_t generatingLineNumber, TR::Node *node)
    {
-   self()->addExternalRelocation(new (self()->trHeapMemory()) TR::ExternalOrderedPair32BitRelocation(location, location2, target, kind, self()),
+   self()->addExternalRelocation(new (self()->comp()->trHeapMemory()) TR::ExternalOrderedPair32BitRelocation(location, location2, target, kind, self()),
          generatingFileName, generatingLineNumber, node);
    }
 
@@ -2859,20 +2864,21 @@ J9::CodeGenerator::createOrFindClonedNode(TR::Node *node, int32_t numChildren)
 void
 J9::CodeGenerator::jitAddUnresolvedAddressMaterializationToPatchOnClassRedefinition(void *firstInstruction)
    {
+   TR::Compilation *comp = self()->comp();
    TR_J9VMBase *fej9 = (TR_J9VMBase *)(self()->fe());
 #if defined(J9VM_OPT_JITSERVER)
-   if (self()->comp()->compileRelocatableCode() || self()->comp()->isOutOfProcessCompilation())
+   if (comp->compileRelocatableCode() || comp->isOutOfProcessCompilation())
 #else
-   if (self()->comp()->compileRelocatableCode())
+   if (comp->compileRelocatableCode())
 #endif /* defined(J9VM_OPT_JITSERVER) */
       {
-      self()->addExternalRelocation(new (self()->trHeapMemory()) TR::ExternalRelocation((uint8_t *)firstInstruction, 0, TR_HCR, self()),
+      self()->addExternalRelocation(new (comp->trHeapMemory()) TR::ExternalRelocation((uint8_t *)firstInstruction, 0, TR_HCR, self()),
                                  __FILE__,__LINE__, NULL);
       }
    else
       {
-      createClassRedefinitionPicSite((void*)-1, firstInstruction, 1 /* see OMR::RuntimeAssumption::isForAddressMaterializationSequence */, true, self()->comp()->getMetadataAssumptionList());
-      self()->comp()->setHasClassRedefinitionAssumptions();
+      createClassRedefinitionPicSite((void*)-1, firstInstruction, 1 /* see OMR::RuntimeAssumption::isForAddressMaterializationSequence */, true, comp->getMetadataAssumptionList());
+      comp->setHasClassRedefinitionAssumptions();
       }
    }
 
@@ -4490,7 +4496,7 @@ J9::CodeGenerator::setUpForInstructionSelection()
             {
             // need to get the label type from the target block for RAS
             TR::LabelSymbol * label =
-                TR::LabelSymbol::create(self()->trHeapMemory(),self(),node->getBranchDestination()->getNode()->getBlock());
+                TR::LabelSymbol::create(self()->comp()->trHeapMemory(),self(),node->getBranchDestination()->getNode()->getBlock());
 
             node->getBranchDestination()->getNode()->setLabel(label);
 
@@ -4654,7 +4660,7 @@ J9::CodeGenerator::registerAssumptions()
          // For JITServer we need to build a list of assumptions that will be sent to client at end of compilation
          intptr_t offset = i->getBinaryEncoding() - self()->getBinaryBufferStart();
          SerializedRuntimeAssumption* sar =
-            new (self()->trHeapMemory()) SerializedRuntimeAssumption(RuntimeAssumptionOnRegisterNative, (uintptr_t)method, offset);
+            new (self()->comp()->trHeapMemory()) SerializedRuntimeAssumption(RuntimeAssumptionOnRegisterNative, (uintptr_t)method, offset);
          self()->comp()->getSerializedRuntimeAssumptions().push_front(sar);
          }
       else
@@ -4673,7 +4679,7 @@ J9::CodeGenerator::jitAddPicToPatchOnClassUnload(void *classPointer, void *addre
       {
       intptr_t offset = (uint8_t*)addressToBePatched - self()->getBinaryBufferStart();
       SerializedRuntimeAssumption* sar =
-         new (self()->trHeapMemory()) SerializedRuntimeAssumption(RuntimeAssumptionOnClassUnload, (uintptr_t)classPointer, offset, sizeof(uintptr_t));
+         new (self()->comp()->trHeapMemory()) SerializedRuntimeAssumption(RuntimeAssumptionOnClassUnload, (uintptr_t)classPointer, offset, sizeof(uintptr_t));
       self()->comp()->getSerializedRuntimeAssumptions().push_front(sar);
       }
    else
@@ -4692,7 +4698,7 @@ J9::CodeGenerator::jitAdd32BitPicToPatchOnClassUnload(void *classPointer, void *
       {
       intptr_t offset = (uint8_t*)addressToBePatched - self()->getBinaryBufferStart();
       SerializedRuntimeAssumption* sar =
-         new (self()->trHeapMemory()) SerializedRuntimeAssumption(RuntimeAssumptionOnClassUnload, (uintptr_t)classPointer, offset, 4);
+         new (self()->comp()->trHeapMemory()) SerializedRuntimeAssumption(RuntimeAssumptionOnClassUnload, (uintptr_t)classPointer, offset, 4);
       self()->comp()->getSerializedRuntimeAssumptions().push_front(sar);
       }
    else
@@ -4715,7 +4721,7 @@ J9::CodeGenerator::jitAddPicToPatchOnClassRedefinition(void *classPointer, void 
          uintptr_t key = unresolved ? (uintptr_t)-1 : (uintptr_t)classPointer;
          intptr_t offset = (uint8_t*)addressToBePatched - self()->getBinaryBufferStart();
          SerializedRuntimeAssumption* sar =
-            new (self()->trHeapMemory()) SerializedRuntimeAssumption(kind, key, offset, sizeof(uintptr_t));
+            new (self()->comp()->trHeapMemory()) SerializedRuntimeAssumption(kind, key, offset, sizeof(uintptr_t));
          self()->comp()->getSerializedRuntimeAssumptions().push_front(sar);
          }
       else
@@ -4739,7 +4745,7 @@ J9::CodeGenerator::jitAdd32BitPicToPatchOnClassRedefinition(void *classPointer, 
          uintptr_t key = unresolved ? (uintptr_t)-1 : (uintptr_t)classPointer;
          intptr_t offset = (uint8_t*)addressToBePatched - self()->getBinaryBufferStart();
          SerializedRuntimeAssumption* sar =
-            new (self()->trHeapMemory()) SerializedRuntimeAssumption(kind, key, offset, 4);
+            new (self()->comp()->trHeapMemory()) SerializedRuntimeAssumption(kind, key, offset, 4);
          self()->comp()->getSerializedRuntimeAssumptions().push_front(sar);
          }
       else

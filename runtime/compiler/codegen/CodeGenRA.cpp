@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2019 IBM Corp. and others
+ * Copyright (c) 2000, 2020 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -89,7 +89,7 @@
 TR::AutomaticSymbol *
 J9::CodeGenerator::allocateVariableSizeSymbol(int32_t size)
    {
-   TR::AutomaticSymbol *sym = TR::AutomaticSymbol::createVariableSized(self()->trHeapMemory(), size);
+   TR::AutomaticSymbol *sym = TR::AutomaticSymbol::createVariableSized(self()->comp()->trHeapMemory(), size);
    self()->comp()->getMethodSymbol()->addVariableSizeSymbol(sym);
    if (self()->getDebug())
       self()->getDebug()->newVariableSizeSymbol(sym);
@@ -99,29 +99,31 @@ J9::CodeGenerator::allocateVariableSizeSymbol(int32_t size)
 TR::SymbolReference *
 J9::CodeGenerator::allocateVariableSizeSymRef(int32_t byteLength)
    {
+   TR::Compilation *comp = self()->comp();
+
    if (self()->traceBCDCodeGen())
-      traceMsg(self()->comp(),"\tallocateVariableSizeSymbolReference: length = %d\n",byteLength);
+      traceMsg(comp,"\tallocateVariableSizeSymbolReference: length = %d\n",byteLength);
    TR::SymbolReference *symRef = self()->getFreeVariableSizeSymRef(byteLength);
    TR::AutomaticSymbol *sym = NULL;
    if (symRef == NULL)
       {
       sym = self()->allocateVariableSizeSymbol(byteLength);
-      symRef = new (self()->trHeapMemory()) TR::SymbolReference(self()->comp()->getSymRefTab(), sym);
+      symRef = new (comp->trHeapMemory()) TR::SymbolReference(comp->getSymRefTab(), sym);
       symRef->setIsTempVariableSizeSymRef();
       if (self()->traceBCDCodeGen())
-         traceMsg(self()->comp(),"\t\tno available symRef allocate symRef #%d : %s (%p) of length = %d\n",symRef->getReferenceNumber(),self()->getDebug()->getName(sym),sym,byteLength);
+         traceMsg(comp,"\t\tno available symRef allocate symRef #%d : %s (%p) of length = %d\n",symRef->getReferenceNumber(),self()->getDebug()->getName(sym),sym,byteLength);
       _variableSizeSymRefAllocList.push_front(symRef);
       }
    else
       {
       sym = symRef->getSymbol()->getVariableSizeSymbol();
       if (self()->traceBCDCodeGen())
-         traceMsg(self()->comp(),"\t\treuse available symRef #%d : %s (%p) with length = %d\n",symRef->getReferenceNumber(),self()->getDebug()->getName(sym),sym,byteLength);
+         traceMsg(comp,"\t\treuse available symRef #%d : %s (%p) with length = %d\n",symRef->getReferenceNumber(),self()->getDebug()->getName(sym),sym,byteLength);
       }
    sym->setActiveSize(byteLength);
    sym->setReferenceCount(0);
    if (self()->traceBCDCodeGen())
-      traceMsg(self()->comp(),"\treturning symRef #%d (%s) : activeSize set to %d (length = %d)\n",
+      traceMsg(comp,"\treturning symRef #%d (%s) : activeSize set to %d (length = %d)\n",
          symRef->getReferenceNumber(),self()->getDebug()->getName(sym),sym->getActiveSize(),sym->getSize());
    return symRef;
    }

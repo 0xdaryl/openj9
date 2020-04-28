@@ -153,7 +153,7 @@ J9::CodeGenerator::createStackAtlas()
    // --------------------------------------------------------------------------------
    // Construct the parameter map for mapped reference parameters
    //
-   TR_GCStackMap *parameterMap = new (self()->trHeapMemory(), numParmSlots) TR_GCStackMap(numParmSlots);
+   TR_GCStackMap *parameterMap = new (comp->trHeapMemory(), numParmSlots) TR_GCStackMap(numParmSlots);
 
    // --------------------------------------------------------------------------------
    // Now assign GC map indices to parameters depending on the linkage mapping.
@@ -403,7 +403,7 @@ J9::CodeGenerator::createStackAtlas()
    // Construct and populate the stack map for a method.  Start with all parameters
    // and locals being live, and selectively unmark slots that are not live.
    //
-   TR_GCStackMap * localMap = new (self()->trHeapMemory(), totalSlotsInMap) TR_GCStackMap(totalSlotsInMap);
+   TR_GCStackMap * localMap = new (comp->trHeapMemory(), totalSlotsInMap) TR_GCStackMap(totalSlotsInMap);
    localMap->copy(parameterMap);
 
    // Set all the local references to be live
@@ -452,7 +452,7 @@ J9::CodeGenerator::createStackAtlas()
 
             if (!localObjectStackMap)
                {
-               localObjectStackMap = new (self()->trHeapMemory(), totalSlotsInMap) TR_GCStackAllocMap(totalSlotsInMap);
+               localObjectStackMap = new (comp->trHeapMemory(), totalSlotsInMap) TR_GCStackAllocMap(totalSlotsInMap);
                }
 
             localObjectStackMap->setBit(slotIndex);
@@ -492,7 +492,7 @@ J9::CodeGenerator::createStackAtlas()
    // --------------------------------------------------------------------------
    // Now create the stack atlas
    //
-   TR::GCStackAtlas * atlas = new (self()->trHeapMemory()) TR::GCStackAtlas(numParmSlots, totalSlotsInMap, self()->trMemory());
+   TR::GCStackAtlas * atlas = new (comp->trHeapMemory()) TR::GCStackAtlas(numParmSlots, totalSlotsInMap, self()->trMemory());
    atlas->setParmBaseOffset(firstMappedParmOffsetInBytes);
    atlas->setParameterMap(parameterMap);
    atlas->setLocalMap(localMap);
