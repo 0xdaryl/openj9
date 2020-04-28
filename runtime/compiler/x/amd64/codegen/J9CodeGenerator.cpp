@@ -37,17 +37,18 @@ TR::Linkage *
 J9::X86::AMD64::CodeGenerator::createLinkage(TR_LinkageConventions lc)
    {
    TR::Linkage *linkage = NULL;
+   TR::Compilation *comp = self()->comp();
 
    switch (lc)
       {
       case TR_CHelper:
-         linkage = new (self()->trHeapMemory()) J9::X86::HelperLinkage(self());
+         linkage = new (comp->trHeapMemory()) J9::X86::HelperLinkage(self());
          break;
       case TR_Helper:
       case TR_Private:
          {
          J9::X86::PrivateLinkage *p = NULL;
-         p = new (self()->trHeapMemory()) J9::X86::AMD64::PrivateLinkage(self());
+         p = new (comp->trHeapMemory()) J9::X86::AMD64::PrivateLinkage(self());
          p->IPicParameters.roundedSizeOfSlot = 10+3+2+5+2+2;
          p->IPicParameters.defaultNumberOfSlots = 2;
          p->IPicParameters.defaultSlotAddress = 0;
@@ -62,15 +63,15 @@ J9::X86::AMD64::CodeGenerator::createLinkage(TR_LinkageConventions lc)
          {
          TR::AMD64SystemLinkage *systemLinkage;
 
-         if (self()->comp()->target().isWindows())
+         if (comp->target().isWindows())
             {
-            systemLinkage = new (self()->trHeapMemory()) TR::AMD64J9Win64FastCallLinkage(self());
-            linkage = new (self()->trHeapMemory()) J9::X86::AMD64::JNILinkage(systemLinkage, self());
+            systemLinkage = new (comp->trHeapMemory()) TR::AMD64J9Win64FastCallLinkage(self());
+            linkage = new (comp->trHeapMemory()) J9::X86::AMD64::JNILinkage(systemLinkage, self());
             }
-         else if (self()->comp()->target().isLinux() || self()->comp()->target().isOSX())
+         else if (comp->target().isLinux() || comp->target().isOSX())
             {
-            systemLinkage = new (self()->trHeapMemory()) TR::AMD64J9ABILinkage(self());
-            linkage = new (self()->trHeapMemory()) J9::X86::AMD64::JNILinkage(systemLinkage, self());
+            systemLinkage = new (comp->trHeapMemory()) TR::AMD64J9ABILinkage(self());
+            linkage = new (comp->trHeapMemory()) J9::X86::AMD64::JNILinkage(systemLinkage, self());
             }
          else
             {
@@ -81,13 +82,13 @@ J9::X86::AMD64::CodeGenerator::createLinkage(TR_LinkageConventions lc)
          break;
 
       case TR_System:
-         if (self()->comp()->target().isWindows())
+         if (comp->target().isWindows())
             {
-            linkage = new (self()->trHeapMemory()) TR::AMD64J9Win64FastCallLinkage(self());
+            linkage = new (comp->trHeapMemory()) TR::AMD64J9Win64FastCallLinkage(self());
             }
-         else if (self()->comp()->target().isLinux() || self()->comp()->target().isOSX())
+         else if (comp->target().isLinux() || comp->target().isOSX())
             {
-            linkage = new (self()->trHeapMemory()) TR::AMD64J9ABILinkage(self());
+            linkage = new (comp->trHeapMemory()) TR::AMD64J9ABILinkage(self());
             }
          else
             {

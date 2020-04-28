@@ -99,7 +99,7 @@ uint8_t *TR::X86RecompilationSnippet::emitSnippetBody()
       TR_ASSERT(IS_32BIT_RIP(helperAddress, buffer+4), "Local helper trampoline should be reachable directly.\n");
       }
    *(int32_t *)buffer = ((uint8_t*)helperAddress - buffer) - 4;
-   cg()->addExternalRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation(buffer,
+   cg()->addExternalRelocation(new (cg()->comp()->trHeapMemory()) TR::ExternalRelocation(buffer,
                                                          (uint8_t *)_destination,
                                                          TR_HelperAddress, cg()),
                                                          __FILE__, __LINE__, getNode());

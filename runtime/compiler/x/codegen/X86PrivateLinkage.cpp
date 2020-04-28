@@ -429,7 +429,7 @@ static TR::Instruction *initializeLocals(TR::Instruction      *cursor,
       //
       for (int32_t i=0; i < count; i++, offset += pointerSize)
          {
-         cursor = new (cg->trHeapMemory()) TR::X86MemRegInstruction(
+         cursor = new (comp->trHeapMemory()) TR::X86MemRegInstruction(
             cursor,
             SMemReg(),
             generateX86MemoryReference(framePointer, offset, cg),
@@ -446,7 +446,7 @@ static TR::Instruction *initializeLocals(TR::Instruction      *cursor,
       //
       TR_ASSERT(count > 0, "positive count required for dword RegImm instruction");
 
-      cursor = new (cg->trHeapMemory()) TR::X86RegMemInstruction(
+      cursor = new (comp->trHeapMemory()) TR::X86RegMemInstruction(
                   cursor,
                   LEARegMem(),
                   loopReg,
@@ -454,9 +454,9 @@ static TR::Instruction *initializeLocals(TR::Instruction      *cursor,
                   cg);
 
       TR::LabelSymbol *loopLabel = generateLabelSymbol(cg);
-      cursor = new (cg->trHeapMemory()) TR::X86LabelInstruction(cursor, LABEL, loopLabel, cg);
+      cursor = new (comp->trHeapMemory()) TR::X86LabelInstruction(cursor, LABEL, loopLabel, cg);
 
-      cursor = new (cg->trHeapMemory()) TR::X86MemRegInstruction(
+      cursor = new (comp->trHeapMemory()) TR::X86MemRegInstruction(
          cursor,
          SMemReg(),
          generateX86MemoryReference(
@@ -468,8 +468,8 @@ static TR::Instruction *initializeLocals(TR::Instruction      *cursor,
          sourceReg,
          cg);
 
-      cursor = new (cg->trHeapMemory()) TR::X86RegImmInstruction(cursor, SUB4RegImms, loopReg, 1, cg);
-      cursor = new (cg->trHeapMemory()) TR::X86LabelInstruction(cursor, JAE4, loopLabel, cg);
+      cursor = new (comp->trHeapMemory()) TR::X86RegImmInstruction(cursor, SUB4RegImms, loopReg, 1, cg);
+      cursor = new (comp->trHeapMemory()) TR::X86LabelInstruction(cursor, JAE4, loopLabel, cg);
       }
 
    return cursor;
@@ -2152,7 +2152,7 @@ TR::Instruction *J9::X86::PrivateLinkage::buildVFTCall(TR::X86CallSite &site, TR
 
          // Mainline call
          //
-         TR::LabelSymbol *jmpLabel   = TR::LabelSymbol::create(cg()->trHeapMemory(),cg());
+         TR::LabelSymbol *jmpLabel   = TR::LabelSymbol::create(cg()->comp()->trHeapMemory(),cg());
          callInstr = generateLabelInstruction(CALLImm4, callNode, jmpLabel, cg());
 
          // Jump outlined

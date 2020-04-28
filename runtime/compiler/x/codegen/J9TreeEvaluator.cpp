@@ -185,7 +185,7 @@ static TR_OutlinedInstructions *generateArrayletReference(
 
    TR::Register *scratchReg = cg->allocateRegister();
 
-   TR_OutlinedInstructions *arrayletRef = new (cg->trHeapMemory()) TR_OutlinedInstructions(arrayletRefLabel, cg);
+   TR_OutlinedInstructions *arrayletRef = new (comp->trHeapMemory()) TR_OutlinedInstructions(arrayletRefLabel, cg);
    arrayletRef->setRestartLabel(restartLabel);
 
    if (needsBoundCheck)
@@ -240,7 +240,7 @@ static TR_OutlinedInstructions *generateArrayletReference(
       checkInstruction = generateLabelInstruction(JNE4, node, boundCheckFailureLabel, cg);
 
       cg->addSnippet(
-         new (cg->trHeapMemory()) TR::X86CheckFailureSnippet(
+         new (comp->trHeapMemory()) TR::X86CheckFailureSnippet(
             cg, node->getSymbolReference(),
             boundCheckFailureLabel,
             checkInstruction,
@@ -267,7 +267,7 @@ static TR_OutlinedInstructions *generateArrayletReference(
       checkInstruction = generateLabelInstruction(JBE4, node, boundCheckFailureLabel, cg);
 
       cg->addSnippet(
-         new (cg->trHeapMemory()) TR::X86CheckFailureSnippet(
+         new (comp->trHeapMemory()) TR::X86CheckFailureSnippet(
             cg, node->getSymbolReference(),
             boundCheckFailureLabel,
             checkInstruction,
@@ -756,9 +756,10 @@ TR::Register *J9::X86::i386::TreeEvaluator::conditionalHelperEvaluator(TR::Node 
       temp.integerCompareAnalyser(testNode, CMP4RegReg, CMP4RegMem, CMP4MemReg);
       }
 
-   TR::LabelSymbol *startLabel   = TR::LabelSymbol::create(cg->trHeapMemory(),cg);
-   TR::LabelSymbol *reStartLabel = TR::LabelSymbol::create(cg->trHeapMemory(),cg);
-   TR::LabelSymbol *snippetLabel = TR::LabelSymbol::create(cg->trHeapMemory(),cg);
+   TR::Compilation *comp = cg->comp();
+   TR::LabelSymbol *startLabel   = TR::LabelSymbol::create(comp->trHeapMemory(), cg);
+   TR::LabelSymbol *reStartLabel = TR::LabelSymbol::create(comp->trHeapMemory(), cg);
+   TR::LabelSymbol *snippetLabel = TR::LabelSymbol::create(comp->trHeapMemory(), cg);
    startLabel->setStartInternalControlFlow();
    reStartLabel->setEndInternalControlFlow();
    generateLabelInstruction(LABEL, node, startLabel, cg);
@@ -766,9 +767,9 @@ TR::Register *J9::X86::i386::TreeEvaluator::conditionalHelperEvaluator(TR::Node 
 
    TR::Snippet *snippet;
    if (node->getNumChildren() == 2)
-      snippet = new (cg->trHeapMemory()) TR::X86HelperCallSnippet(cg, reStartLabel, snippetLabel, node->getSecondChild());
+      snippet = new (comp->trHeapMemory()) TR::X86HelperCallSnippet(cg, reStartLabel, snippetLabel, node->getSecondChild());
    else
-      snippet = new (cg->trHeapMemory()) TR::X86HelperCallSnippet(cg, node, reStartLabel, snippetLabel, node->getSymbolReference());
+      snippet = new (comp->trHeapMemory()) TR::X86HelperCallSnippet(cg, node, reStartLabel, snippetLabel, node->getSymbolReference());
 
    cg->addSnippet(snippet);
 
@@ -900,9 +901,10 @@ TR::Register *J9::X86::AMD64::TreeEvaluator::conditionalHelperEvaluator(TR::Node
       temp.integerCompareAnalyser(testNode, CMPRegReg(testIs64Bit), CMPRegMem(testIs64Bit), CMPMemReg(testIs64Bit));
       }
 
-   TR::LabelSymbol *startLabel   = TR::LabelSymbol::create(cg->trHeapMemory(),cg);
-   TR::LabelSymbol *reStartLabel = TR::LabelSymbol::create(cg->trHeapMemory(),cg);
-   TR::LabelSymbol *snippetLabel = TR::LabelSymbol::create(cg->trHeapMemory(),cg);
+   TR::Compilation *comp = cg->comp();
+   TR::LabelSymbol *startLabel   = TR::LabelSymbol::create(comp->trHeapMemory(), cg);
+   TR::LabelSymbol *reStartLabel = TR::LabelSymbol::create(comp->trHeapMemory(), cg);
+   TR::LabelSymbol *snippetLabel = TR::LabelSymbol::create(comp->trHeapMemory(), cg);
    startLabel->setStartInternalControlFlow();
    reStartLabel->setEndInternalControlFlow();
 
@@ -925,8 +927,8 @@ TR::Register *J9::X86::AMD64::TreeEvaluator::conditionalHelperEvaluator(TR::Node
       // TODO:AMD64: This would be a useful general facility to have.
       //
       TR::Machine *machine = cg->machine();
-      TR::RegisterDependencyConditions  *postConditions = new (cg->trHeapMemory()) TR::RegisterDependencyConditions((uint8_t)0, TR::RealRegister::NumRegisters, cg->trMemory());
-      TR::Compilation *comp = cg->comp();
+      TR::RegisterDependencyConditions  *postConditions = new (comp->trHeapMemory()) TR::RegisterDependencyConditions((uint8_t)0, TR::RealRegister::NumRegisters, cg->trMemory());
+
       if (thisReg)
          postConditions->addPostCondition(thisReg, TR::RealRegister::NoReg, cg);
 
@@ -964,9 +966,9 @@ TR::Register *J9::X86::AMD64::TreeEvaluator::conditionalHelperEvaluator(TR::Node
 
       TR::Snippet *snippet;
       if (node->getNumChildren() == 2)
-         snippet = new (cg->trHeapMemory()) TR::X86HelperCallSnippet(cg, reStartLabel, snippetLabel, node->getSecondChild());
+         snippet = new (comp->trHeapMemory()) TR::X86HelperCallSnippet(cg, reStartLabel, snippetLabel, node->getSecondChild());
       else
-         snippet = new (cg->trHeapMemory()) TR::X86HelperCallSnippet(cg, node, reStartLabel, snippetLabel, node->getSymbolReference());
+         snippet = new (comp->trHeapMemory()) TR::X86HelperCallSnippet(cg, node, reStartLabel, snippetLabel, node->getSymbolReference());
 
       cg->addSnippet(snippet);
       generateLabelInstruction(LABEL, node, reStartLabel, cg);
@@ -1299,7 +1301,7 @@ TR::Register *J9::X86::TreeEvaluator::multianewArrayEvaluator(TR::Node *node, TR
    generateLabelInstruction(LABEL, node, startLabel, cg);
 
    // Generate the heap allocation, and the snippet that will handle heap overflow.
-   TR_OutlinedInstructions *outlinedHelperCall = new (cg->trHeapMemory()) TR_OutlinedInstructions(node, TR::acall, targetReg, failLabel, fallThru, cg);
+   TR_OutlinedInstructions *outlinedHelperCall = new (comp->trHeapMemory()) TR_OutlinedInstructions(node, TR::acall, targetReg, failLabel, fallThru, cg);
    cg->getOutlinedInstructionsList().push_front(outlinedHelperCall);
 
    dimReg = cg->evaluate(secondChild);
@@ -1530,7 +1532,9 @@ TR::Register *J9::X86::TreeEvaluator::arraycopyEvaluator(TR::Node *node, TR::Cod
    auto dstReg    = cg->evaluate(node->getChild(3));
    auto sizeReg   = cg->evaluate(node->getChild(4));
 
-   if (cg->comp()->target().is64Bit() && !TR::TreeEvaluator::getNodeIs64Bit(node->getChild(4), cg))
+   TR::Compilation *comp = cg->comp();
+
+   if (comp->target().is64Bit() && !TR::TreeEvaluator::getNodeIs64Bit(node->getChild(4), cg))
       {
       generateRegRegInstruction(MOVZXReg8Reg4, node, sizeReg, sizeReg, cg);
       }
@@ -1552,13 +1556,13 @@ TR::Register *J9::X86::TreeEvaluator::arraycopyEvaluator(TR::Node *node, TR::Cod
 
       auto snippetLabel = generateLabelSymbol(cg);
       auto instr = generateLabelInstruction(JNE4, node, snippetLabel, cg); // ReferenceArrayCopy set ZF when succeed.
-      auto snippet = new (cg->trHeapMemory()) TR::X86CheckFailureSnippet(cg, cg->symRefTab()->findOrCreateRuntimeHelper(TR_arrayStoreException, false, false, false),
+      auto snippet = new (comp->trHeapMemory()) TR::X86CheckFailureSnippet(cg, cg->symRefTab()->findOrCreateRuntimeHelper(TR_arrayStoreException, false, false, false),
                                                                          snippetLabel, instr, false);
       cg->addSnippet(snippet);
       }
    else
       {
-      bool use64BitClasses = cg->comp()->target().is64Bit() && !TR::Compiler->om.generateCompressedObjectHeaders();
+      bool use64BitClasses = comp->target().is64Bit() && !TR::Compiler->om.generateCompressedObjectHeaders();
 
       auto RSI = cg->allocateRegister();
       auto RDI = cg->allocateRegister();
@@ -1589,11 +1593,11 @@ TR::Register *J9::X86::TreeEvaluator::arraycopyEvaluator(TR::Node *node, TR::Cod
 
       if (TR::Compiler->om.readBarrierType() != gc_modron_readbar_none)
          {
-         bool use64BitClasses = cg->comp()->target().is64Bit() && !cg->comp()->useCompressedPointers();
+         bool use64BitClasses = comp->target().is64Bit() && !comp->useCompressedPointers();
 
          TR::LabelSymbol* rdbarLabel = generateLabelSymbol(cg);
          // EvacuateTopAddress == 0 means Concurrent Scavenge is inactive
-         generateMemImmInstruction(CMPMemImms(use64BitClasses), node, generateX86MemoryReference(cg->getVMThreadRegister(), cg->comp()->fej9()->thisThreadGetEvacuateTopAddressOffset(), cg), 0, cg);
+         generateMemImmInstruction(CMPMemImms(use64BitClasses), node, generateX86MemoryReference(cg->getVMThreadRegister(), comp->fej9()->thisThreadGetEvacuateTopAddressOffset(), cg), 0, cg);
          generateLabelInstruction(JNE4, node, rdbarLabel, cg);
 
          TR_OutlinedInstructionsGenerator og(rdbarLabel, node, cg);
@@ -1735,7 +1739,7 @@ TR::Register *J9::X86::TreeEvaluator::evaluateNULLCHKWithPossibleResolve(
    //
    TR::Instruction *appendTo = 0;
 
-   if (opCode.isLoadVar() || (cg->comp()->target().is64Bit() && opCode.getOpCodeValue()==TR::l2i))
+   if (opCode.isLoadVar() || (comp->target().is64Bit() && opCode.getOpCodeValue()==TR::l2i))
       {
       TR::SymbolReference *symRef = NULL;
 
@@ -1936,9 +1940,9 @@ TR::Register *J9::X86::TreeEvaluator::evaluateNULLCHKWithPossibleResolve(
       appendTo->setLiveLocals(cg->getLiveLocals());
 
       TR::Snippet *snippet;
-      if (opCode.isCall() || !needResolution || cg->comp()->target().is64Bit()) //TODO:AMD64: Implement the "withresolve" version
+      if (opCode.isCall() || !needResolution || comp->target().is64Bit()) //TODO:AMD64: Implement the "withresolve" version
          {
-         snippet = new (cg->trHeapMemory()) TR::X86CheckFailureSnippet(cg, node->getSymbolReference(),
+         snippet = new (comp->trHeapMemory()) TR::X86CheckFailureSnippet(cg, node->getSymbolReference(),
                                                                  snippetLabel, appendTo);
          }
       else
@@ -1983,7 +1987,7 @@ TR::Register *J9::X86::TreeEvaluator::evaluateNULLCHKWithPossibleResolve(
                TR_X86interpreterUnresolvedStaticFieldSetterGlue : TR_X86interpreterUnresolvedStaticFieldGlue;
             }
 
-         snippet = new (cg->trHeapMemory()) TR::X86CheckFailureSnippetWithResolve(cg, node->getSymbolReference(),
+         snippet = new (comp->trHeapMemory()) TR::X86CheckFailureSnippetWithResolve(cg, node->getSymbolReference(),
                                                                       firstChild->getSymbolReference(),
                                                                       resolverCall,
                                                                       snippetLabel,
@@ -2167,7 +2171,7 @@ TR::Register *J9::X86::TreeEvaluator::DIVCHKEvaluator(TR::Node *node, TR::CodeGe
 
       generateLabelInstruction(JE4, node, divideByZeroSnippetLabel, cg);
 
-      cg->addSnippet(new (cg->trHeapMemory()) TR::X86CheckFailureSnippet(cg, node->getSymbolReference(),
+      cg->addSnippet(new (comp->trHeapMemory()) TR::X86CheckFailureSnippet(cg, node->getSymbolReference(),
                                                          divideByZeroSnippetLabel,
                                                          cg->getAppendInstruction()));
 
@@ -2290,11 +2294,11 @@ TR::Register *J9::X86::TreeEvaluator::ZEROCHKEvaluator(TR::Node *node, TR::CodeG
    //
    // If in doubt, discuss your design with your team lead.
 
-   TR::LabelSymbol *slowPathLabel = TR::LabelSymbol::create(cg->trHeapMemory(),cg);
-   TR::LabelSymbol *restartLabel  = TR::LabelSymbol::create(cg->trHeapMemory(),cg);
+   TR::Compilation *comp = cg->comp();
+   TR::LabelSymbol *slowPathLabel = TR::LabelSymbol::create(comp->trHeapMemory(), cg);
+   TR::LabelSymbol *restartLabel  = TR::LabelSymbol::create(comp->trHeapMemory(), cg);
    slowPathLabel->setStartInternalControlFlow();
    restartLabel->setEndInternalControlFlow();
-   TR::Compilation *comp = cg->comp();
 
    // Temporarily hide the first child so it doesn't appear in the outlined call
    //
@@ -2305,7 +2309,7 @@ TR::Register *J9::X86::TreeEvaluator::ZEROCHKEvaluator(TR::Node *node, TR::CodeG
    // Note: we don't pass the restartLabel in here because we don't want a
    // restart branch.
    //
-   TR_OutlinedInstructions *outlinedHelperCall = new (cg->trHeapMemory()) TR_OutlinedInstructions(node, TR::call, NULL, slowPathLabel, NULL, cg);
+   TR_OutlinedInstructions *outlinedHelperCall = new (comp->trHeapMemory()) TR_OutlinedInstructions(node, TR::call, NULL, slowPathLabel, NULL, cg);
    cg->getOutlinedInstructionsList().push_front(outlinedHelperCall);
    cg->generateDebugCounter(
          outlinedHelperCall->getFirstInstruction(),
@@ -2479,7 +2483,7 @@ TR::Register *J9::X86::TreeEvaluator::BNDCHKEvaluator(TR::Node *node, TR::CodeGe
       cg->decReferenceCount(secondChild);
       }
 
-   cg->addSnippet(new (cg->trHeapMemory()) TR::X86CheckFailureSnippet(cg, node->getSymbolReference(),
+   cg->addSnippet(new (comp->trHeapMemory()) TR::X86CheckFailureSnippet(cg, node->getSymbolReference(),
                                                      boundCheckFailureLabel,
                                                      instr,
                                                      false
@@ -2552,7 +2556,7 @@ TR::Register *J9::X86::TreeEvaluator::ArrayCopyBNDCHKEvaluator(TR::Node *node, T
       }
 
    if (instr)
-      cg->addSnippet(new (cg->trHeapMemory()) TR::X86CheckFailureSnippet(cg, node->getSymbolReference(),
+      cg->addSnippet(new (cg->comp()->trHeapMemory()) TR::X86CheckFailureSnippet(cg, node->getSymbolReference(),
                                                              boundCheckFailureLabel,
                                                              instr,
                                                              false
@@ -2737,7 +2741,7 @@ TR::Register *J9::X86::TreeEvaluator::ArrayStoreCHKEvaluator(TR::Node *node, TR:
          }
 
       TR_OutlinedInstructions *outlinedASCHelperCall =
-         new (cg->trHeapMemory()) TR_OutlinedInstructions(helperCallNode, TR::call, NULL, oolASCLabel, restartLabel, cg);
+         new (comp->trHeapMemory()) TR_OutlinedInstructions(helperCallNode, TR::call, NULL, oolASCLabel, restartLabel, cg);
       cg->getOutlinedInstructionsList().push_front(outlinedASCHelperCall);
 
       static char *alwaysDoOOLASCc = feGetEnv("TR_doOOLASC");
@@ -3649,9 +3653,10 @@ TR::Register *J9::X86::TreeEvaluator::longBitCount(TR::Node *node, TR::CodeGener
 
 inline void generateInlinedCheckCastForDynamicCastClass(TR::Node* node, TR::CodeGenerator* cg)
    {
-   auto use64BitClasses = cg->comp()->target().is64Bit() &&
+   TR::Compilation *comp = cg->comp();
+   auto use64BitClasses = comp->target().is64Bit() &&
                (!TR::Compiler->om.generateCompressedObjectHeaders() ||
-               (cg->comp()->compileRelocatableCode() && cg->comp()->getOption(TR_UseSymbolValidationManager)));
+               (comp->compileRelocatableCode() && comp->getOption(TR_UseSymbolValidationManager)));
    TR::Register *ObjReg = cg->evaluate(node->getFirstChild());
    TR::Register *castClassReg = cg->evaluate(node->getSecondChild());
    TR::Register *temp1Reg = cg->allocateRegister();
@@ -3671,7 +3676,7 @@ inline void generateInlinedCheckCastForDynamicCastClass(TR::Node* node, TR::Code
 
    generateLabelInstruction(LABEL, node, startLabel, cg);
 
-   TR_OutlinedInstructions *outlinedHelperCall = new (cg->trHeapMemory()) TR_OutlinedInstructions(node, TR::call, NULL, outlinedCallLabel, fallThruLabel, cg);
+   TR_OutlinedInstructions *outlinedHelperCall = new (comp->trHeapMemory()) TR_OutlinedInstructions(node, TR::call, NULL, outlinedCallLabel, fallThruLabel, cg);
    cg->getOutlinedInstructionsList().push_front(outlinedHelperCall);
 
    // objClassReg holds object class also serves as null check
@@ -3726,7 +3731,7 @@ inline void generateInlinedCheckCastForDynamicCastClass(TR::Node* node, TR::Code
    // temp2 holds cast class depth
    // class depth mask must be low 16 bits to safely load without the mask.
    static_assert(J9AccClassDepthMask == 0xffff, "J9_JAVA_CLASS_DEPTH_MASK must be 0xffff");
-   generateRegMemInstruction(cg->comp()->target().is64Bit()? MOVZXReg8Mem2 : MOVZXReg4Mem2, node,
+   generateRegMemInstruction(comp->target().is64Bit()? MOVZXReg8Mem2 : MOVZXReg4Mem2, node,
             temp2Reg, generateX86MemoryReference(castClassReg, offsetof(J9Class, classDepthAndFlags), cg), cg);
 
    // cast class depth >= obj class depth, throw
@@ -3744,7 +3749,7 @@ inline void generateInlinedCheckCastForDynamicCastClass(TR::Node* node, TR::Code
    // Since 64-bit is more prevalent, we opt to optimize for 64bit in this case
    generateRegMemInstruction(LRegMem(), node, temp1Reg, generateX86MemoryReference(objClassReg, offsetof(J9Class, superclasses), cg), cg);
    generateRegMemInstruction(CMPRegMem(use64BitClasses), node, castClassReg,
-       generateX86MemoryReference(temp1Reg, temp2Reg, cg->comp()->target().is64Bit()?3:2, cg), cg);
+       generateX86MemoryReference(temp1Reg, temp2Reg, comp->target().is64Bit()?3:2, cg), cg);
    generateLabelInstruction(JNE4, node, throwLabel, cg);
 
    // throw classCastException
@@ -4586,7 +4591,7 @@ J9::X86::TreeEvaluator::VMmonentEvaluator(
             node->setSymbolReference(comp->getSymRefTab()->findOrCreateRuntimeHelper(TR_AMD64JitMonitorExitReservedPrimitive, true, true, true));
 
          exitLabel = generateLabelSymbol(cg);
-         TR_OutlinedInstructions *outlinedExitHelperCall = new (cg->trHeapMemory()) TR_OutlinedInstructions(node, TR::call, NULL, exitLabel, fallThru, cg);
+         TR_OutlinedInstructions *outlinedExitHelperCall = new (comp->trHeapMemory()) TR_OutlinedInstructions(node, TR::call, NULL, exitLabel, fallThru, cg);
          cg->getOutlinedInstructionsList().push_front(outlinedExitHelperCall);
          }
 
@@ -4628,11 +4633,11 @@ J9::X86::TreeEvaluator::VMmonentEvaluator(
       {
       TR::LabelSymbol *JITMonitorEntrySnippetLabel = generateLabelSymbol(cg);
       TR::TreeEvaluator::transactionalMemoryJITMonitorEntry(node, cg, startLabel, snippetLabel, JITMonitorEntrySnippetLabel, objectReg, lwOffset);
-      outlinedHelperCall = new (cg->trHeapMemory()) TR_OutlinedInstructions(helperCallNode, TR::call, NULL,
+      outlinedHelperCall = new (comp->trHeapMemory()) TR_OutlinedInstructions(helperCallNode, TR::call, NULL,
                                                             JITMonitorEntrySnippetLabel, (exitLabel) ? exitLabel : fallThru, cg);
       }
    else
-      outlinedHelperCall = new (cg->trHeapMemory()) TR_OutlinedInstructions(helperCallNode, TR::call, NULL,
+      outlinedHelperCall = new (comp->trHeapMemory()) TR_OutlinedInstructions(helperCallNode, TR::call, NULL,
                                                          snippetLabel, (exitLabel) ? exitLabel : snippetFallThru, cg);
 
    if (helperCallNode != node)
@@ -5316,7 +5321,7 @@ TR::Register
                              generateX86MemoryReference(vmThreadReg, fej9->thisThreadMonitorCacheOffset(), cg),
                              unlockedReg, cg);
 
-   TR_OutlinedInstructions *outlinedHelperCall = new (cg->trHeapMemory()) TR_OutlinedInstructions(node, TR::call, NULL, snippetLabel, fallThru, cg);
+   TR_OutlinedInstructions *outlinedHelperCall = new (comp->trHeapMemory()) TR_OutlinedInstructions(node, TR::call, NULL, snippetLabel, fallThru, cg);
    cg->getOutlinedInstructionsList().push_front(outlinedHelperCall);
    cg->generateDebugCounter(
       outlinedHelperCall->getFirstInstruction(),
@@ -5384,7 +5389,7 @@ TR::Register
          node->setSymbolReference(comp->getSymRefTab()->findOrCreateRuntimeHelper(helper, true, true, true));
          }
       }
-   TR_OutlinedInstructions *outlinedHelperCall = new (cg->trHeapMemory()) TR_OutlinedInstructions(node, TR::call, NULL, snippetLabel, snippetFallThru, cg);
+   TR_OutlinedInstructions *outlinedHelperCall = new (comp->trHeapMemory()) TR_OutlinedInstructions(node, TR::call, NULL, snippetLabel, snippetFallThru, cg);
    cg->getOutlinedInstructionsList().push_front(outlinedHelperCall);
    cg->generateDebugCounter(
       outlinedHelperCall->getFirstInstruction(),
@@ -5790,7 +5795,7 @@ static void genHeapAlloc(
 
          // tempReg now holds size class
          TR::MemoryReference *currentMemRef, *topMemRef, *currentMemRefBump;
-         if (cg->comp()->target().is64Bit())
+         if (comp->target().is64Bit())
             {
             TR_ASSERT(sizeof(J9VMGCSegregatedAllocationCacheEntry) == 16, "unexpected J9VMGCSegregatedAllocationCacheEntry size");
             // going to play some games here
@@ -5839,7 +5844,7 @@ static void genHeapAlloc(
                                    node,
                                    segmentReg,
                                    generateX86MemoryReference(segmentReg, fej9->getRealtimeSizeClassesOffset(), cg), cg);
-         if (cg->comp()->target().is64Bit())
+         if (comp->target().is64Bit())
             {
             // tempReg already has already been shifted for sizeof(UDATA)
             generateRegMemInstruction(LRegMem(),
@@ -6028,7 +6033,7 @@ static void genHeapAlloc(
          uintptr_t maxObjectSize = cg->getMaxObjectSizeGuaranteedNotToOverflow();
          uintptr_t maxObjectSizeInElements = maxObjectSize / elementSize;
 
-         if (cg->comp()->target().is64Bit() && !(maxObjectSizeInElements > 0 && maxObjectSizeInElements <= (uintptr_t)INT_MAX))
+         if (comp->target().is64Bit() && !(maxObjectSizeInElements > 0 && maxObjectSizeInElements <= (uintptr_t)INT_MAX))
             {
             generateRegImm64Instruction(MOV8RegImm64, node, tempReg, maxObjectSizeInElements, cg);
             generateRegRegInstruction(CMP8RegReg, node, sizeReg, tempReg, cg);
@@ -6239,7 +6244,7 @@ static void genHeapAlloc(
 
          singleSlotHole = J9_GC_SINGLE_SLOT_HOLE;
 
-         if (cg->comp()->target().is64Bit() && fej9->generateCompressedLockWord())
+         if (comp->target().is64Bit() && fej9->generateCompressedLockWord())
             {
             generateMemImmInstruction(S4MemImm4, node,
                                       generateX86MemoryReference(tempReg, 0, cg), singleSlotHole, cg);
@@ -6280,7 +6285,7 @@ static void genHeapAlloc(
       if (generateArraylets && (node->getOpCodeValue() == TR::anewarray || node->getOpCodeValue() == TR::newarray) )
          {
          generateRegMemInstruction(LEARegMem(),node,tempReg, generateX86MemoryReference(tempReg,TR::Compiler->om.objectAlignmentInBytes()-1,cg),cg);
-         if (cg->comp()->target().is64Bit())
+         if (comp->target().is64Bit())
             generateRegImmInstruction(AND8RegImm4,node,tempReg,-TR::Compiler->om.objectAlignmentInBytes(),cg);
          else
             generateRegImmInstruction(AND4RegImm4,node,tempReg,-TR::Compiler->om.objectAlignmentInBytes(),cg);
@@ -6295,7 +6300,7 @@ static void genHeapAlloc(
          {
          TR::LabelSymbol *prefetchSnippetLabel = generateLabelSymbol(cg);
          TR::LabelSymbol *restartLabel = generateLabelSymbol(cg);
-         cg->addSnippet(new (cg->trHeapMemory()) TR::X86AllocPrefetchSnippet(cg, node, TR::Options::_TLHPrefetchSize,
+         cg->addSnippet(new (comp->trHeapMemory()) TR::X86AllocPrefetchSnippet(cg, node, TR::Options::_TLHPrefetchSize,
                                                                               restartLabel, prefetchSnippetLabel,
                                     (!comp->getOption(TR_DisableDualTLH) && node->canSkipZeroInitialization())));
 
@@ -7638,7 +7643,7 @@ J9::X86::TreeEvaluator::VMnewEvaluator(
    //
    TR_OutlinedInstructions *outlinedHelperCall = NULL;
    targetReg = cg->allocateRegister();
-   outlinedHelperCall = new (cg->trHeapMemory()) TR_OutlinedInstructions(node, TR::acall, targetReg, failLabel, fallThru, cg);
+   outlinedHelperCall = new (comp->trHeapMemory()) TR_OutlinedInstructions(node, TR::acall, targetReg, failLabel, fallThru, cg);
    cg->getOutlinedInstructionsList().push_front(outlinedHelperCall);
 
    TR::Instruction * startInstr = cg->getAppendInstruction();
@@ -7937,7 +7942,7 @@ J9::X86::TreeEvaluator::VMnewEvaluator(
          recordInfo->data5 = (uintptr_t)classToValidate;
          }
 
-      cg->addExternalRelocation(new (cg->trHeapMemory()) TR::BeforeBinaryEncodingExternalRelocation(startInstr,
+      cg->addExternalRelocation(new (comp->trHeapMemory()) TR::BeforeBinaryEncodingExternalRelocation(startInstr,
                                                                                (uint8_t *) classSymRef,
                                                                                (uint8_t *) recordInfo,
                                                                                reloKind, cg),
@@ -8462,7 +8467,7 @@ J9::X86::TreeEvaluator::VMarrayStoreCHKEvaluator(
    TR::Node *helperCallNode = TR::Node::createWithSymRef(TR::call, 2, 2, sourceChild, destinationChild, node->getSymbolReference());
    helperCallNode->copyByteCodeInfo(node);
    generateLabelInstruction(JMP4, helperCallNode, helperCallLabel, cg);
-   TR_OutlinedInstructions* outlinedHelperCall = new (cg->trHeapMemory()) TR_OutlinedInstructions(helperCallNode, TR::call, NULL, helperCallLabel, helperReturnLabel, cg);
+   TR_OutlinedInstructions* outlinedHelperCall = new (comp->trHeapMemory()) TR_OutlinedInstructions(helperCallNode, TR::call, NULL, helperCallLabel, helperReturnLabel, cg);
    cg->getOutlinedInstructionsList().push_front(outlinedHelperCall);
    generateLabelInstruction(LABEL, helperCallNode, helperReturnLabel, cg);
    cg->decReferenceCount(sourceChild);
@@ -8475,8 +8480,9 @@ J9::X86::TreeEvaluator::VMarrayStoreCHKEvaluator(
 //
 TR::Register *J9::X86::TreeEvaluator::VMarrayCheckEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    {
+   TR::Compilation *comp = cg->comp();
    TR_J9VMBase *fej9 = (TR_J9VMBase *)(cg->fe());
-   bool use64BitClasses = cg->comp()->target().is64Bit() && !TR::Compiler->om.generateCompressedObjectHeaders();
+   bool use64BitClasses = comp->target().is64Bit() && !TR::Compiler->om.generateCompressedObjectHeaders();
 
    TR::Node     *object1    = node->getFirstChild();
    TR::Node     *object2    = node->getSecondChild();
@@ -8528,7 +8534,7 @@ TR::Register *J9::X86::TreeEvaluator::VMarrayCheckEvaluator(TR::Node *node, TR::
          {
          snippetLabel = generateLabelSymbol(cg);
          instr        = generateLabelInstruction(JE4, node, snippetLabel, cg);
-         snippet      = new (cg->trHeapMemory()) TR::X86CheckFailureSnippet(cg, node->getSymbolReference(), snippetLabel, instr);
+         snippet      = new (comp->trHeapMemory()) TR::X86CheckFailureSnippet(cg, node->getSymbolReference(), snippetLabel, instr);
          cg->addSnippet(snippet);
          }
       else
@@ -8551,7 +8557,7 @@ TR::Register *J9::X86::TreeEvaluator::VMarrayCheckEvaluator(TR::Node *node, TR::
          {
          snippetLabel = generateLabelSymbol(cg);
          instr        = generateLabelInstruction(JNE4, node, snippetLabel, cg);
-         snippet      = new (cg->trHeapMemory()) TR::X86CheckFailureSnippet(cg, node->getSymbolReference(), snippetLabel, instr);
+         snippet      = new (comp->trHeapMemory()) TR::X86CheckFailureSnippet(cg, node->getSymbolReference(), snippetLabel, instr);
          cg->addSnippet(snippet);
          }
       else
@@ -8589,7 +8595,7 @@ TR::Register *J9::X86::TreeEvaluator::VMarrayCheckEvaluator(TR::Node *node, TR::
             {
             snippetLabel = generateLabelSymbol(cg);
             instr        = generateLabelInstruction(JNE4, node, snippetLabel, cg);
-            snippet      = new (cg->trHeapMemory()) TR::X86CheckFailureSnippet(cg, node->getSymbolReference(), snippetLabel, instr);
+            snippet      = new (comp->trHeapMemory()) TR::X86CheckFailureSnippet(cg, node->getSymbolReference(), snippetLabel, instr);
             cg->addSnippet(snippet);
             }
          else
@@ -8617,7 +8623,7 @@ TR::Register *J9::X86::TreeEvaluator::VMarrayCheckEvaluator(TR::Node *node, TR::
             {
             snippetLabel = generateLabelSymbol(cg);
             instr        = generateLabelInstruction(JE4, node, snippetLabel, cg);
-            snippet      = new (cg->trHeapMemory()) TR::X86CheckFailureSnippet(cg, node->getSymbolReference(), snippetLabel, instr);
+            snippet      = new (comp->trHeapMemory()) TR::X86CheckFailureSnippet(cg, node->getSymbolReference(), snippetLabel, instr);
             cg->addSnippet(snippet);
             }
          else
@@ -10207,7 +10213,7 @@ void J9::X86::TreeEvaluator::VMwrtbarRealTimeWithoutStoreEvaluator(
       }
    else
       {
-      TR_OutlinedInstructions *outlinedHelperCall = new (cg->trHeapMemory()) TR_OutlinedInstructions(callNode, TR::call, NULL, snippetLabel, doneLabel, cg);
+      TR_OutlinedInstructions *outlinedHelperCall = new (comp->trHeapMemory()) TR_OutlinedInstructions(callNode, TR::call, NULL, snippetLabel, doneLabel, cg);
 
       // have to disassemble the call node we just created, first have to give it a ref count 1
       callNode->setReferenceCount(1);
@@ -11220,7 +11226,7 @@ VMgenerateCatchBlockBBStartPrologue(
       generateMemInstruction(DEC4Mem, node, generateX86MemoryReference((intptr_t)comp->getRecompilationInfo()->getCounterAddress(), cg), cg);
       generateLabelInstruction(JE4, node, snippetLabel, cg);
       generateLabelInstruction(LABEL, node, restartLabel, cg);
-      cg->addSnippet(new (cg->trHeapMemory()) TR::X86ForceRecompilationSnippet(cg, node, restartLabel, snippetLabel));
+      cg->addSnippet(new (comp->trHeapMemory()) TR::X86ForceRecompilationSnippet(cg, node, restartLabel, snippetLabel));
       }
 
    }
@@ -11252,23 +11258,24 @@ J9::X86::TreeEvaluator::tstartEvaluator(TR::Node *node, TR::CodeGenerator *cg)
       jne spinLabel
       jmp TransientFailureNodeLabel
    */
+   TR::Compilation *comp = cg->comp();
    TR::Node *persistentFailureNode = node->getFirstChild();
    TR::Node *transientFailureNode  = node->getSecondChild();
    TR::Node *fallThroughNode = node->getThirdChild();
    TR::Node *objNode = node->getChild(3);
    TR::Node *GRANode = NULL;
 
-   TR::LabelSymbol *startLabel = TR::LabelSymbol::create(cg->trHeapMemory(),cg);
+   TR::LabelSymbol *startLabel = TR::LabelSymbol::create(comp->trHeapMemory(), cg);
    startLabel->setStartInternalControlFlow();
-   TR::LabelSymbol *endLabel = TR::LabelSymbol::create(cg->trHeapMemory(),cg);
+   TR::LabelSymbol *endLabel = TR::LabelSymbol::create(comp->trHeapMemory(), cg);
    endLabel->setEndInternalControlFlow();
 
-   TR::LabelSymbol *gotoTransientFailure = TR::LabelSymbol::create(cg->trHeapMemory(),cg);
-   TR::LabelSymbol *gotoPersistentFailure = TR::LabelSymbol::create(cg->trHeapMemory(),cg);
-   TR::LabelSymbol *gotoFallThrough = TR::LabelSymbol::create(cg->trHeapMemory(),cg);
+   TR::LabelSymbol *gotoTransientFailure = TR::LabelSymbol::create(comp->trHeapMemory(), cg);
+   TR::LabelSymbol *gotoPersistentFailure = TR::LabelSymbol::create(comp->trHeapMemory(), cg);
+   TR::LabelSymbol *gotoFallThrough = TR::LabelSymbol::create(comp->trHeapMemory(), cg);
    TR::LabelSymbol *transientFailureLabel  = transientFailureNode->getBranchDestination()->getNode()->getLabel();
    TR::LabelSymbol *persistentFailureLabel = persistentFailureNode->getBranchDestination()->getNode()->getLabel();
-   TR::LabelSymbol *fallBackPathLabel = TR::LabelSymbol::create(cg->trHeapMemory(),cg);
+   TR::LabelSymbol *fallBackPathLabel = TR::LabelSymbol::create(comp->trHeapMemory(), cg);
    TR::LabelSymbol *fallThroughLabel = fallThroughNode->getBranchDestination()->getNode()->getLabel();
 
    TR::Register *objReg = cg->evaluate(objNode);
@@ -11401,7 +11408,7 @@ J9::X86::TreeEvaluator::tstartEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    //delay
    TR::Register *counterReg = cg->allocateRegister();
    generateRegImmInstruction(MOV4RegImm4, node, counterReg, 100, cg);
-   TR::LabelSymbol *spinLabel = TR::LabelSymbol::create(cg->trHeapMemory(),cg);
+   TR::LabelSymbol *spinLabel = TR::LabelSymbol::create(comp->trHeapMemory(), cg);
    generateLabelInstruction(LABEL, node, spinLabel, cg);
    generateInstruction(PAUSE, node, cg);
    generateInstruction(PAUSE, node, cg);
@@ -11539,7 +11546,7 @@ J9::X86::TreeEvaluator::directCallEvaluator(TR::Node *node, TR::CodeGenerator *c
          TR::RegisterDependencyConditions *deps = generateRegisterDependencyConditions((uint8_t)1, (uint8_t)1, cg);
          deps->addPreCondition  (valueToKeepAlive, TR::RealRegister::NoReg, cg);
          deps->addPostCondition (valueToKeepAlive, TR::RealRegister::NoReg, cg);
-         new (cg->trHeapMemory()) TR::X86LabelInstruction(LABEL, node, generateLabelSymbol(cg), deps, cg);
+         new (comp->trHeapMemory()) TR::X86LabelInstruction(LABEL, node, generateLabelSymbol(cg), deps, cg);
          cg->decReferenceCount(node->getFirstChild());
 
          return NULL; // keepAlive has no return value

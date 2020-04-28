@@ -58,7 +58,7 @@ uint8_t *TR::X86ForceRecompilationSnippet::emitSnippetBody()
       }
    *(int32_t *)buffer = ((uint8_t*)helperAddress - buffer) - 4;
 
-   cg()->addExternalRelocation(new (cg()->trHeapMemory())
+   cg()->addExternalRelocation(new (cg()->comp()->trHeapMemory())
       TR::ExternalRelocation(
          buffer,
          (uint8_t *)helper,

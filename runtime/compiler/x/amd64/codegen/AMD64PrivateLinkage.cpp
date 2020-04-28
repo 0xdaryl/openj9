@@ -432,10 +432,10 @@ J9::X86::AMD64::PrivateLinkage::generateFlushInstruction(
    switch (operandType)
       {
       case RegMem:
-         result = new (cg->trHeapMemory()) TR::X86RegMemInstruction(prev, opCode, argReg, memRef, deps, cg);
+         result = new (cg->comp()->trHeapMemory()) TR::X86RegMemInstruction(prev, opCode, argReg, memRef, deps, cg);
          break;
       case MemReg:
-         result = new (cg->trHeapMemory()) TR::X86MemRegInstruction(prev, opCode, memRef, argReg, deps, cg);
+         result = new (cg->comp()->trHeapMemory()) TR::X86MemRegInstruction(prev, opCode, memRef, argReg, deps, cg);
          break;
       default:
          TR_ASSERT(0, "Flush instruction must be RegMem or MemReg");

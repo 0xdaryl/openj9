@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2019 IBM Corp. and others
+ * Copyright (c) 2000, 2020 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -180,7 +180,7 @@ TR::X86StackOverflowCheckInstruction *generateStackOverflowCheckInstruction(
    TR::MemoryReference *mr,
    TR::CodeGenerator      *cg)
    {
-   return new (cg->trHeapMemory()) TR::X86StackOverflowCheckInstruction(precedingInstruction, op, cmpRegister, mr, cg);
+   return new (cg->comp()->trHeapMemory()) TR::X86StackOverflowCheckInstruction(precedingInstruction, op, cmpRegister, mr, cg);
    }
 
 TR::X86CheckAsyncMessagesMemImmInstruction *generateCheckAsyncMessagesInstruction(
@@ -190,7 +190,7 @@ TR::X86CheckAsyncMessagesMemImmInstruction *generateCheckAsyncMessagesInstructio
    int32_t                value,
    TR::CodeGenerator      *cg)
    {
-   return new (cg->trHeapMemory()) TR::X86CheckAsyncMessagesMemImmInstruction(node, op, mr, value, cg);
+   return new (cg->comp()->trHeapMemory()) TR::X86CheckAsyncMessagesMemImmInstruction(node, op, mr, value, cg);
    }
 
 TR::X86CheckAsyncMessagesMemRegInstruction *generateCheckAsyncMessagesInstruction(
@@ -200,7 +200,7 @@ TR::X86CheckAsyncMessagesMemRegInstruction *generateCheckAsyncMessagesInstructio
    TR::Register           *reg,
    TR::CodeGenerator      *cg)
    {
-   return new (cg->trHeapMemory()) TR::X86CheckAsyncMessagesMemRegInstruction(node, op, mr, reg, cg);
+   return new (cg->comp()->trHeapMemory()) TR::X86CheckAsyncMessagesMemRegInstruction(node, op, mr, reg, cg);
    }
 
 uint8_t *TR::X86CheckAsyncMessagesMemImmInstruction::generateBinaryEncoding()
@@ -218,6 +218,6 @@ uint8_t *TR::X86CheckAsyncMessagesMemRegInstruction::generateBinaryEncoding()
 TR::X86MemImmSnippetInstruction  *
 generateMemImmSnippetInstruction(TR_X86OpCodes op, TR::Node * node, TR::MemoryReference  * mr, int32_t imm, TR::UnresolvedDataSnippet * snippet, TR::CodeGenerator *cg)
    {
-   return new (cg->trHeapMemory()) TR::X86MemImmSnippetInstruction(op, node, mr, imm, snippet, cg);
+   return new (cg->comp()->trHeapMemory()) TR::X86MemImmSnippetInstruction(op, node, mr, imm, snippet, cg);
    }
 

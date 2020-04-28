@@ -65,7 +65,7 @@ bool TR::X86PicDataSnippet::shouldEmitJ2IThunkPointer()
 
 uint8_t *TR::X86PicDataSnippet::encodeConstantPoolInfo(uint8_t *cursor)
    {
-   uintptr_t cpAddr = (uintptr_t)_methodSymRef->getOwningMethod(cg()->comp())->constantPool();
+   uintptr_t cpAddr = (uintptr_t)_methodSymRef->getOwningMethod(comp())->constantPool();
    *(uintptr_t *)cursor = cpAddr;
 
    uintptr_t inlinedSiteIndex = (uintptr_t)-1;
@@ -75,7 +75,7 @@ uint8_t *TR::X86PicDataSnippet::encodeConstantPoolInfo(uint8_t *cursor)
    if (_hasJ2IThunkInPicData)
       {
       TR_ASSERT(
-         cg()->comp()->target().is64Bit(),
+         comp()->target().is64Bit(),
          "expecting a 64-bit target for thunk relocations");
 
       auto info =
@@ -90,7 +90,7 @@ uint8_t *TR::X86PicDataSnippet::encodeConstantPoolInfo(uint8_t *cursor)
       info->data3 = offsetToJ2IVirtualThunk;
 
       cg()->addExternalRelocation(
-         new (cg()->trHeapMemory()) TR::ExternalRelocation(
+         new (comp()->trHeapMemory()) TR::ExternalRelocation(
             cursor,
             (uint8_t *)info,
             NULL,
@@ -102,8 +102,8 @@ uint8_t *TR::X86PicDataSnippet::encodeConstantPoolInfo(uint8_t *cursor)
       }
    else if (_thunkAddress)
       {
-      TR_ASSERT(cg()->comp()->target().is64Bit(), "expecting a 64-bit target for thunk relocations");
-      cg()->addExternalRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation(cursor,
+      TR_ASSERT(comp()->target().is64Bit(), "expecting a 64-bit target for thunk relocations");
+      cg()->addExternalRelocation(new (comp()->trHeapMemory()) TR::ExternalRelocation(cursor,
                                                                              *(uint8_t **)cursor,
                                                                              (uint8_t *)inlinedSiteIndex,
                                                                              TR_Thunks, cg()),
@@ -113,7 +113,7 @@ uint8_t *TR::X86PicDataSnippet::encodeConstantPoolInfo(uint8_t *cursor)
       }
    else
       {
-      cg()->addExternalRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation(cursor,
+      cg()->addExternalRelocation(new (comp()->trHeapMemory()) TR::ExternalRelocation(cursor,
                                                                                   (uint8_t *)cpAddr,
                                                                                    (uint8_t *)inlinedSiteIndex,
                                                                                    TR_ConstantPool,
@@ -183,7 +183,7 @@ uint8_t *TR::X86PicDataSnippet::emitSnippetBody()
       disp32 = cg()->branchDisplacementToHelperOrTrampoline(cursor+4, _dispatchSymRef);
       *(int32_t *)cursor = disp32;
 
-      cg()->addExternalRelocation(new (cg()->trHeapMemory())
+      cg()->addExternalRelocation(new (comp()->trHeapMemory())
          TR::ExternalRelocation(cursor,
                                     (uint8_t *)_dispatchSymRef,
                                     TR_HelperAddress,
@@ -359,7 +359,7 @@ uint8_t *TR::X86PicDataSnippet::emitSnippetBody()
       disp32 = cg()->branchDisplacementToHelperOrTrampoline(cursor+4, _dispatchSymRef);
       *(int32_t *)cursor = disp32;
 
-      cg()->addExternalRelocation(new (cg()->trHeapMemory())
+      cg()->addExternalRelocation(new (comp()->trHeapMemory())
          TR::ExternalRelocation(cursor,
                                     (uint8_t *)_dispatchSymRef,
                                     TR_HelperAddress,
@@ -423,7 +423,7 @@ uint8_t *TR::X86PicDataSnippet::emitSnippetBody()
       disp32 = cg()->branchDisplacementToHelperOrTrampoline(picSlotCursor+4, resolveSlotHelperSymRef);
       *(int32_t *)picSlotCursor = disp32;
 
-      cg()->addExternalRelocation(new (cg()->trHeapMemory())
+      cg()->addExternalRelocation(new (comp()->trHeapMemory())
          TR::ExternalRelocation(picSlotCursor,
                                     (uint8_t *)resolveSlotHelperSymRef,
                                     TR_HelperAddress,
@@ -439,7 +439,7 @@ uint8_t *TR::X86PicDataSnippet::emitSnippetBody()
             disp32 = cg()->branchDisplacementToHelperOrTrampoline(picSlotCursor+4, populateSlotHelperSymRef);
             *(int32_t *)picSlotCursor = disp32;
 
-            cg()->addExternalRelocation(new (cg()->trHeapMemory())
+            cg()->addExternalRelocation(new (comp()->trHeapMemory())
                TR::ExternalRelocation(picSlotCursor,
                                           (uint8_t *)populateSlotHelperSymRef,
                                           TR_HelperAddress,
@@ -785,14 +785,14 @@ uint8_t *TR::X86CallSnippet::emitSnippetBody()
    bool needToSetCodeLocation = true;
    bool isJitInduceOSRCall    = false;
 
-   if (cg()->comp()->target().is64Bit() &&
+   if (comp->target().is64Bit() &&
        methodSymbol->isHelper() &&
        methodSymRef->isOSRInductionHelper())
       {
       isJitInduceOSRCall = true;
       }
 
-   if (cg()->comp()->target().is64Bit())
+   if (comp->target().is64Bit())
       {
       // Backspill register linkage arguments to the stack.
       //
@@ -837,7 +837,7 @@ uint8_t *TR::X86CallSnippet::emitSnippetBody()
       //
 
       TR_ASSERT(!isJitInduceOSRCall || !forceUnresolvedDispatch, "calling jitInduceOSR is not supported yet under AOT\n");
-      cursor = alignCursorForCodePatching(cursor, cg()->comp()->target().is64Bit());
+      cursor = alignCursorForCodePatching(cursor, comp->target().is64Bit());
 
       if (comp->getOption(TR_EnableHCR))
          {
@@ -861,14 +861,14 @@ uint8_t *TR::X86CallSnippet::emitSnippetBody()
       *cursor++ = 0xe8;    // CALL
       *(int32_t *)cursor = cg()->branchDisplacementToHelperOrTrampoline(cursor + 4, helperSymRef);
 
-      cg()->addExternalRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation(cursor,
+      cg()->addExternalRelocation(new (comp->trHeapMemory()) TR::ExternalRelocation(cursor,
                                                                                     (uint8_t *)helperSymRef,
                                                                                     TR_HelperAddress,
                                                                                     cg()),
                                   __FILE__, __LINE__, getNode());
       cursor += 4;
 
-      if (cg()->comp()->target().is64Bit())
+      if (comp->target().is64Bit())
          {
          // 5 bytes of zeros to fill out the MOVRegImm64 instruction.
          //
@@ -890,7 +890,7 @@ uint8_t *TR::X86CallSnippet::emitSnippetBody()
       *cursor++ = 0xe9;    // JMP
       *(int32_t *)cursor = cg()->branchDisplacementToHelperOrTrampoline(cursor + 4, helperSymRef);
 
-      cg()->addExternalRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation(cursor,
+      cg()->addExternalRelocation(new (comp->trHeapMemory()) TR::ExternalRelocation(cursor,
                                                                                     (uint8_t*)helperSymRef,
                                                                                     TR_HelperAddress,
                                                                                     cg()),
@@ -906,7 +906,7 @@ uint8_t *TR::X86CallSnippet::emitSnippetBody()
       intptr_t cpAddr = (intptr_t)methodSymRef->getOwningMethod(comp)->constantPool();
       *(intptr_t *)cursor = cpAddr;
 
-      cg()->addExternalRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation(cursor,
+      cg()->addExternalRelocation(new (comp->trHeapMemory()) TR::ExternalRelocation(cursor,
                                                                                     *(uint8_t **)cursor,
                                                                                     getNode() ? (uint8_t *)(uintptr_t)getNode()->getInlinedSiteIndex() : (uint8_t *)-1,
                                                                                     TR_ConstantPool,
@@ -954,7 +954,7 @@ uint8_t *TR::X86CallSnippet::emitSnippetBody()
          intptr_t ramMethod = (intptr_t)methodSymbol->getMethodAddress();
 #endif /* defined(J9VM_OPT_JITSERVER) */
 
-         if (cg()->comp()->target().is64Bit())
+         if (comp->target().is64Bit())
             {
             // MOV rdi, Imm64
             //
@@ -972,7 +972,7 @@ uint8_t *TR::X86CallSnippet::emitSnippetBody()
 
          if (comp->getOption(TR_UseSymbolValidationManager))
             {
-            cg()->addExternalRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation(cursor,
+            cg()->addExternalRelocation(new (comp->trHeapMemory()) TR::ExternalRelocation(cursor,
                                                                                           (uint8_t *)ramMethod,
                                                                                           (uint8_t *)TR::SymbolType::typeMethod,
                                                                                           TR_SymbolFromManager,
@@ -998,7 +998,7 @@ uint8_t *TR::X86CallSnippet::emitSnippetBody()
 
       *(int32_t *)cursor = cg()->branchDisplacementToHelperOrTrampoline(cursor + 4, dispatchSymRef);
 
-      cg()->addExternalRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation(cursor,
+      cg()->addExternalRelocation(new (comp->trHeapMemory()) TR::ExternalRelocation(cursor,
                                                                                     (uint8_t *)dispatchSymRef,
                                                                                     TR_HelperAddress,
                                                                                     cg()),

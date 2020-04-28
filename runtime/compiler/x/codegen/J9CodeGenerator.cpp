@@ -59,7 +59,7 @@ J9::X86::CodeGenerator::CodeGenerator() :
    TR::ResolvedMethodSymbol *methodSymbol  = comp->getJittedMethodSymbol();
    TR_ResolvedMethod * jittedMethod = methodSymbol->getResolvedMethod();
 
-   cg->setAheadOfTimeCompile(new (cg->trHeapMemory()) TR::AheadOfTimeCompile(cg));
+   cg->setAheadOfTimeCompile(new (comp->trHeapMemory()) TR::AheadOfTimeCompile(cg));
 
    if (!TR::Compiler->om.canGenerateArraylets())
       {
@@ -213,7 +213,7 @@ J9::X86::CodeGenerator::beginInstructionSelection()
          {
          // A copy of the first two bytes of the method, in case we need to un-patch them
          //
-         new (self()->trHeapMemory()) TR::X86ImmInstruction(cursor, DWImm2, 0xcccc, self());
+         new (comp->trHeapMemory()) TR::X86ImmInstruction(cursor, DWImm2, 0xcccc, self());
          }
       }
    else if (methodSymbol->isJNI())
@@ -222,9 +222,9 @@ J9::X86::CodeGenerator::beginInstructionSelection()
       intptr_t methodAddress = (intptr_t)methodSymbol->getResolvedMethod()->startAddressForJNIMethod(comp);
 
       if (comp->target().is64Bit())
-         new (self()->trHeapMemory()) TR::AMD64Imm64Instruction ((TR::Instruction *)NULL, DQImm64, methodAddress, self());
+         new (comp->trHeapMemory()) TR::AMD64Imm64Instruction ((TR::Instruction *)NULL, DQImm64, methodAddress, self());
       else
-         new (self()->trHeapMemory()) TR::X86ImmInstruction    ((TR::Instruction *)NULL, DDImm4, methodAddress, self());
+         new (comp->trHeapMemory()) TR::X86ImmInstruction    ((TR::Instruction *)NULL, DDImm4, methodAddress, self());
       }
 
    if (methodSymbol->getLinkageConvention() == TR_Private && !_returnTypeInfoInstruction)
@@ -233,7 +233,7 @@ J9::X86::CodeGenerator::beginInstructionSelection()
       if (self()->getAppendInstruction())
          _returnTypeInfoInstruction = generateImmInstruction(DDImm4, startNode, 0, self());
       else
-         _returnTypeInfoInstruction = new (self()->trHeapMemory()) TR::X86ImmInstruction((TR::Instruction *)NULL, DDImm4, 0, self());
+         _returnTypeInfoInstruction = new (comp->trHeapMemory()) TR::X86ImmInstruction((TR::Instruction *)NULL, DDImm4, 0, self());
       }
 
    if (methodSymbol->getLinkageConvention() == TR_System && !_returnTypeInfoInstruction)
@@ -242,7 +242,7 @@ J9::X86::CodeGenerator::beginInstructionSelection()
       if (self()->getAppendInstruction())
          _returnTypeInfoInstruction = generateImmInstruction(DDImm4, startNode, 0, self());
       else
-         _returnTypeInfoInstruction = new (self()->trHeapMemory()) TR::X86ImmInstruction((TR::Instruction *)NULL, DDImm4, 0, self());
+         _returnTypeInfoInstruction = new (comp->trHeapMemory()) TR::X86ImmInstruction((TR::Instruction *)NULL, DDImm4, 0, self());
       }
 
    TR::RegisterDependencyConditions  *deps = generateRegisterDependencyConditions((uint8_t)0, (uint8_t)1, self());
@@ -256,7 +256,7 @@ J9::X86::CodeGenerator::beginInstructionSelection()
    if (self()->getAppendInstruction())
       generateInstruction(PROCENTRY, startNode, deps, self());
    else
-      new (self()->trHeapMemory()) TR::Instruction(deps, PROCENTRY, (TR::Instruction *)NULL, self());
+      new (comp->trHeapMemory()) TR::Instruction(deps, PROCENTRY, (TR::Instruction *)NULL, self());
 
    // Set the default FPCW to single precision mode if we are allowed to.
    //
@@ -337,7 +337,7 @@ J9::X86::CodeGenerator::generateSwitchToInterpreterPrePrologue(
          comp->getStaticHCRPICSites()->push_front(prev);
       }
 
-   prev = new (self()->trHeapMemory()) TR::X86ImmSymInstruction(prev, JMP4, (uintptr_t)helperSymRef->getMethodAddress(), helperSymRef, deps, self());
+   prev = new (comp->trHeapMemory()) TR::X86ImmSymInstruction(prev, JMP4, (uintptr_t)helperSymRef->getMethodAddress(), helperSymRef, deps, self());
    self()->stopUsingRegister(ediRegister);
 
    if (comp->target().is64Bit())
@@ -351,7 +351,7 @@ J9::X86::CodeGenerator::generateSwitchToInterpreterPrePrologue(
       //
       alignmentMargin += 2; // Size of the mini-trampoline
       prev = generateAlignmentInstruction(prev, alignment, alignmentMargin, self());
-      prev = new (self()->trHeapMemory()) TR::X86LabelInstruction(prev, JMP4, startLabel, self());
+      prev = new (comp->trHeapMemory()) TR::X86LabelInstruction(prev, JMP4, startLabel, self());
       }
 
    return prev;

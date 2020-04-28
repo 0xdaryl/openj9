@@ -34,18 +34,19 @@
 TR::Linkage *
 J9::X86::i386::CodeGenerator::createLinkage(TR_LinkageConventions lc)
    {
+   TR::Compilation *comp = self()->comp();
    TR::Linkage *linkage = NULL;
 
    switch (lc)
       {
       case TR_CHelper:
-         linkage = new (self()->trHeapMemory()) J9::X86::HelperLinkage(self());
+         linkage = new (comp->trHeapMemory()) J9::X86::HelperLinkage(self());
          break;
       case TR_Helper:
       case TR_Private:
          {
          J9::X86::PrivateLinkage *p = NULL;
-         p = new (self()->trHeapMemory()) J9::X86::I386::PrivateLinkage(self());
+         p = new (comp->trHeapMemory()) J9::X86::I386::PrivateLinkage(self());
          p->IPicParameters.roundedSizeOfSlot = 6+2+5+2+1;
          p->IPicParameters.defaultNumberOfSlots = 2;
          p->IPicParameters.defaultSlotAddress = -1;
@@ -59,7 +60,7 @@ J9::X86::i386::CodeGenerator::createLinkage(TR_LinkageConventions lc)
       case TR_J9JNILinkage:
          if (self()->comp()->target().isWindows() || self()->comp()->target().isLinux())
             {
-            linkage = new (self()->trHeapMemory()) J9::X86::I386::JNILinkage(self());
+            linkage = new (comp->trHeapMemory()) J9::X86::I386::JNILinkage(self());
             }
          else
             {
@@ -71,7 +72,7 @@ J9::X86::i386::CodeGenerator::createLinkage(TR_LinkageConventions lc)
       case TR_System:
          if (self()->comp()->target().isWindows() || self()->comp()->target().isLinux())
             {
-            linkage = new (self()->trHeapMemory()) TR::IA32J9SystemLinkage(self());
+            linkage = new (comp->trHeapMemory()) TR::IA32J9SystemLinkage(self());
             }
          else
             {
