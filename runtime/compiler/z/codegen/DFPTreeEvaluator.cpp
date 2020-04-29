@@ -356,9 +356,9 @@ inlineBigDecimalConstructor(
 
       instr->setNeedsGCMap(0x0000FFFF);
       //CDUTR only has 4byte length, so append 2bytes
-      TR::Instruction * nop = new (cg->trHeapMemory()) TR::S390NOPInstruction(TR::InstOpCode::NOP, 2, node, cg);
+      TR::Instruction * nop = new (cg->comp()->trHeapMemory()) TR::S390NOPInstruction(TR::InstOpCode::NOP, 2, node, cg);
 
-      TR::S390RestoreGPR7Snippet * restoreSnippet = new (cg->trHeapMemory()) TR::S390RestoreGPR7Snippet(cg, node,
+      TR::S390RestoreGPR7Snippet * restoreSnippet = new (cg->comp()->trHeapMemory()) TR::S390RestoreGPR7Snippet(cg, node,
                                                                                                       generateLabelSymbol(cg),
                                                                                                       jump2callSymbol);
       cg->addSnippet(restoreSnippet);
@@ -367,7 +367,7 @@ inlineBigDecimalConstructor(
       cursor = generateS390BranchInstruction(cg, TR::InstOpCode::BRC, TR::InstOpCode::COND_NOP, node, jump2callSymbol);
 
       //setting up OOL path
-      TR_S390OutOfLineCodeSection* outlinedHelperCall = new (cg->trHeapMemory()) TR_S390OutOfLineCodeSection(jump2callSymbol, OOLlabelEND, cg);
+      TR_S390OutOfLineCodeSection* outlinedHelperCall = new (cg->comp()->trHeapMemory()) TR_S390OutOfLineCodeSection(jump2callSymbol, OOLlabelEND, cg);
       cg->getS390OutOfLineCodeSectionList().push_front(outlinedHelperCall);
 
       //switch to OOL generation
@@ -1342,11 +1342,11 @@ inlineBigDecimalFromPackedConverter(
    instr->setNeedsGCMap(0x0000FFFF);
 
    //CDSTR/CDUTR only has 4byte length, so append 2bytes
-   TR::Instruction * nop = new (cg->trHeapMemory()) TR::S390NOPInstruction(TR::InstOpCode::NOP, 2, node, cg);
+   TR::Instruction * nop = new (cg->comp()->trHeapMemory()) TR::S390NOPInstruction(TR::InstOpCode::NOP, 2, node, cg);
 
    TR::LabelSymbol * passThroughLabel = generateLabelSymbol(cg);
    TR::LabelSymbol * jump2callSymbol = generateLabelSymbol(cg);
-   TR::S390RestoreGPR7Snippet * restoreSnippet = new (cg->trHeapMemory()) TR::S390RestoreGPR7Snippet(cg, node,
+   TR::S390RestoreGPR7Snippet * restoreSnippet = new (cg->comp()->trHeapMemory()) TR::S390RestoreGPR7Snippet(cg, node,
                                                                                                    generateLabelSymbol(cg), jump2callSymbol);
    cg->addSnippet(restoreSnippet);
    TR::Instruction * brcInstr = generateS390BranchInstruction(cg, TR::InstOpCode::BRC, TR::InstOpCode::COND_NOP, node, restoreSnippet->getSnippetLabel());
@@ -1354,7 +1354,7 @@ inlineBigDecimalFromPackedConverter(
    //setting OOL path
    TR::Instruction * cursor = generateS390BranchInstruction(cg, TR::InstOpCode::BRC, TR::InstOpCode::COND_NOP, node, jump2callSymbol);
 
-   TR_S390OutOfLineCodeSection * outlinedHelperCall = new (cg->trHeapMemory()) TR_S390OutOfLineCodeSection(jump2callSymbol, passThroughLabel, cg);
+   TR_S390OutOfLineCodeSection * outlinedHelperCall = new (cg->comp()->trHeapMemory()) TR_S390OutOfLineCodeSection(jump2callSymbol, passThroughLabel, cg);
    cg->getS390OutOfLineCodeSectionList().push_front(outlinedHelperCall);
 
    //switch to OOL generation
@@ -1474,7 +1474,7 @@ dfp2fpHelper(TR::Node * node, TR::CodeGenerator * cg)
 
    TR::Register *r0Reg = cg->allocateRegister();
    TR::Register *r1Reg = cg->allocateRegister();
-   TR::RegisterDependencyConditions * deps = new (cg->trHeapMemory()) TR::RegisterDependencyConditions(3, 6, cg);
+   TR::RegisterDependencyConditions * deps = new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(3, 6, cg);
    deps->addPreCondition(r0Reg, TR::RealRegister::GPR0);
    deps->addPostCondition(r0Reg, TR::RealRegister::GPR0);
    deps->addPostCondition(r1Reg, TR::RealRegister::GPR1);
@@ -1793,8 +1793,8 @@ lu2dfp64(TR::Node * node, TR::CodeGenerator * cg)
    TR::Register * litReg = cg->allocateRegister();
    generateLoadLiteralPoolAddress(cg, node, litReg);
 
-   TR::MemoryReference * mrHi = new (cg->trHeapMemory()) TR::MemoryReference(litReg, offset1, cg);
-   TR::MemoryReference * mrLo = new (cg->trHeapMemory()) TR::MemoryReference(litReg, offset2, cg);
+   TR::MemoryReference * mrHi = new (comp->trHeapMemory()) TR::MemoryReference(litReg, offset1, cg);
+   TR::MemoryReference * mrLo = new (comp->trHeapMemory()) TR::MemoryReference(litReg, offset2, cg);
 
    TR::Register * tempMaxReg = cg->allocateFPRegisterPair();
    generateRXInstruction(cg, TR::InstOpCode::LD, node, tempMaxReg->getHighOrder(), mrHi);
@@ -1881,7 +1881,7 @@ fixedToDFP(TR::Node * node, TR::CodeGenerator * cg)
    TR::RegisterDependencyConditions * deps = NULL;
    if (cg->comp()->target().is32Bit())
       {
-      deps = new (cg->trHeapMemory()) TR::RegisterDependencyConditions(0, 1, cg);
+      deps = new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(0, 1, cg);
       deps->addPostCondition(tempReg, TR::RealRegister::GPR0);
       }
 
@@ -2290,7 +2290,7 @@ J9::Z::TreeEvaluator::dfdivEvaluator(TR::Node * node, TR::CodeGenerator * cg)
 
       TR::Register *IMzMaskReg = cg->allocateRegister();
 
-      TR::RegisterDependencyConditions *deps = new (cg->trHeapMemory()) TR::RegisterDependencyConditions(0, 1, cg);
+      TR::RegisterDependencyConditions *deps = new (comp->trHeapMemory()) TR::RegisterDependencyConditions(0, 1, cg);
       deps->addPostCondition(IMzMaskReg, TR::RealRegister::AssignAny);
 
       // Load and test the divisor; branch to the OOL sequence if zero
@@ -2305,7 +2305,7 @@ J9::Z::TreeEvaluator::dfdivEvaluator(TR::Node * node, TR::CodeGenerator * cg)
       generateS390BranchInstruction(cg, TR::InstOpCode::BRC, TR::InstOpCode::COND_BZ, node, oolEntryPoint);
 
       // Start OOL sequence
-      TR_S390OutOfLineCodeSection *oolHelper = new (cg->trHeapMemory()) TR_S390OutOfLineCodeSection(oolEntryPoint, oolReturnPoint, cg);
+      TR_S390OutOfLineCodeSection *oolHelper = new (comp->trHeapMemory()) TR_S390OutOfLineCodeSection(oolEntryPoint, oolReturnPoint, cg);
       cg->getS390OutOfLineCodeSectionList().push_front(oolHelper);
       oolHelper->swapInstructionListsWithCompilation();
       generateS390LabelInstruction(cg, TR::InstOpCode::LABEL, node, oolEntryPoint);

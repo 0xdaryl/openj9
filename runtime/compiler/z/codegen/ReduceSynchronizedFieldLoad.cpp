@@ -65,7 +65,7 @@ ReduceSynchronizedFieldLoad::inlineSynchronizedFieldLoad(TR::Node* node, TR::Cod
 
    generateS390LabelInstruction(cg, TR::InstOpCode::LABEL, node, fastPathLabel);
 
-   TR_S390OutOfLineCodeSection* outOfLineCodeSection = new (cg->trHeapMemory()) TR_S390OutOfLineCodeSection(slowPathLabel, mergeLabel, cg);
+   TR_S390OutOfLineCodeSection* outOfLineCodeSection = new (cg->comp()->trHeapMemory()) TR_S390OutOfLineCodeSection(slowPathLabel, mergeLabel, cg);
    cg->getS390OutOfLineCodeSectionList().push_front(outOfLineCodeSection);
    outOfLineCodeSection->swapInstructionListsWithCompilation();
 
@@ -102,7 +102,7 @@ ReduceSynchronizedFieldLoad::inlineSynchronizedFieldLoad(TR::Node* node, TR::Cod
    TR::Register* lockRegister = cg->allocateRegister();
    TR::RegisterPair* registerPair = cg->allocateConsecutiveRegisterPair(lockRegister, loadRegister);
 
-   TR::RegisterDependencyConditions* conditions = new (cg->trHeapMemory()) TR::RegisterDependencyConditions(0, 3, cg);
+   TR::RegisterDependencyConditions* conditions = new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(0, 3, cg);
 
    conditions->addPostCondition(registerPair, TR::RealRegister::EvenOddPair);
    conditions->addPostCondition(loadRegister, TR::RealRegister::LegalEvenOfPair);

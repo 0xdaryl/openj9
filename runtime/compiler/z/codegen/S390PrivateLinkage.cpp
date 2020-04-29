@@ -1294,14 +1294,14 @@ J9::Z::PrivateLinkage::createPrologue(TR::Instruction * cursor)
 
    if (bppoutline && cg()->_outlineCall._frequency != -1)
       {
-      cursor =  new (cg()->trHeapMemory()) TR::S390RILInstruction(TR::InstOpCode::LARL, firstNode, epReg, (cg()->_outlineCall._callSymRef)->getSymbol(),(cg()->_outlineCall._callSymRef), cursor, cg());
+      cursor =  new (cg()->comp()->trHeapMemory()) TR::S390RILInstruction(TR::InstOpCode::LARL, firstNode, epReg, (cg()->_outlineCall._callSymRef)->getSymbol(),(cg()->_outlineCall._callSymRef), cursor, cg());
 
       TR::MemoryReference * tempMR = generateS390MemoryReference(epReg, 0, cg());
       cursor = generateS390BranchPredictionPreloadInstruction(cg(), TR::InstOpCode::BPP, firstNode, cg()->_outlineCall._callLabel, (int8_t) 0xD, tempMR, cursor);
       }
    if (bppoutline && cg()->_outlineArrayCall._frequency != -1)
       {
-      cursor =  new (cg()->trHeapMemory()) TR::S390RILInstruction(TR::InstOpCode::LARL, firstNode, epReg, (cg()->_outlineArrayCall._callSymRef)->getSymbol(),(cg()->_outlineArrayCall._callSymRef), cursor, cg());
+      cursor =  new (cg()->comp()->trHeapMemory()) TR::S390RILInstruction(TR::InstOpCode::LARL, firstNode, epReg, (cg()->_outlineArrayCall._callSymRef)->getSymbol(),(cg()->_outlineArrayCall._callSymRef), cursor, cg());
 
       TR::MemoryReference * tempMR = generateS390MemoryReference(epReg, 0, cg());
       cursor = generateS390BranchPredictionPreloadInstruction(cg(), TR::InstOpCode::BPP, firstNode, cg()->_outlineArrayCall._callLabel, (int8_t) 0xD, tempMR, cursor);
@@ -1943,7 +1943,7 @@ J9::Z::PrivateLinkage::buildVirtualDispatch(TR::Node * callNode, TR::RegisterDep
             {
             traceMsg (comp(), "OOL vcall: generating Vcall dispatch sequence\n");
             //Using OOL but generating code manually
-            outlinedSlowPath = new (cg()->trHeapMemory()) TR_S390OutOfLineCodeSection(vcallLabel,doneVirtualLabel,cg());
+            outlinedSlowPath = new (comp()->trHeapMemory()) TR_S390OutOfLineCodeSection(vcallLabel,doneVirtualLabel,cg());
             cg()->getS390OutOfLineCodeSectionList().push_front(outlinedSlowPath);
             outlinedSlowPath->swapInstructionListsWithCompilation();
             }
@@ -3330,7 +3330,7 @@ J9::Z::PrivateLinkage::buildDirectDispatch(TR::Node * callNode)
                   generateRRInstruction(cg(), TR::InstOpCode::LR, callNode, highReg, lowReg);
 
                TR::RegisterDependencyConditions * deps =
-                  new (cg()->trHeapMemory()) TR::RegisterDependencyConditions(0, 2, cg());
+                  new (cg()->comp()->trHeapMemory()) TR::RegisterDependencyConditions(0, 2, cg());
                deps->addPostCondition(lowReg, getLongLowReturnRegister(),DefinesDependentRegister);
                deps->addPostCondition(highReg, getLongHighReturnRegister(),DefinesDependentRegister);
                cursor->setDependencyConditions(deps);
@@ -3415,7 +3415,7 @@ J9::Z::PrivateLinkage::buildIndirectDispatch(TR::Node * callNode)
                   generateRRInstruction(cg(), TR::InstOpCode::LR, callNode, highReg, lowReg);
 
                TR::RegisterDependencyConditions * deps =
-                  new (cg()->trHeapMemory()) TR::RegisterDependencyConditions(0, 2, cg());
+                  new (cg()->comp()->trHeapMemory()) TR::RegisterDependencyConditions(0, 2, cg());
                deps->addPostCondition(lowReg, getLongLowReturnRegister(),DefinesDependentRegister);
                deps->addPostCondition(highReg, getLongHighReturnRegister(),DefinesDependentRegister);
                cursor->setDependencyConditions(deps);

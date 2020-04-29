@@ -63,7 +63,7 @@ J9::Z::CodeGenerator::CodeGenerator() :
    TR::Compilation *comp = cg->comp();
    TR_J9VMBase *fej9 = (TR_J9VMBase *)(comp->fe());
 
-   cg->setAheadOfTimeCompile(new (cg->trHeapMemory()) TR::AheadOfTimeCompile(cg));
+   cg->setAheadOfTimeCompile(new (comp->trHeapMemory()) TR::AheadOfTimeCompile(cg));
 
    // Java specific runtime helpers
    cg->symRefTab()->createSystemRuntimeHelper(TR_S390jitMathHelperConvertLongToFloat);
@@ -193,29 +193,30 @@ J9::Z::CodeGenerator::CodeGenerator() :
 TR::Linkage *
 J9::Z::CodeGenerator::createLinkage(TR_LinkageConventions lc)
    {
+   TR::Compilation *comp = self()->comp();
    TR::Linkage * linkage;
    switch (lc)
       {
       case TR_CHelper:
-         linkage = new (self()->trHeapMemory()) J9::Z::CHelperLinkage(self());
+         linkage = new (comp->trHeapMemory()) J9::Z::CHelperLinkage(self());
          break;
       case TR_Helper:
-         linkage = new (self()->trHeapMemory()) J9::Z::HelperLinkage(self());
+         linkage = new (comp->trHeapMemory()) J9::Z::HelperLinkage(self());
          break;
 
       case TR_Private:
-         linkage = new (self()->trHeapMemory()) J9::Z::PrivateLinkage(self());
+         linkage = new (comp->trHeapMemory()) J9::Z::PrivateLinkage(self());
          break;
 
       case TR_J9JNILinkage:
-         linkage = new (self()->trHeapMemory()) J9::Z::JNILinkage(self());
+         linkage = new (comp->trHeapMemory()) J9::Z::JNILinkage(self());
          break;
 
       case TR_System:
          if (self()->comp()->target().isLinux())
-            linkage = new (self()->trHeapMemory()) J9::Z::zLinuxSystemLinkage(self());
+            linkage = new (comp->trHeapMemory()) J9::Z::zLinuxSystemLinkage(self());
          else
-            linkage = new (self()->trHeapMemory()) J9::Z::zOSSystemLinkage(self());
+            linkage = new (comp->trHeapMemory()) J9::Z::zOSSystemLinkage(self());
          break;
 
       default :
@@ -533,7 +534,7 @@ TR::S390EyeCatcherDataSnippet *
 J9::Z::CodeGenerator::CreateEyeCatcher(TR::Node * node)
    {
    // 88448:  Cold Eyecatcher is used for padding of endPC so that Return Address for exception snippets will never equal the endPC.
-   TR::S390EyeCatcherDataSnippet * eyeCatcherSnippet = new (self()->trHeapMemory()) TR::S390EyeCatcherDataSnippet(self(),node);
+   TR::S390EyeCatcherDataSnippet * eyeCatcherSnippet = new (self()->comp()->trHeapMemory()) TR::S390EyeCatcherDataSnippet(self(),node);
    _snippetDataList.push_front(eyeCatcherSnippet);
    return eyeCatcherSnippet;
    }
@@ -751,7 +752,7 @@ J9::Z::CodeGenerator::alwaysGeneratedSign(TR::Node *node)
 TR_OpaquePseudoRegister *
 J9::Z::CodeGenerator::allocateOpaquePseudoRegister(TR::DataType dt)
    {
-   TR_OpaquePseudoRegister *temp =  new (self()->trHeapMemory()) TR_OpaquePseudoRegister(dt, self()->comp());
+   TR_OpaquePseudoRegister *temp =  new (self()->comp()->trHeapMemory()) TR_OpaquePseudoRegister(dt, self()->comp());
    self()->addAllocatedRegister(temp);
    if (self()->getDebug())
       self()->getDebug()->newRegister(temp);
@@ -762,7 +763,7 @@ J9::Z::CodeGenerator::allocateOpaquePseudoRegister(TR::DataType dt)
 TR_OpaquePseudoRegister *
 J9::Z::CodeGenerator::allocateOpaquePseudoRegister(TR_OpaquePseudoRegister *reg)
    {
-   TR_OpaquePseudoRegister *temp =  new (self()->trHeapMemory()) TR_OpaquePseudoRegister(reg, self()->comp());
+   TR_OpaquePseudoRegister *temp =  new (self()->comp()->trHeapMemory()) TR_OpaquePseudoRegister(reg, self()->comp());
    self()->addAllocatedRegister(temp);
    if (self()->getDebug())
       self()->getDebug()->newRegister(temp);
@@ -773,7 +774,7 @@ J9::Z::CodeGenerator::allocateOpaquePseudoRegister(TR_OpaquePseudoRegister *reg)
 TR_PseudoRegister *
 J9::Z::CodeGenerator::allocatePseudoRegister(TR_PseudoRegister *reg)
    {
-   TR_PseudoRegister *temp =  new (self()->trHeapMemory()) TR_PseudoRegister(reg, self()->comp());
+   TR_PseudoRegister *temp =  new (self()->comp()->trHeapMemory()) TR_PseudoRegister(reg, self()->comp());
    self()->addAllocatedRegister(temp);
    if (self()->getDebug())
       self()->getDebug()->newRegister(temp);
@@ -896,7 +897,7 @@ J9::Z::CodeGenerator::processUnusedStorageRef(TR_StorageReference *ref)
 TR_PseudoRegister *
 J9::Z::CodeGenerator::allocatePseudoRegister(TR::DataType dt)
    {
-   TR_PseudoRegister *temp =  new (self()->trHeapMemory()) TR_PseudoRegister(dt, self()->comp());
+   TR_PseudoRegister *temp =  new (self()->comp()->trHeapMemory()) TR_PseudoRegister(dt, self()->comp());
    self()->addAllocatedRegister(temp);
    if (self()->getDebug())
       self()->getDebug()->newRegister(temp);
@@ -3595,7 +3596,7 @@ TR::Instruction* J9::Z::CodeGenerator::generateVMCallHelperSnippet(TR::Instructi
    TR::SymbolReference* helperSymRef = self()->symRefTab()->findOrCreateRuntimeHelper(TR_j2iTransition, false, false, false);
 
    // AOT relocation for the helper address
-   TR::S390EncodingRelocation* encodingRelocation = new (self()->trHeapMemory()) TR::S390EncodingRelocation(TR_AbsoluteHelperAddress, helperSymRef);
+   TR::S390EncodingRelocation* encodingRelocation = new (comp->trHeapMemory()) TR::S390EncodingRelocation(TR_AbsoluteHelperAddress, helperSymRef);
 
    AOTcgDiag3(comp, "Add encodingRelocation = %p reloType = %p symbolRef = %p\n", encodingRelocation, encodingRelocation->getReloType(), encodingRelocation->getSymbolReference());
 
@@ -3618,8 +3619,8 @@ TR::Instruction* J9::Z::CodeGenerator::generateVMCallHelperSnippet(TR::Instructi
    const int32_t offsetFromEPRegisterValueToJ9MethodAddress = CalcCodeSize(basrInstruction->getNext(), cursor);
 
    j9MethodAddressMemRef->setOffset(offsetFromEPRegisterValueToJ9MethodAddress);
-   TR::SymbolReference *methodSymRef = new (self()->trHeapMemory()) TR::SymbolReference(self()->symRefTab(), methodSymbol);
-   encodingRelocation = new (self()->trHeapMemory()) TR::S390EncodingRelocation(TR_RamMethod, methodSymRef);
+   TR::SymbolReference *methodSymRef = new (comp->trHeapMemory()) TR::SymbolReference(self()->symRefTab(), methodSymbol);
+   encodingRelocation = new (comp->trHeapMemory()) TR::S390EncodingRelocation(TR_RamMethod, methodSymRef);
 
    AOTcgDiag2(comp, "Add encodingRelocation = %p reloType = %p\n", encodingRelocation, encodingRelocation->getReloType());
 
@@ -3736,7 +3737,7 @@ J9::Z::CodeGenerator::suppressInliningOfRecognizedMethod(TR::RecognizedMethod me
       if (self()->comp()->target().cpu.getSupportsVectorFacilityEnhancement1() &&
             (method == TR::java_lang_Math_fma_F ||
              method == TR::java_lang_StrictMath_fma_F))
-         { 
+         {
          return true;
          }
    }

@@ -264,7 +264,7 @@ J9::Z::MemoryReference::createUnresolvedDataSnippet(TR::Node * node, TR::CodeGen
    TR::UnresolvedDataSnippet * uds;
    TR::Instruction * cursor;
 
-   self()->setUnresolvedSnippet(uds = new (cg->trHeapMemory()) TR::UnresolvedDataSnippet(cg, node, symRef, isStore, false));
+   self()->setUnresolvedSnippet(uds = new (cg->comp()->trHeapMemory()) TR::UnresolvedDataSnippet(cg, node, symRef, isStore, false));
    cg->addSnippet(self()->getUnresolvedSnippet());
 
    // generate branch to the unresolved data snippet
@@ -420,11 +420,11 @@ generateS390MemRefFromStorageRef(TR::Node *node, TR_StorageReference *storageRef
    // Another example is an indirect load off of a loadaddr auto. The auto symbol size may be larger than the indirect load size being performed.
    if (storageReference->isTemporaryBased())
       {
-      memRef = new (cg->trHeapMemory()) TR::MemoryReference(node, storageReference->getTemporarySymbolReference(), cg, storageReference);
+      memRef = new (comp->trHeapMemory()) TR::MemoryReference(node, storageReference->getTemporarySymbolReference(), cg, storageReference);
       }
    else
       {
-      memRef = new (cg->trHeapMemory()) TR::MemoryReference(node, cg, false, storageReference);
+      memRef = new (comp->trHeapMemory()) TR::MemoryReference(node, cg, false, storageReference);
       memRef->setFixedSizeForAlignment(storageReference->getSymbolSize());
       }
 

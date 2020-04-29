@@ -117,7 +117,7 @@ J9::Z::UnresolvedDataSnippet::setDataReferenceInstruction(TR::Instruction *i)
          i->setPrev(brInstr);
          }
 
-      TR::RegisterDependencyConditions* dependencies = new (cg()->trHeapMemory()) TR::RegisterDependencyConditions(0, 6, cg());
+      TR::RegisterDependencyConditions* dependencies = new (cg()->comp()->trHeapMemory()) TR::RegisterDependencyConditions(0, 6, cg());
 
       // The instruction after the branch should be our memory access instruction.
       TR::Instruction *memRefInstr = i;
@@ -295,7 +295,7 @@ J9::Z::UnresolvedDataSnippet::emitSnippetBody()
    // address of constant pool
    *(uintptr_t *) cursor = (uintptr_t) getDataSymbolReference()->getOwningMethod(comp)->constantPool();
    AOTcgDiag1(comp, "add TR_ConstantPool cursor=%x\n", cursor);
-   cg()->addExternalRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation(cursor, *(uint8_t **)cursor, getNode() ? (uint8_t *)(intptr_t)getNode()->getInlinedSiteIndex() : (uint8_t *)-1, TR_ConstantPool, cg()),
+   cg()->addExternalRelocation(new (cg()->comp()->trHeapMemory()) TR::ExternalRelocation(cursor, *(uint8_t **)cursor, getNode() ? (uint8_t *)(intptr_t)getNode()->getInlinedSiteIndex() : (uint8_t *)-1, TR_ConstantPool, cg()),
                              __FILE__, __LINE__, getNode());
    cursor += sizeof(uintptr_t);
 

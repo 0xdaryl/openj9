@@ -271,7 +271,7 @@ J9::Z::TreeEvaluator::udsl2pdEvaluator(TR::Node *node, TR::CodeGenerator *cg)
 
       bool isImplicitValue = node->getNumChildren() < 2;
 
-      TR::RegisterDependencyConditions * deps = new (cg->trHeapMemory()) TR::RegisterDependencyConditions(0, isImplicitValue ? 4 : 2, cg);
+      TR::RegisterDependencyConditions * deps = new (comp->trHeapMemory()) TR::RegisterDependencyConditions(0, isImplicitValue ? 4 : 2, cg);
 
       if (destMR->getIndexRegister())
          deps->addPostConditionIfNotAlreadyInserted(destMR->getIndexRegister(), TR::RealRegister::AssignAny);
@@ -468,7 +468,7 @@ J9::Z::TreeEvaluator::pd2udslEvaluator(TR::Node *node, TR::CodeGenerator *cg)
       TR::LabelSymbol * cFlowRegionStart = generateLabelSymbol(cg);
       TR::LabelSymbol * cFlowRegionEnd = generateLabelSymbol(cg);
 
-      TR::RegisterDependencyConditions * targetMRDeps = new (cg->trHeapMemory()) TR::RegisterDependencyConditions(0, 2, cg);
+      TR::RegisterDependencyConditions * targetMRDeps = new (comp->trHeapMemory()) TR::RegisterDependencyConditions(0, 2, cg);
 
       if (destMR->getIndexRegister())
          targetMRDeps->addPostConditionIfNotAlreadyInserted(destMR->getIndexRegister(), TR::RealRegister::AssignAny);
@@ -837,7 +837,7 @@ J9::Z::TreeEvaluator::zonedToZonedSeparateSignHelper(TR::Node *node, TR_PseudoRe
       TR::Instruction* cursor = generateSIInstruction(cg, TR::InstOpCode::OI, node, generateS390LeftAlignedMemoryReference(*srcSignCodeMR, node, 0, cg, srcSignCodeMR->getLeftMostByte()), TR::DataType::getZonedCode());
 
       // Set up the proper register dependencies
-      TR::RegisterDependencyConditions* dependencies = new (cg->trHeapMemory()) TR::RegisterDependencyConditions(0, 2, cg);
+      TR::RegisterDependencyConditions* dependencies = new (comp->trHeapMemory()) TR::RegisterDependencyConditions(0, 2, cg);
 
       if (srcSignCodeMR->getIndexRegister())
          dependencies->addPostCondition(srcSignCodeMR->getIndexRegister(), TR::RealRegister::AssignAny);
@@ -908,7 +908,7 @@ J9::Z::TreeEvaluator::zonedSeparateSignToPackedOrZonedHelper(TR::Node *node, TR_
          TR::LabelSymbol * cFlowRegionStart   = generateLabelSymbol(cg);
          TR::LabelSymbol * cflowRegionEnd     = generateLabelSymbol(cg);
 
-         TR::RegisterDependencyConditions * deps = new (cg->trHeapMemory()) TR::RegisterDependencyConditions(0, 2, cg);
+         TR::RegisterDependencyConditions * deps = new (comp->trHeapMemory()) TR::RegisterDependencyConditions(0, 2, cg);
 
          if (sourceMR->getIndexRegister())
             deps->addPostConditionIfNotAlreadyInserted(sourceMR->getIndexRegister(), TR::RealRegister::AssignAny);
@@ -947,7 +947,7 @@ J9::Z::TreeEvaluator::zonedSeparateSignToPackedOrZonedHelper(TR::Node *node, TR_
       TR::LabelSymbol * cFlowRegionStart   = generateLabelSymbol(cg);
       TR::LabelSymbol * cflowRegionEnd     = generateLabelSymbol(cg);
 
-      TR::RegisterDependencyConditions * deps = new (cg->trHeapMemory()) TR::RegisterDependencyConditions(0, 4, cg);
+      TR::RegisterDependencyConditions * deps = new (comp->trHeapMemory()) TR::RegisterDependencyConditions(0, 4, cg);
 
       if (sourceMR->getIndexRegister())
          deps->addPostConditionIfNotAlreadyInserted(sourceMR->getIndexRegister(), TR::RealRegister::AssignAny);
@@ -1545,7 +1545,7 @@ J9::Z::TreeEvaluator::zonedToPackedHelper(TR::Node *node, TR_PseudoRegister *tar
    generateRXInstruction(cg, TR::InstOpCode::STC, node, signCode, generateS390LeftAlignedMemoryReference(*destMR, node, 0, cg, 1));
 
    // Set up the proper register dependencies
-   TR::RegisterDependencyConditions* dependencies = new (cg->trHeapMemory()) TR::RegisterDependencyConditions(0, 2, cg);
+   TR::RegisterDependencyConditions* dependencies = new (comp->trHeapMemory()) TR::RegisterDependencyConditions(0, 2, cg);
 
    dependencies->addPostCondition(signCode,     TR::RealRegister::AssignAny);
    dependencies->addPostCondition(signCode4Bit, TR::RealRegister::AssignAny);
@@ -1690,7 +1690,7 @@ J9::Z::TreeEvaluator::pd2zdSignFixup(TR::Node *node,
    generateRXInstruction(cg, TR::InstOpCode::STC, node, signCode, generateS390LeftAlignedMemoryReference(*destMR, node, 0, cg, 1));
 
    // Set up the proper register dependencies
-   TR::RegisterDependencyConditions* dependencies = new (cg->trHeapMemory()) TR::RegisterDependencyConditions(0, 2, cg);
+   TR::RegisterDependencyConditions* dependencies = new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(0, 2, cg);
 
    dependencies->addPostCondition(signCode,     TR::RealRegister::AssignAny);
    dependencies->addPostCondition(signCode4Bit, TR::RealRegister::AssignAny);
@@ -2697,7 +2697,7 @@ J9::Z::TreeEvaluator::pdcmpVectorEvaluatorHelper(TR::Node *node, TR::CodeGenerat
    generateRRInstruction(cg, TR::InstOpCode::getXORRegOpCode(), node, resultReg, resultReg);
    generateLoad32BitConstant(cg, node, 1, resultReg, true);
 
-   TR::RegisterDependencyConditions* deps = new(cg->trHeapMemory()) TR::RegisterDependencyConditions(0, 2, cg);
+   TR::RegisterDependencyConditions* deps = new(cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(0, 2, cg);
    deps->addPostConditionIfNotAlreadyInserted(resultReg, TR::RealRegister::AssignAny);
 
    TR::Node* pd1Node = node->getFirstChild();
@@ -2914,7 +2914,7 @@ setupPackedDFPConversionGPRs(TR::Register *&gpr64, TR::Register *&gpr64Hi,
 
    if (isLongDouble)
       {
-      deps = new (cg->trHeapMemory()) TR::RegisterDependencyConditions(0, 3, cg);
+      deps = new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(0, 3, cg);
       deps->addPostCondition(gpr64, TR::RealRegister::EvenOddPair);
       deps->addPostCondition(gpr64Hi, TR::RealRegister::LegalEvenOfPair);
       deps->addPostCondition(gpr64Lo, TR::RealRegister::LegalOddOfPair);
@@ -6527,7 +6527,7 @@ J9::Z::TreeEvaluator::pdaddsubEvaluatorHelper(TR::Node * node, TR::InstOpCode::M
       {
       cFlowRegionStart   = generateLabelSymbol(cg);
       cflowRegionEnd     = generateLabelSymbol(cg);
-      deps = new (cg->trHeapMemory()) TR::RegisterDependencyConditions(0, 4, cg);
+      deps = new (comp->trHeapMemory()) TR::RegisterDependencyConditions(0, 4, cg);
 
       if (destMR->getIndexRegister())
          deps->addPostConditionIfNotAlreadyInserted(destMR->getIndexRegister(), TR::RealRegister::AssignAny);

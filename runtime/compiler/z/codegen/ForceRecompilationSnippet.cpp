@@ -49,7 +49,7 @@ TR::S390ForceRecompilationSnippet::emitSnippetBody()
    //    BRCL  <Helper Addr>
 
    // LARL - Add Relocation the data constants to this LARL.
-   cg()->addRelocation(new (cg()->trHeapMemory()) TR::LabelRelative32BitRelocation(cursor, getDataConstantSnippet()->getSnippetLabel()));
+   cg()->addRelocation(new (comp->trHeapMemory()) TR::LabelRelative32BitRelocation(cursor, getDataConstantSnippet()->getSnippetLabel()));
 
    *(int16_t *) cursor = 0xC0E0;
    cursor += sizeof(int16_t);
@@ -93,7 +93,7 @@ TR::S390ForceRecompilationSnippet::emitSnippetBody()
    *(int32_t *) cursor = (int32_t)((destAddr - (intptr_t)(cursor - 2)) / 2);
 
    AOTcgDiag1(comp, "add TR_HelperAddress cursor=%x\n", cursor);
-   cg()->addExternalRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation(cursor, (uint8_t*) glueRef, TR_HelperAddress, cg()),
+   cg()->addExternalRelocation(new (comp->trHeapMemory()) TR::ExternalRelocation(cursor, (uint8_t*) glueRef, TR_HelperAddress, cg()),
                              __FILE__, __LINE__, getNode());
 
    cursor += sizeof(int32_t);
@@ -162,14 +162,14 @@ TR::S390ForceRecompilationDataSnippet::emitSnippetBody()
    // Return Address
    *(intptr_t *) cursor = (intptr_t)getRestartLabel()->getCodeLocation();
    AOTcgDiag1(comp, "add TR_AbsoluteMethodAddress cursor=%x\n", cursor);
-   cg()->addExternalRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation(cursor, NULL, TR_AbsoluteMethodAddress, cg()),
+   cg()->addExternalRelocation(new (comp->trHeapMemory()) TR::ExternalRelocation(cursor, NULL, TR_AbsoluteMethodAddress, cg()),
                              __FILE__, __LINE__, getNode());
    cursor += sizeof(intptr_t);
 
    // Start PC
    *(intptr_t *) cursor = (intptr_t)cg()->getCodeStart();
    AOTcgDiag1(comp, "add TR_AbsoluteMethodAddress cursor=%x\n", cursor);
-   cg()->addExternalRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation(cursor, NULL, TR_AbsoluteMethodAddress, cg()),
+   cg()->addExternalRelocation(new (comp->trHeapMemory()) TR::ExternalRelocation(cursor, NULL, TR_AbsoluteMethodAddress, cg()),
                              __FILE__, __LINE__, getNode());
    cursor += sizeof(intptr_t);
 

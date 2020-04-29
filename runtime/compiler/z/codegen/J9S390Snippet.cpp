@@ -119,7 +119,7 @@ TR::S390HeapAllocSnippet::emitSnippetBody()
    *(int32_t *) buffer = (int32_t)((destAddr - (intptr_t)(buffer - 2)) / 2);
    if (cg()->comp()->compileRelocatableCode())
       {
-      cg()->addExternalRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation(buffer, (uint8_t*) getDestination(), TR_HelperAddress, cg()),
+      cg()->addExternalRelocation(new (cg()->comp()->trHeapMemory()) TR::ExternalRelocation(buffer, (uint8_t*) getDestination(), TR_HelperAddress, cg()),
                                 __FILE__, __LINE__, getNode());
       }
 
@@ -347,7 +347,7 @@ TR::S390RestoreGPR7Snippet::emitSnippetBody()
       }
 
 
-   cg()->addRelocation(new (cg()->trHeapMemory()) TR::LabelRelative32BitRelocation(cursor, getTargetLabel()));
+   cg()->addRelocation(new (cg()->comp()->trHeapMemory()) TR::LabelRelative32BitRelocation(cursor, getTargetLabel()));
    // 6 bytes
    // BRCL 0xf, <target>
    *(int16_t *) cursor = 0xC0F4;

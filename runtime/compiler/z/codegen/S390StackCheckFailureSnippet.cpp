@@ -333,7 +333,7 @@ TR::S390StackCheckFailureSnippet::setStackAtlasHelper()
       {
       // only the arg references are live at this point
       uint32_t numberOfParmSlots = atlas->getNumberOfParmSlotsMapped();
-      TR_GCStackMap * map = new (cg()->trHeapMemory(), numberOfParmSlots) TR_GCStackMap(numberOfParmSlots);
+      TR_GCStackMap * map = new (comp->trHeapMemory(), numberOfParmSlots) TR_GCStackMap(numberOfParmSlots);
 
       map->copy(atlas->getParameterMap());
       while (paramCursor != NULL)

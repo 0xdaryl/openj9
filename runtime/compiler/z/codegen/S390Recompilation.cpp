@@ -189,10 +189,10 @@ TR_S390Recompilation::generatePrePrologue()
 
       TR::SymbolReference* helperSymRef = cg->symRefTab()->findOrCreateRuntimeHelper(TR_S390samplingRecompileMethod, false, false, false);
 
-      // AOT relocation for the interpreter glue address
-      TR::S390EncodingRelocation* encodingRelocation = new (cg->trHeapMemory()) TR::S390EncodingRelocation(TR_AbsoluteHelperAddress, helperSymRef);
-
       TR::Compilation* comp = cg->comp();
+
+      // AOT relocation for the interpreter glue address
+      TR::S390EncodingRelocation* encodingRelocation = new (comp->trHeapMemory()) TR::S390EncodingRelocation(TR_AbsoluteHelperAddress, helperSymRef);
 
       AOTcgDiag4(comp, "Add encodingRelocation = %p reloType = %p symbolRef = %p helperId = %x\n", encodingRelocation, encodingRelocation->getReloType(), encodingRelocation->getSymbolReference(), TR_S390samplingRecompileMethod);
 
@@ -225,7 +225,7 @@ TR_S390Recompilation::generatePrePrologue()
    else
       {
       // To keep the offsets in PreprologueConst.hpp constant emit a 4 byte pad for simplicity
-      cursor = new (cg->trHeapMemory()) TR::S390ImmInstruction(TR::InstOpCode::DC, node, 0xdeadf00d, cursor, cg);
+      cursor = new (comp->trHeapMemory()) TR::S390ImmInstruction(TR::InstOpCode::DC, node, 0xdeadf00d, cursor, cg);
       }
 
    // The following 4 bytes are used for various patching sequences that overwrite the JIT entry point with a 4 byte
@@ -236,7 +236,7 @@ TR_S390Recompilation::generatePrePrologue()
    TR::Instruction* restoreInstruction = cursor;
 
    // AOT relocation for the body info
-   TR::S390EncodingRelocation* encodingRelocation = new (cg->trHeapMemory()) TR::S390EncodingRelocation(TR_BodyInfoAddress, NULL);
+   TR::S390EncodingRelocation* encodingRelocation = new (comp->trHeapMemory()) TR::S390EncodingRelocation(TR_BodyInfoAddress, NULL);
 
    AOTcgDiag3(comp, "Add encodingRelocation = %p reloType = %p symbolRef = %p\n", encodingRelocation, encodingRelocation->getReloType(), encodingRelocation->getSymbolReference());
 
@@ -406,7 +406,7 @@ TR_S390Recompilation::generatePrologue(TR::Instruction* cursor)
    TR::SymbolReference* helperSymRef = cg->symRefTab()->findOrCreateRuntimeHelper(TR_S390countingRecompileMethod, false, false, false);
 
    // AOT relocation for the helper address
-   TR::S390EncodingRelocation* encodingRelocation = new (cg->trHeapMemory()) TR::S390EncodingRelocation(TR_AbsoluteHelperAddress, NULL);
+   TR::S390EncodingRelocation* encodingRelocation = new (comp->trHeapMemory()) TR::S390EncodingRelocation(TR_AbsoluteHelperAddress, NULL);
 
    AOTcgDiag4(comp, "Add encodingRelocation = %p reloType = %p symbolRef = %p helperId = %x\n", encodingRelocation, encodingRelocation->getReloType(), encodingRelocation->getSymbolReference(), TR_S390countingRecompileMethod);
 
@@ -491,7 +491,7 @@ TR_S390Recompilation::generatePrologue(TR::Instruction* cursor)
    helperSymRef = cg->symRefTab()->findOrCreateRuntimeHelper(TR_S390countingPatchCallSite, false, false, false);
 
    // AOT relocation for the helper address
-   encodingRelocation = new (cg->trHeapMemory()) TR::S390EncodingRelocation(TR_AbsoluteHelperAddress, NULL);
+   encodingRelocation = new (comp->trHeapMemory()) TR::S390EncodingRelocation(TR_AbsoluteHelperAddress, NULL);
 
    AOTcgDiag4(comp, "Add encodingRelocation = %p reloType = %p symbolRef = %p helperId = %x\n", encodingRelocation, encodingRelocation->getReloType(), encodingRelocation->getSymbolReference(), TR_S390countingPatchCallSite);
 
