@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2019 IBM Corp. and others
+ * Copyright (c) 2000, 2020 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -80,7 +80,7 @@ J9::ARM::UnresolvedDataSnippet::emitSnippetBody()
    cursor += 4;
 
    *(int32_t *)cursor = (intptr_t)getAddressOfDataReference();   // Code Cache RA
-   cg()->addExternalRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation(
+   cg()->addExternalRelocation(new (cg()->comp()->trHeapMemory()) TR::ExternalRelocation(
                cursor,
                NULL,
                TR_AbsoluteMethodAddress, cg()), __FILE__, __LINE__, getNode());
@@ -101,7 +101,7 @@ J9::ARM::UnresolvedDataSnippet::emitSnippetBody()
    cursor += 4;
 
    *(int32_t *)cursor = (intptr_t)getDataSymbolReference()->getOwningMethod(cg()->comp())->constantPool();  // CP
-   cg()->addExternalRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation(
+   cg()->addExternalRelocation(new (cg()->comp()->trHeapMemory()) TR::ExternalRelocation(
                cursor,
                *(uint8_t **)cursor,
                getNode() ? (uint8_t *)getNode()->getInlinedSiteIndex() : (uint8_t *)-1,

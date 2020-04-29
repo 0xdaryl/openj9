@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2019 IBM Corp. and others
+ * Copyright (c) 2000, 2020 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -48,7 +48,7 @@ J9::ARM::CodeGenerator::CodeGenerator() :
    TR::Compilation *comp = cg->comp();
    TR_J9VMBase *fej9 = (TR_J9VMBase *) (comp->fe());
 
-   cg->setAheadOfTimeCompile(new (cg->trHeapMemory()) TR::AheadOfTimeCompile(cg));
+   cg->setAheadOfTimeCompile(new (comp->trHeapMemory()) TR::AheadOfTimeCompile(cg));
 
    if (!comp->getOption(TR_MimicInterpreterFrameShape))
       cg->setSupportsDirectJNICalls();
@@ -329,31 +329,32 @@ void J9::ARM::CodeGenerator::doBinaryEncoding()
 //
 TR::Linkage *J9::ARM::CodeGenerator::createLinkage(TR_LinkageConventions lc)
    {
+   TR::Compilation *comp = self()->comp();
    TR::Linkage *linkage;
    switch (lc)
       {
 //    case TR_InterpretedStatic:
-//       linkage = new (self()->trHeapMemory()) TR::ARMInterpretedStaticLinkage(this);
+//       linkage = new (comp->trHeapMemory()) TR::ARMInterpretedStaticLinkage(this);
 //       break;
       case TR_Private:
-         linkage = new (self()->trHeapMemory()) J9::ARM::PrivateLinkage(self());
+         linkage = new (comp->trHeapMemory()) J9::ARM::PrivateLinkage(self());
          break;
       case TR_System:
-         linkage = new (self()->trHeapMemory()) TR::ARMSystemLinkage(self());
+         linkage = new (comp->trHeapMemory()) TR::ARMSystemLinkage(self());
          break;
 //    case TR_AllRegister:
-//       linkage = new (self()->trHeapMemory()) TR::ARMAllRegisterLinkage(this);
+//       linkage = new (comp->trHeapMemory()) TR::ARMAllRegisterLinkage(this);
 //       break;
       case TR_CHelper:
       case TR_Helper:
-         linkage = new (self()->trHeapMemory()) J9::ARM::HelperLinkage(self());
+         linkage = new (comp->trHeapMemory()) J9::ARM::HelperLinkage(self());
          break;
       case TR_J9JNILinkage:
-         linkage = new (self()->trHeapMemory()) J9::ARM::JNILinkage(self());
+         linkage = new (comp->trHeapMemory()) J9::ARM::JNILinkage(self());
          break;
       default :
          TR_ASSERT(0, "using system linkage for unrecognized convention %d\n", lc);
-         linkage = new (self()->trHeapMemory()) TR::ARMSystemLinkage(self());
+         linkage = new (comp->trHeapMemory()) TR::ARMSystemLinkage(self());
       }
    self()->setLinkage(lc, linkage);
    return linkage;

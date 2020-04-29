@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2019 IBM Corp. and others
+ * Copyright (c) 2000, 2020 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -269,7 +269,7 @@ uint8_t *TR::ARMCallSnippet::emitSnippetBody()
 
    // Store the code cache RA
    *(int32_t *)cursor = (intptr_t)getCallRA();
-   cg()->addExternalRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation(
+   cg()->addExternalRelocation(new (cg()->comp()->trHeapMemory()) TR::ExternalRelocation(
         						 cursor,
         						 NULL,
         						 TR_AbsoluteMethodAddress, cg()), __FILE__, __LINE__, getNode());
@@ -282,7 +282,7 @@ uint8_t *TR::ARMCallSnippet::emitSnippetBody()
       if (comp->getOption(TR_EnableHCR))
          {
          cg()->jitAddPicToPatchOnClassRedefinition((void*)-1, (void *)cursor, true);
-         cg()->addExternalRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation((uint8_t *)cursor, NULL,(uint8_t *)needsFullSizeRuntimeAssumption,
+         cg()->addExternalRelocation(new (cg()->comp()->trHeapMemory()) TR::ExternalRelocation((uint8_t *)cursor, NULL,(uint8_t *)needsFullSizeRuntimeAssumption,
                                    TR_HCR, cg()),__FILE__, __LINE__,
                                    getNode());
          }
@@ -292,7 +292,7 @@ uint8_t *TR::ARMCallSnippet::emitSnippetBody()
       *(int32_t *)cursor = (uintptr_t)methodSymbol->getMethodAddress();
       if (comp->getOption(TR_EnableHCR))
          cg()->jitAddPicToPatchOnClassRedefinition((void *)methodSymbol->getMethodAddress(), (void *)cursor);
-         cg()->addExternalRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation(cursor, (uint8_t *)methodSymRef,
+         cg()->addExternalRelocation(new (cg()->comp()->trHeapMemory()) TR::ExternalRelocation(cursor, (uint8_t *)methodSymRef,
                                                                                  getNode() ? (uint8_t *)getNode()->getInlinedSiteIndex() : (uint8_t *)-1,
                                                                                  TR_MethodObject, cg()),
                                       __FILE__, __LINE__, callNode);
@@ -302,7 +302,7 @@ uint8_t *TR::ARMCallSnippet::emitSnippetBody()
       recordInfo->data2 = (uintptr_t)(getNode() ? (uint8_t *)getNode()->getInlinedSiteIndex() : (uint8_t *)-1);
       recordInfo->data3 = (uintptr_t)fixedSequence1;
 
-      cg()->addExternalRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation(
+      cg()->addExternalRelocation(new (cg()->comp()->trHeapMemory()) TR::ExternalRelocation(
                              cursor,
                              (uint8_t *)recordInfo,
                              TR_MethodObject, cg()), __FILE__, __LINE__, getNode());
@@ -376,7 +376,7 @@ uint8_t *TR::ARMUnresolvedCallSnippet::emitSnippetBody()
       traceMsg(comp, "</relocatableDataTrampolinesCG>\n");
       }
 
-   cg()->addExternalRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation(
+   cg()->addExternalRelocation(new (cg()->comp()->trHeapMemory()) TR::ExternalRelocation(
         						 cursor,
         						 *(uint8_t **)cursor,
         						 getNode() ? (uint8_t *)getNode()->getInlinedSiteIndex() : (uint8_t *)-1,
@@ -406,7 +406,7 @@ uint8_t *TR::ARMVirtualUnresolvedSnippet::emitSnippetBody()
 
    // Store the code cache RA
    *(int32_t *)cursor = (intptr_t)getReturnLabel()->getCodeLocation();
-   cg()->addExternalRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation(
+   cg()->addExternalRelocation(new (cg()->comp()->trHeapMemory()) TR::ExternalRelocation(
         						 cursor,
         						 NULL,
         						 TR_AbsoluteMethodAddress, cg()), __FILE__, __LINE__, getNode());
@@ -415,7 +415,7 @@ uint8_t *TR::ARMVirtualUnresolvedSnippet::emitSnippetBody()
    // CP
    *(int32_t *)cursor = (intptr_t)methodSymRef->getOwningMethod(comp)->constantPool();
 
-   cg()->addExternalRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation(
+   cg()->addExternalRelocation(new (cg()->comp()->trHeapMemory()) TR::ExternalRelocation(
                              cursor,
                              *(uint8_t **)cursor,
                              getNode() ? (uint8_t *)getNode()->getInlinedSiteIndex() : (uint8_t *)-1,
@@ -448,7 +448,7 @@ uint8_t *TR::ARMInterfaceCallSnippet::emitSnippetBody()
 
    // Store the code cache RA
    *(int32_t *)cursor = (intptr_t)getReturnLabel()->getCodeLocation();
-   cg()->addExternalRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation(
+   cg()->addExternalRelocation(new (cg()->comp()->trHeapMemory()) TR::ExternalRelocation(
         						 cursor,
         						 NULL,
         						 TR_AbsoluteMethodAddress, cg()), __FILE__, __LINE__, getNode());
@@ -456,7 +456,7 @@ uint8_t *TR::ARMInterfaceCallSnippet::emitSnippetBody()
 
    *(int32_t *)cursor = (intptr_t)methodSymRef->getOwningMethod(cg()->comp())->constantPool();
 
-   cg()->addExternalRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation(
+   cg()->addExternalRelocation(new (cg()->comp()->trHeapMemory()) TR::ExternalRelocation(
                              cursor,
                              *(uint8_t **)cursor,
                              getNode() ? (uint8_t *)getNode()->getInlinedSiteIndex() : (uint8_t *)-1,
@@ -481,7 +481,7 @@ uint8_t *TR::ARMInterfaceCallSnippet::emitSnippetBody()
 
    int32_t *patchAddress2 = NULL; // TODO (int32_t *)getLowerInstruction()->getBinaryEncoding();
    *patchAddress2 |= (int32_t)cursor & 0x0000ffff;
-   cg()->addRelocation(new (cg()->trHeapMemory()) TR::ExternalOrderedPair32BitRelocation(
+   cg()->addRelocation(new (cg()->comp()->trHeapMemory()) TR::ExternalOrderedPair32BitRelocation(
 								    (uint8_t *)patchAddress1,
 								    (uint8_t *)patchAddress2,
 								    NULL,

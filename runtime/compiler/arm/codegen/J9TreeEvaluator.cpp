@@ -209,7 +209,7 @@ static void VMCardCheckEvaluator(TR::Node *node, TR::Register *dstReg, TR::Regis
          uint32_t base, rotate;
 
          generateTrg1MemInstruction(cg, ARMOp_ldr, node, temp1Reg,
-               new (cg->trHeapMemory()) TR::MemoryReference(metaReg, offsetof(J9VMThread, privateFlags), cg));
+               new (cg->comp()->trHeapMemory()) TR::MemoryReference(metaReg, offsetof(J9VMThread, privateFlags), cg));
 
          // The value for J9_PRIVATE_FLAGS_CONCURRENT_MARK_ACTIVE is a generated value when VM code is created
          // At the moment we are safe here, but it is better to be careful and avoid any unexpected behaviour
@@ -226,24 +226,24 @@ static void VMCardCheckEvaluator(TR::Node *node, TR::Register *dstReg, TR::Regis
 
       // temp3Reg = dstReg - heapBaseForBarrierRange0
       generateTrg1MemInstruction(cg, ARMOp_ldr, node, temp3Reg,
-            new (cg->trHeapMemory()) TR::MemoryReference(metaReg, offsetof(J9VMThread, heapBaseForBarrierRange0), cg));
+            new (cg->comp()->trHeapMemory()) TR::MemoryReference(metaReg, offsetof(J9VMThread, heapBaseForBarrierRange0), cg));
       generateTrg1Src2Instruction(cg, ARMOp_sub, node, temp3Reg, dstReg, temp3Reg);
 
       if (!definitelyHeapObject)
          {
          // if (temp3Reg >= heapSizeForBarrierRange0), object not in the heap
          generateTrg1MemInstruction(cg, ARMOp_ldr, node, temp1Reg,
-               new (cg->trHeapMemory()) TR::MemoryReference(metaReg, offsetof(J9VMThread, heapSizeForBarrierRange0), cg));
+               new (cg->comp()->trHeapMemory()) TR::MemoryReference(metaReg, offsetof(J9VMThread, heapSizeForBarrierRange0), cg));
          generateSrc2Instruction(cg, ARMOp_cmp, node, temp3Reg, temp1Reg);
          generateConditionalBranchInstruction(cg, node, ARMConditionCodeCS, noChkLabel);
          }
 
       // dirty(activeCardTableBase + temp3Reg >> card_size_shift)
       generateTrg1MemInstruction(cg, ARMOp_ldr, node, temp1Reg,
-            new (cg->trHeapMemory()) TR::MemoryReference(metaReg, offsetof(J9VMThread, activeCardTableBase), cg));
+            new (cg->comp()->trHeapMemory()) TR::MemoryReference(metaReg, offsetof(J9VMThread, activeCardTableBase), cg));
       generateShiftRightImmediate(cg, node, temp3Reg, temp3Reg, card_size_shift, true);
       armLoadConstant(node, CARD_DIRTY, temp2Reg, cg);
-      generateMemSrc1Instruction(cg, ARMOp_strb, node, new (cg->trHeapMemory()) TR::MemoryReference(temp1Reg, temp3Reg, 1, cg), temp2Reg);
+      generateMemSrc1Instruction(cg, ARMOp_strb, node, new (cg->comp()->trHeapMemory()) TR::MemoryReference(temp1Reg, temp3Reg, 1, cg), temp2Reg);
 
       generateLabelInstruction(cg, ARMOp_label, node, noChkLabel, deps);
       }
@@ -303,7 +303,7 @@ void J9::ARM::TreeEvaluator::genWrtbarForArrayCopy(TR::Node *node, TR::Register 
          temp2Reg = cg->allocateRegister();
          doneLabel = generateLabelSymbol(cg);
 
-         conditions = new (cg->trHeapMemory()) TR::RegisterDependencyConditions(3, 3, cg->trMemory());
+         conditions = new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(3, 3, cg->trMemory());
          TR::addDependency(conditions, temp1Reg, TR::RealRegister::NoReg, TR_GPR, cg);
          TR::addDependency(conditions, temp2Reg, TR::RealRegister::NoReg, TR_GPR, cg);
 
@@ -311,18 +311,18 @@ void J9::ARM::TreeEvaluator::genWrtbarForArrayCopy(TR::Node *node, TR::Register 
 
          // temp1Reg = dstObjReg - heapBaseForBarrierRange0
          generateTrg1MemInstruction(cg, ARMOp_ldr, node, temp1Reg,
-               new (cg->trHeapMemory()) TR::MemoryReference(metaReg, offsetof(J9VMThread, heapBaseForBarrierRange0), cg));
+               new (cg->comp()->trHeapMemory()) TR::MemoryReference(metaReg, offsetof(J9VMThread, heapBaseForBarrierRange0), cg));
          generateTrg1Src2Instruction(cg, ARMOp_sub, node, temp1Reg, dstObjReg, temp1Reg);
 
          // if (temp1Reg >= heapSizeForBarrierRange0), object not in the tenured area
          generateTrg1MemInstruction(cg, ARMOp_ldr, node, temp2Reg,
-               new (cg->trHeapMemory()) TR::MemoryReference(metaReg, offsetof(J9VMThread, heapSizeForBarrierRange0), cg));
+               new (cg->comp()->trHeapMemory()) TR::MemoryReference(metaReg, offsetof(J9VMThread, heapSizeForBarrierRange0), cg));
          generateSrc2Instruction(cg, ARMOp_cmp, node, temp1Reg, temp2Reg);
          generateConditionalBranchInstruction(cg, node, ARMConditionCodeCS, doneLabel);
          }
       else
          {
-         conditions = new (cg->trHeapMemory()) TR::RegisterDependencyConditions(1, 1, cg->trMemory());
+         conditions = new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(1, 1, cg->trMemory());
          }
 
       TR::addDependency(conditions, dstObjReg, TR::RealRegister::gr0, TR_GPR, cg);
@@ -351,7 +351,7 @@ void J9::ARM::TreeEvaluator::genWrtbarForArrayCopy(TR::Node *node, TR::Register 
          TR::Register *temp1Reg = cg->allocateRegister();
          TR::Register *temp2Reg = cg->allocateRegister();
          TR::Register *temp3Reg = cg->allocateRegister();
-         TR::RegisterDependencyConditions *conditions = new (cg->trHeapMemory()) TR::RegisterDependencyConditions(4, 4, cg->trMemory());
+         TR::RegisterDependencyConditions *conditions = new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(4, 4, cg->trMemory());
 
          TR::addDependency(conditions, dstObjReg, TR::RealRegister::NoReg, TR_GPR, cg);
          TR::addDependency(conditions, temp1Reg, TR::RealRegister::NoReg, TR_GPR, cg);

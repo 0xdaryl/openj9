@@ -87,10 +87,10 @@ TR::Instruction *TR_ARMRecompilation::generatePrePrologue()
       // gr4 must contain the saved LR; see Recompilation.s
       if(useSampling())
          {
-         cursor = new (cg()->trHeapMemory()) TR::ARMTrg1Src1Instruction(cursor, ARMOp_mov, firstNode, gr4, lr, cg());
-         cursor = generateImmSymInstruction(cg(), ARMOp_bl, firstNode, (uintptr_t)recompileMethodSymRef->getMethodAddress(), new (cg()->trHeapMemory()) TR::RegisterDependencyConditions((uint8_t)0, 0, cg()->trMemory()), recompileMethodSymRef, NULL, cursor);
+         cursor = new (cg()->comp()->trHeapMemory()) TR::ARMTrg1Src1Instruction(cursor, ARMOp_mov, firstNode, gr4, lr, cg());
+         cursor = generateImmSymInstruction(cg(), ARMOp_bl, firstNode, (uintptr_t)recompileMethodSymRef->getMethodAddress(), new (cg()->comp()->trHeapMemory()) TR::RegisterDependencyConditions((uint8_t)0, 0, cg()->trMemory()), recompileMethodSymRef, NULL, cursor);
          }
-      cursor = new (cg()->trHeapMemory()) TR::ARMImmInstruction(cursor, ARMOp_dd, firstNode, (int32_t)(intptr_t)info, cg());
+      cursor = new (cg()->comp()->trHeapMemory()) TR::ARMImmInstruction(cursor, ARMOp_dd, firstNode, (int32_t)(intptr_t)info, cg());
       cursor->setNeedsAOTRelocation();
       ((TR::ARMImmInstruction *)cursor)->setReloKind(TR_BodyInfoAddress);
 
@@ -111,25 +111,25 @@ TR::Instruction *TR_ARMRecompilation::generatePrologue(TR::Instruction *cursor)
       TR::Register   *lr = machine->getRealRegister(TR::RealRegister::gr14); // link register
       TR::Node       *firstNode = _compilation->getStartTree()->getNode();
       intptr_t        addr = (intptr_t)getCounterAddress();
-      TR::LabelSymbol *snippetLabel = TR::LabelSymbol::create(cg()->trHeapMemory(), cg());
+      TR::LabelSymbol *snippetLabel = TR::LabelSymbol::create(cg()->comp()->trHeapMemory(), cg());
       intParts localVal(addr);
 
-      TR_ARMOperand2 *op2_3 = new (cg()->trHeapMemory()) TR_ARMOperand2(localVal.getByte3(), 24);
-      TR_ARMOperand2 *op2_2 = new (cg()->trHeapMemory()) TR_ARMOperand2(localVal.getByte2(), 16);
-      TR_ARMOperand2 *op2_1 = new (cg()->trHeapMemory()) TR_ARMOperand2(localVal.getByte1(), 8);
-      TR_ARMOperand2 *op2_0 = new (cg()->trHeapMemory()) TR_ARMOperand2(localVal.getByte0(), 0);
+      TR_ARMOperand2 *op2_3 = new (cg()->comp()->trHeapMemory()) TR_ARMOperand2(localVal.getByte3(), 24);
+      TR_ARMOperand2 *op2_2 = new (cg()->comp()->trHeapMemory()) TR_ARMOperand2(localVal.getByte2(), 16);
+      TR_ARMOperand2 *op2_1 = new (cg()->comp()->trHeapMemory()) TR_ARMOperand2(localVal.getByte1(), 8);
+      TR_ARMOperand2 *op2_0 = new (cg()->comp()->trHeapMemory()) TR_ARMOperand2(localVal.getByte0(), 0);
       cursor = generateTrg1Src1Instruction(cg(), ARMOp_mov, firstNode, gr5, op2_3, cursor);
       cursor = generateTrg1Src2Instruction(cg(), ARMOp_add, firstNode, gr5, gr5, op2_2, cursor);
       cursor = generateTrg1Src2Instruction(cg(), ARMOp_add, firstNode, gr5, gr5, op2_1, cursor);
       cursor = generateTrg1Src2Instruction(cg(), ARMOp_add, firstNode, gr5, gr5, op2_0, cursor);
 
-      cursor = generateTrg1MemInstruction(cg(), ARMOp_ldr, firstNode, gr4, new (cg()->trHeapMemory()) TR::MemoryReference(gr5, 0, cg()), cursor);
+      cursor = generateTrg1MemInstruction(cg(), ARMOp_ldr, firstNode, gr4, new (cg()->comp()->trHeapMemory()) TR::MemoryReference(gr5, 0, cg()), cursor);
 
       if (!isProfilingCompilation())
          {
          cursor = generateTrg1Src1ImmInstruction(cg(), ARMOp_sub_r, firstNode, gr4, gr4, 1, 0, cursor);
          cursor = generateMemSrc1Instruction(cg(), ARMOp_str, firstNode,
-                                new (cg()->trHeapMemory()) TR::MemoryReference(gr5, (int32_t)0, cg()), gr4, cursor);
+                                new (cg()->comp()->trHeapMemory()) TR::MemoryReference(gr5, (int32_t)0, cg()), gr4, cursor);
          }
       else
          {
@@ -147,7 +147,7 @@ TR::Instruction *TR_ARMRecompilation::generatePrologue(TR::Instruction *cursor)
       cursor = generateTrg1Src2Instruction(cg(), ARMOp_orr, firstNode, gr5, gr5, gr5, cursor);
       cursor = generateConditionalBranchInstruction(cg(), firstNode, ARMConditionCodeLT, snippetLabel, cursor);
 
-      TR::Snippet     *snippet = new (cg()->trHeapMemory()) TR::ARMRecompilationSnippet(snippetLabel, cursor, cg());
+      TR::Snippet     *snippet = new (cg()->comp()->trHeapMemory()) TR::ARMRecompilationSnippet(snippetLabel, cursor, cg());
       cg()->addSnippet(snippet);
       }
    return(cursor);
