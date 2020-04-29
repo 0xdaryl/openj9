@@ -176,7 +176,7 @@ uint8_t *TR::PPCReadMonitorSnippet::emitSnippetBody()
 
    if (comp->compileRelocatableCode())
       {
-      cg()->addExternalRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation(buffer,(uint8_t *)getMonitorEnterHelper(),TR_HelperAddress, cg()),
+      cg()->addExternalRelocation(new (comp->trHeapMemory()) TR::ExternalRelocation(buffer,(uint8_t *)getMonitorEnterHelper(),TR_HelperAddress, cg()),
                                 __FILE__, __LINE__, getNode());
       }
 
@@ -350,7 +350,7 @@ uint8_t *TR::PPCHeapAllocSnippet::emitSnippetBody()
    *(int32_t *)buffer |= (helperAddress - (intptr_t)buffer) & 0x03FFFFFC;
    if (cg()->comp()->compileRelocatableCode())
       {
-      cg()->addExternalRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation(buffer, (uint8_t*) getDestination(), TR_HelperAddress, cg()),
+      cg()->addExternalRelocation(new (cg()->comp()->trHeapMemory()) TR::ExternalRelocation(buffer, (uint8_t*) getDestination(), TR_HelperAddress, cg()),
                              __FILE__,
                              __LINE__,
                              getNode());
@@ -570,20 +570,20 @@ static uint8_t* initializeCCPreLoadedPrefetch(uint8_t *buffer, void **CCPreLoade
       TR_ASSERT( skipLines * ppcCacheLineSize <= UPPER_IMMED, "Cache line size too big for immediate");
       cursor = generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::addi, n, r10, r8, skipLines * ppcCacheLineSize, cursor);
       cursor = generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::addi, n, r11, r8, (skipLines + 1) * ppcCacheLineSize, cursor);
-      cursor = generateMemInstruction(cg, TR::InstOpCode::dcbtst, n, new (cg->trHeapMemory()) TR::MemoryReference(NULL, r10, 4, cg), cursor);
-      cursor = generateMemInstruction(cg, TR::InstOpCode::dcbtst, n, new (cg->trHeapMemory()) TR::MemoryReference(NULL, r11, 4, cg), cursor);
+      cursor = generateMemInstruction(cg, TR::InstOpCode::dcbtst, n, new (comp->trHeapMemory()) TR::MemoryReference(NULL, r10, 4, cg), cursor);
+      cursor = generateMemInstruction(cg, TR::InstOpCode::dcbtst, n, new (comp->trHeapMemory()) TR::MemoryReference(NULL, r11, 4, cg), cursor);
 
       for (uint32_t i = 2; i < linesToPrefetch; i += 2)
          {
          cursor = generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::addi, n, r10, r10, ppcCacheLineSize * 2, cursor);
          cursor = generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::addi, n, r11, r11, ppcCacheLineSize * 2, cursor);
-         cursor = generateMemInstruction(cg, TR::InstOpCode::dcbtst, n, new (cg->trHeapMemory()) TR::MemoryReference(NULL, r10, 4, cg), cursor);
-         cursor = generateMemInstruction(cg, TR::InstOpCode::dcbtst, n, new (cg->trHeapMemory()) TR::MemoryReference(NULL, r11, 4, cg), cursor);
+         cursor = generateMemInstruction(cg, TR::InstOpCode::dcbtst, n, new (comp->trHeapMemory()) TR::MemoryReference(NULL, r10, 4, cg), cursor);
+         cursor = generateMemInstruction(cg, TR::InstOpCode::dcbtst, n, new (comp->trHeapMemory()) TR::MemoryReference(NULL, r11, 4, cg), cursor);
          }
 
       cursor = generateTrg1ImmInstruction(cg, TR::InstOpCode::li, n, r11, restartAfterLines * ppcCacheLineSize, cursor);
       cursor = generateMemSrc1Instruction(cg,TR::InstOpCode::Op_st, n,
-                                          new (cg->trHeapMemory()) TR::MemoryReference(metaReg, offsetof(J9VMThread, tlhPrefetchFTA), TR::Compiler->om.sizeofReferenceAddress(), cg),
+                                          new (comp->trHeapMemory()) TR::MemoryReference(metaReg, offsetof(J9VMThread, tlhPrefetchFTA), TR::Compiler->om.sizeofReferenceAddress(), cg),
                                           r11, cursor);
       }
    else
@@ -598,29 +598,29 @@ static uint8_t* initializeCCPreLoadedPrefetch(uint8_t *buffer, void **CCPreLoade
       helperSize = 4 + (linesToLdPrefetch + 1) / 2 * 4 + 1 + (l3SkipLines ? 2 : 0) + (linesToStPrefetch + 1) / 2 * 4;
 
       cursor = generateTrg1MemInstruction(cg,TR::InstOpCode::Op_load, n, r10,
-                                          new (cg->trHeapMemory()) TR::MemoryReference(metaReg, offsetof(J9VMThread, debugEventData3), TR::Compiler->om.sizeofReferenceAddress(), cg),
+                                          new (comp->trHeapMemory()) TR::MemoryReference(metaReg, offsetof(J9VMThread, debugEventData3), TR::Compiler->om.sizeofReferenceAddress(), cg),
                                           cursor);
       cursor = generateTrg1Src1ImmInstruction(cg,TR::InstOpCode::Op_cmpli, n, cr0, r10, 0, cursor);
       cursor = generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::xori, n, r10, r10, 1, cursor);
       cursor = generateTrg1ImmInstruction(cg, TR::InstOpCode::li, n, r11, restartAfterLines * ppcCacheLineSize, cursor);
       cursor = generateMemSrc1Instruction(cg,TR::InstOpCode::Op_st, n,
-                                          new (cg->trHeapMemory()) TR::MemoryReference(metaReg, offsetof(J9VMThread, tlhPrefetchFTA), TR::Compiler->om.sizeofReferenceAddress(), cg),
+                                          new (comp->trHeapMemory()) TR::MemoryReference(metaReg, offsetof(J9VMThread, tlhPrefetchFTA), TR::Compiler->om.sizeofReferenceAddress(), cg),
                                           r11, cursor);
       cursor = generateMemSrc1Instruction(cg,TR::InstOpCode::Op_st, n,
-                                          new (cg->trHeapMemory()) TR::MemoryReference(metaReg, offsetof(J9VMThread, debugEventData3), TR::Compiler->om.sizeofReferenceAddress(), cg),
+                                          new (comp->trHeapMemory()) TR::MemoryReference(metaReg, offsetof(J9VMThread, debugEventData3), TR::Compiler->om.sizeofReferenceAddress(), cg),
                                           r10, cursor);
 
       cursor = generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::addi, n, r10, r8, skipLines * ppcCacheLineSize, cursor);
       cursor = generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::addi, n, r11, r8, (skipLines + 1) * ppcCacheLineSize, cursor);
-      cursor = generateMemInstruction(cg, TR::InstOpCode::dcbtt, n, new (cg->trHeapMemory()) TR::MemoryReference(NULL, r10, 4, cg), cursor);
-      cursor = generateMemInstruction(cg, TR::InstOpCode::dcbtt, n, new (cg->trHeapMemory()) TR::MemoryReference(NULL, r11, 4, cg), cursor);
+      cursor = generateMemInstruction(cg, TR::InstOpCode::dcbtt, n, new (comp->trHeapMemory()) TR::MemoryReference(NULL, r10, 4, cg), cursor);
+      cursor = generateMemInstruction(cg, TR::InstOpCode::dcbtt, n, new (comp->trHeapMemory()) TR::MemoryReference(NULL, r11, 4, cg), cursor);
 
       for (uint32_t i = 2; i < linesToLdPrefetch; i += 2)
          {
          cursor = generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::addi, n, r10, r10, ppcCacheLineSize * 2, cursor);
          cursor = generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::addi, n, r11, r11, ppcCacheLineSize * 2, cursor);
-         cursor = generateMemInstruction(cg, TR::InstOpCode::dcbtt, n, new (cg->trHeapMemory()) TR::MemoryReference(NULL, r10, 4, cg), cursor);
-         cursor = generateMemInstruction(cg, TR::InstOpCode::dcbtt, n, new (cg->trHeapMemory()) TR::MemoryReference(NULL, r11, 4, cg), cursor);
+         cursor = generateMemInstruction(cg, TR::InstOpCode::dcbtt, n, new (comp->trHeapMemory()) TR::MemoryReference(NULL, r10, 4, cg), cursor);
+         cursor = generateMemInstruction(cg, TR::InstOpCode::dcbtt, n, new (comp->trHeapMemory()) TR::MemoryReference(NULL, r11, 4, cg), cursor);
          }
 
       cursor = generateConditionalBranchInstruction(cg, TR::InstOpCode::beqlr, n, NULL, cr0, cursor);
@@ -635,8 +635,8 @@ static uint8_t* initializeCCPreLoadedPrefetch(uint8_t *buffer, void **CCPreLoade
          {
          cursor = generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::addi, n, r10, r10, ppcCacheLineSize * 2, cursor);
          cursor = generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::addi, n, r11, r11, ppcCacheLineSize * 2, cursor);
-         cursor = generateMemInstruction(cg, TR::InstOpCode::dcbtstt, n, new (cg->trHeapMemory()) TR::MemoryReference(NULL, r10, 4, cg), cursor);
-         cursor = generateMemInstruction(cg, TR::InstOpCode::dcbtstt, n, new (cg->trHeapMemory()) TR::MemoryReference(NULL, r11, 4, cg), cursor);
+         cursor = generateMemInstruction(cg, TR::InstOpCode::dcbtstt, n, new (comp->trHeapMemory()) TR::MemoryReference(NULL, r10, 4, cg), cursor);
+         cursor = generateMemInstruction(cg, TR::InstOpCode::dcbtstt, n, new (comp->trHeapMemory()) TR::MemoryReference(NULL, r11, 4, cg), cursor);
          }
       }
 
@@ -696,20 +696,20 @@ static uint8_t* initializeCCPreLoadedNonZeroPrefetch(uint8_t *buffer, void **CCP
       TR_ASSERT( skipLines * ppcCacheLineSize <= UPPER_IMMED,"Cache line size too big for immediate");
       cursor = generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::addi, n, r10, r8, skipLines * ppcCacheLineSize, cursor);
       cursor = generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::addi, n, r11, r8, (skipLines + 1) * ppcCacheLineSize, cursor);
-      cursor = generateMemInstruction(cg, TR::InstOpCode::dcbtst, n, new (cg->trHeapMemory()) TR::MemoryReference(NULL, r10, 4, cg), cursor);
-      cursor = generateMemInstruction(cg, TR::InstOpCode::dcbtst, n, new (cg->trHeapMemory()) TR::MemoryReference(NULL, r11, 4, cg), cursor);
+      cursor = generateMemInstruction(cg, TR::InstOpCode::dcbtst, n, new (comp->trHeapMemory()) TR::MemoryReference(NULL, r10, 4, cg), cursor);
+      cursor = generateMemInstruction(cg, TR::InstOpCode::dcbtst, n, new (comp->trHeapMemory()) TR::MemoryReference(NULL, r11, 4, cg), cursor);
 
       for (uint32_t i = 2; i < linesToPrefetch; i += 2)
          {
          cursor = generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::addi, n, r10, r10, ppcCacheLineSize * 2, cursor);
          cursor = generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::addi, n, r11, r11, ppcCacheLineSize * 2, cursor);
-         cursor = generateMemInstruction(cg, TR::InstOpCode::dcbtst, n, new (cg->trHeapMemory()) TR::MemoryReference(NULL, r10, 4, cg), cursor);
-         cursor = generateMemInstruction(cg, TR::InstOpCode::dcbtst, n, new (cg->trHeapMemory()) TR::MemoryReference(NULL, r11, 4, cg), cursor);
+         cursor = generateMemInstruction(cg, TR::InstOpCode::dcbtst, n, new (comp->trHeapMemory()) TR::MemoryReference(NULL, r10, 4, cg), cursor);
+         cursor = generateMemInstruction(cg, TR::InstOpCode::dcbtst, n, new (comp->trHeapMemory()) TR::MemoryReference(NULL, r11, 4, cg), cursor);
          }
 
       cursor = generateTrg1ImmInstruction(cg, TR::InstOpCode::li, n, r11, restartAfterLines * ppcCacheLineSize, cursor);
       cursor = generateMemSrc1Instruction(cg,TR::InstOpCode::Op_st, n,
-                                          new (cg->trHeapMemory()) TR::MemoryReference(metaReg, offsetof(J9VMThread, nonZeroTlhPrefetchFTA), TR::Compiler->om.sizeofReferenceAddress(), cg),
+                                          new (comp->trHeapMemory()) TR::MemoryReference(metaReg, offsetof(J9VMThread, nonZeroTlhPrefetchFTA), TR::Compiler->om.sizeofReferenceAddress(), cg),
                                           r11, cursor);
       }
    else
@@ -724,29 +724,29 @@ static uint8_t* initializeCCPreLoadedNonZeroPrefetch(uint8_t *buffer, void **CCP
       helperSize = 4 + (linesToLdPrefetch + 1) / 2 * 4 + 1 + (l3SkipLines ? 2 : 0) + (linesToStPrefetch + 1) / 2 * 4;
 
       cursor = generateTrg1MemInstruction(cg,TR::InstOpCode::Op_load, n, r10,
-                                          new (cg->trHeapMemory()) TR::MemoryReference(metaReg, offsetof(J9VMThread, debugEventData3), TR::Compiler->om.sizeofReferenceAddress(), cg),
+                                          new (comp->trHeapMemory()) TR::MemoryReference(metaReg, offsetof(J9VMThread, debugEventData3), TR::Compiler->om.sizeofReferenceAddress(), cg),
                                           cursor);
       cursor = generateTrg1Src1ImmInstruction(cg,TR::InstOpCode::Op_cmpli, n, cr0, r10, 0, cursor);
       cursor = generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::xori, n, r10, r10, 1, cursor);
       cursor = generateTrg1ImmInstruction(cg, TR::InstOpCode::li, n, r11, restartAfterLines * ppcCacheLineSize, cursor);
       cursor = generateMemSrc1Instruction(cg,TR::InstOpCode::Op_st, n,
-                                          new (cg->trHeapMemory()) TR::MemoryReference(metaReg, offsetof(J9VMThread, nonZeroTlhPrefetchFTA), TR::Compiler->om.sizeofReferenceAddress(), cg),
+                                          new (comp->trHeapMemory()) TR::MemoryReference(metaReg, offsetof(J9VMThread, nonZeroTlhPrefetchFTA), TR::Compiler->om.sizeofReferenceAddress(), cg),
                                           r11, cursor);
       cursor = generateMemSrc1Instruction(cg,TR::InstOpCode::Op_st, n,
-                                          new (cg->trHeapMemory()) TR::MemoryReference(metaReg, offsetof(J9VMThread, debugEventData3), TR::Compiler->om.sizeofReferenceAddress(), cg),
+                                          new (comp->trHeapMemory()) TR::MemoryReference(metaReg, offsetof(J9VMThread, debugEventData3), TR::Compiler->om.sizeofReferenceAddress(), cg),
                                           r10, cursor);
 
       cursor = generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::addi, n, r10, r8, skipLines * ppcCacheLineSize, cursor);
       cursor = generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::addi, n, r11, r8, (skipLines + 1) * ppcCacheLineSize, cursor);
-      cursor = generateMemInstruction(cg, TR::InstOpCode::dcbtt, n, new (cg->trHeapMemory()) TR::MemoryReference(NULL, r10, 4, cg), cursor);
-      cursor = generateMemInstruction(cg, TR::InstOpCode::dcbtt, n, new (cg->trHeapMemory()) TR::MemoryReference(NULL, r11, 4, cg), cursor);
+      cursor = generateMemInstruction(cg, TR::InstOpCode::dcbtt, n, new (comp->trHeapMemory()) TR::MemoryReference(NULL, r10, 4, cg), cursor);
+      cursor = generateMemInstruction(cg, TR::InstOpCode::dcbtt, n, new (comp->trHeapMemory()) TR::MemoryReference(NULL, r11, 4, cg), cursor);
 
       for (uint32_t i = 2; i < linesToLdPrefetch; i += 2)
          {
          cursor = generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::addi, n, r10, r10, ppcCacheLineSize * 2, cursor);
          cursor = generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::addi, n, r11, r11, ppcCacheLineSize * 2, cursor);
-         cursor = generateMemInstruction(cg, TR::InstOpCode::dcbtt, n, new (cg->trHeapMemory()) TR::MemoryReference(NULL, r10, 4, cg), cursor);
-         cursor = generateMemInstruction(cg, TR::InstOpCode::dcbtt, n, new (cg->trHeapMemory()) TR::MemoryReference(NULL, r11, 4, cg), cursor);
+         cursor = generateMemInstruction(cg, TR::InstOpCode::dcbtt, n, new (comp->trHeapMemory()) TR::MemoryReference(NULL, r10, 4, cg), cursor);
+         cursor = generateMemInstruction(cg, TR::InstOpCode::dcbtt, n, new (comp->trHeapMemory()) TR::MemoryReference(NULL, r11, 4, cg), cursor);
          }
 
       cursor = generateConditionalBranchInstruction(cg, TR::InstOpCode::beqlr, n, NULL, cr0, cursor);
@@ -761,8 +761,8 @@ static uint8_t* initializeCCPreLoadedNonZeroPrefetch(uint8_t *buffer, void **CCP
          {
          cursor = generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::addi, n, r10, r10, ppcCacheLineSize * 2, cursor);
          cursor = generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::addi, n, r11, r11, ppcCacheLineSize * 2, cursor);
-         cursor = generateMemInstruction(cg, TR::InstOpCode::dcbtstt, n, new (cg->trHeapMemory()) TR::MemoryReference(NULL, r10, 4, cg), cursor);
-         cursor = generateMemInstruction(cg, TR::InstOpCode::dcbtstt, n, new (cg->trHeapMemory()) TR::MemoryReference(NULL, r11, 4, cg), cursor);
+         cursor = generateMemInstruction(cg, TR::InstOpCode::dcbtstt, n, new (comp->trHeapMemory()) TR::MemoryReference(NULL, r10, 4, cg), cursor);
+         cursor = generateMemInstruction(cg, TR::InstOpCode::dcbtstt, n, new (comp->trHeapMemory()) TR::MemoryReference(NULL, r11, 4, cg), cursor);
          }
       }
 
@@ -794,7 +794,7 @@ static TR::Instruction* genZeroInit(TR::CodeGenerator *cg, TR::Node *n, TR::Regi
       cursor = generateLabelInstruction(cg, TR::InstOpCode::label, n, loopStartLabel, cursor);
       // XXX: This can be improved to use std on 64-bit, but we have to adjust for the size not being 8-byte aligned
       cursor = generateMemSrc1Instruction(cg, TR::InstOpCode::stw, n,
-                                          new (cg->trHeapMemory()) TR::MemoryReference(iterReg, 0, 4, cg),
+                                          new (cg->comp()->trHeapMemory()) TR::MemoryReference(iterReg, 0, 4, cg),
                                           zeroReg, cursor);
       cursor = generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::addi, n, iterReg, iterReg, 4, cursor);
       cursor = generateTrg1Src2Instruction(cg,TR::InstOpCode::Op_cmpl, n, condReg, iterReg, objEndReg, cursor);
@@ -820,7 +820,7 @@ static TR::Instruction* genZeroInit(TR::CodeGenerator *cg, TR::Node *n, TR::Regi
    cursor = generateLabelInstruction(cg, TR::InstOpCode::label, n, unrolledLoopStartLabel, cursor);
    for (int i = 0; i < 32; i += 4)
       cursor = generateMemSrc1Instruction(cg, TR::InstOpCode::stw, n,
-                                          new (cg->trHeapMemory()) TR::MemoryReference(iterReg, i, 4, cg),
+                                          new (cg->comp()->trHeapMemory()) TR::MemoryReference(iterReg, i, 4, cg),
                                           zeroReg, cursor);
    cursor = generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::addi, n, iterReg, iterReg, 32, cursor);
    cursor = generateConditionalBranchInstruction(cg, TR::InstOpCode::bdnz, n, unrolledLoopStartLabel, /* Not used */ condReg, cursor);
@@ -831,7 +831,7 @@ static TR::Instruction* genZeroInit(TR::CodeGenerator *cg, TR::Node *n, TR::Regi
    // Residue loop
    cursor = generateLabelInstruction(cg, TR::InstOpCode::label, n, residueLoopStartLabel, cursor);
    cursor = generateMemSrc1Instruction(cg, TR::InstOpCode::stw, n,
-                                       new (cg->trHeapMemory()) TR::MemoryReference(iterReg, 0, 4, cg),
+                                       new (cg->comp()->trHeapMemory()) TR::MemoryReference(iterReg, 0, 4, cg),
                                        zeroReg, cursor);
    cursor = generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::addi, n, iterReg, iterReg, 4, cursor);
    cursor = generateTrg1Src2Instruction(cg,TR::InstOpCode::Op_cmpl, n, condReg, iterReg, objEndReg, cursor);
@@ -900,7 +900,7 @@ static uint8_t* initializeCCPreLoadedWriteBarrier(uint8_t *buffer, void **CCPreL
       }
    else
       cursor = generateTrg1MemInstruction(cg,TR::InstOpCode::Op_load, n, r5,
-                                          new (cg->trHeapMemory()) TR::MemoryReference(metaReg, offsetof(struct J9VMThread, heapBaseForBarrierRange0), TR::Compiler->om.sizeofReferenceAddress(), cg),
+                                          new (cg->comp()->trHeapMemory()) TR::MemoryReference(metaReg, offsetof(struct J9VMThread, heapBaseForBarrierRange0), TR::Compiler->om.sizeofReferenceAddress(), cg),
                                           cursor);
    if (cg->comp()->target().is32Bit() && !comp->compileRelocatableCode() && constHeapSize)
       {
@@ -909,7 +909,7 @@ static uint8_t* initializeCCPreLoadedWriteBarrier(uint8_t *buffer, void **CCPreL
       }
    else
       cursor = generateTrg1MemInstruction(cg,TR::InstOpCode::Op_load, n, r6,
-                                          new (cg->trHeapMemory()) TR::MemoryReference(metaReg, offsetof(struct J9VMThread, heapSizeForBarrierRange0), TR::Compiler->om.sizeofReferenceAddress(), cg),
+                                          new (cg->comp()->trHeapMemory()) TR::MemoryReference(metaReg, offsetof(struct J9VMThread, heapSizeForBarrierRange0), TR::Compiler->om.sizeofReferenceAddress(), cg),
                                           cursor);
    cursor = generateTrg1Src2Instruction(cg, TR::InstOpCode::subf, n, r11, r5, r3, cursor);
    cursor = generateTrg1Src2Instruction(cg,TR::InstOpCode::Op_cmpl, n, cr0, r11, r6, cursor);
@@ -918,7 +918,7 @@ static uint8_t* initializeCCPreLoadedWriteBarrier(uint8_t *buffer, void **CCPreL
    cursor = generateTrg1Src2Instruction(cg,TR::InstOpCode::Op_cmpl, n, cr0, r11, r6, cursor);
    cursor = generateConditionalBranchInstruction(cg, TR::InstOpCode::bltlr, n, NULL, cr0, cursor);
    cursor = generateTrg1MemInstruction(cg,Op_lclass, n, r11,
-                                       new (cg->trHeapMemory()) TR::MemoryReference(r3, TR::Compiler->om.offsetOfObjectVftField(), TR::Compiler->om.sizeofReferenceField(), cg),
+                                       new (cg->comp()->trHeapMemory()) TR::MemoryReference(r3, TR::Compiler->om.offsetOfObjectVftField(), TR::Compiler->om.sizeofReferenceField(), cg),
                                        cursor);
    cursor = generateTrg1Src1ImmInstruction(cg, rememberedClassMaskOp, n, r11, r11, cr0, rememberedClassMask, cursor);
    cursor = generateConditionalBranchInstruction(cg, TR::InstOpCode::bnelr, n, NULL, cr0, cursor);
@@ -1005,7 +1005,7 @@ static uint8_t* initializeCCPreLoadedWriteBarrierAndCardMark(uint8_t *buffer, vo
       }
    else
       cursor = generateTrg1MemInstruction(cg,TR::InstOpCode::Op_load, n, r5,
-                                          new (cg->trHeapMemory()) TR::MemoryReference(metaReg, offsetof(struct J9VMThread, heapBaseForBarrierRange0), TR::Compiler->om.sizeofReferenceAddress(), cg),
+                                          new (comp->trHeapMemory()) TR::MemoryReference(metaReg, offsetof(struct J9VMThread, heapBaseForBarrierRange0), TR::Compiler->om.sizeofReferenceAddress(), cg),
                                           cursor);
    if (cg->comp()->target().is32Bit() && !comp->compileRelocatableCode() && constHeapSize)
       {
@@ -1014,7 +1014,7 @@ static uint8_t* initializeCCPreLoadedWriteBarrierAndCardMark(uint8_t *buffer, vo
       }
    else
       cursor = generateTrg1MemInstruction(cg,TR::InstOpCode::Op_load, n, r6,
-                                          new (cg->trHeapMemory()) TR::MemoryReference(metaReg, offsetof(struct J9VMThread, heapSizeForBarrierRange0), TR::Compiler->om.sizeofReferenceAddress(), cg),
+                                          new (comp->trHeapMemory()) TR::MemoryReference(metaReg, offsetof(struct J9VMThread, heapSizeForBarrierRange0), TR::Compiler->om.sizeofReferenceAddress(), cg),
                                           cursor);
    cursor = generateTrg1Src2Instruction(cg, TR::InstOpCode::subf, n, r11, r5, r3, cursor);
    cursor = generateTrg1Src2Instruction(cg,TR::InstOpCode::Op_cmpl, n, cr0, r11, r6, cursor);
@@ -1022,12 +1022,12 @@ static uint8_t* initializeCCPreLoadedWriteBarrierAndCardMark(uint8_t *buffer, vo
    cursor = generateTrg1Src2Instruction(cg, TR::InstOpCode::subf, n, r5, r5, r4, cursor);
    cursor = generateTrg1Src2Instruction(cg,TR::InstOpCode::Op_cmpl, n, cr1, r5, r6, cursor);
    cursor = generateTrg1MemInstruction(cg, TR::InstOpCode::lwz, n, r6,
-                                       new (cg->trHeapMemory()) TR::MemoryReference(metaReg,  offsetof(struct J9VMThread, privateFlags), 4, cg),
+                                       new (comp->trHeapMemory()) TR::MemoryReference(metaReg,  offsetof(struct J9VMThread, privateFlags), 4, cg),
                                        cursor);
    cursor = generateTrg1Src1ImmInstruction(cg, cmActiveMaskOp, n, r6, r6, cr0, cmActiveMask, cursor);
    cursor = generateConditionalBranchInstruction(cg, TR::InstOpCode::beq, n, doneCardMarkLabel, cr0, cursor);
    cursor = generateTrg1MemInstruction(cg,TR::InstOpCode::Op_load, n, r6,
-                                       new (cg->trHeapMemory()) TR::MemoryReference(metaReg,  offsetof(struct J9VMThread, activeCardTableBase), TR::Compiler->om.sizeofReferenceAddress(), cg),
+                                       new (comp->trHeapMemory()) TR::MemoryReference(metaReg,  offsetof(struct J9VMThread, activeCardTableBase), TR::Compiler->om.sizeofReferenceAddress(), cg),
                                        cursor);
    if (cg->comp()->target().is64Bit())
       cursor = generateShiftRightLogicalImmediateLong(cg, n, r11, r11, cardTableShift, cursor);
@@ -1035,12 +1035,12 @@ static uint8_t* initializeCCPreLoadedWriteBarrierAndCardMark(uint8_t *buffer, vo
       cursor = generateShiftRightLogicalImmediate(cg, n, r11, r11, cardTableShift, cursor);
    cursor = generateTrg1ImmInstruction(cg, TR::InstOpCode::li, n, r5, 1, cursor);
    cursor = generateMemSrc1Instruction(cg, TR::InstOpCode::stbx, n,
-                                       new (cg->trHeapMemory()) TR::MemoryReference(r6, r11, 1, cg),
+                                       new (comp->trHeapMemory()) TR::MemoryReference(r6, r11, 1, cg),
                                        r5, cursor);
    cursor = generateLabelInstruction(cg, TR::InstOpCode::label, n, doneCardMarkLabel, cursor);
    cursor = generateConditionalBranchInstruction(cg, TR::InstOpCode::bltlr, n, NULL, cr1, cursor);
    cursor = generateTrg1MemInstruction(cg,Op_lclass, n, r11,
-                                       new (cg->trHeapMemory()) TR::MemoryReference(r3, TR::Compiler->om.offsetOfObjectVftField(), TR::Compiler->om.sizeofReferenceField(), cg),
+                                       new (comp->trHeapMemory()) TR::MemoryReference(r3, TR::Compiler->om.offsetOfObjectVftField(), TR::Compiler->om.sizeofReferenceField(), cg),
                                        cursor);
    cursor = generateTrg1Src1ImmInstruction(cg, rememberedClassMaskOp, n, r11, r11, cr0, rememberedClassMask, cursor);
    cursor = generateConditionalBranchInstruction(cg, TR::InstOpCode::bnelr, n, NULL, cr0, cursor);
@@ -1100,10 +1100,10 @@ static uint8_t* initializeCCPreLoadedCardMark(uint8_t *buffer, void **CCPreLoade
                        (J9_PRIVATE_FLAGS_CONCURRENT_MARK_ACTIVE & 0xffff) == 0, "Expecting J9_PRIVATE_FLAGS_CONCURRENT_MARK_ACTIVE to fit in immediate field");
 
    cursor = generateTrg1MemInstruction(cg,TR::InstOpCode::Op_load, n, r5,
-                                       new (cg->trHeapMemory()) TR::MemoryReference(metaReg, offsetof(struct J9VMThread, heapBaseForBarrierRange0), TR::Compiler->om.sizeofReferenceAddress(), cg),
+                                       new (comp->trHeapMemory()) TR::MemoryReference(metaReg, offsetof(struct J9VMThread, heapBaseForBarrierRange0), TR::Compiler->om.sizeofReferenceAddress(), cg),
                                        cursor);
    cursor = generateTrg1MemInstruction(cg,TR::InstOpCode::Op_load, n, r4,
-                                       new (cg->trHeapMemory()) TR::MemoryReference(metaReg, offsetof(struct J9VMThread, heapSizeForBarrierRange0), TR::Compiler->om.sizeofReferenceAddress(), cg),
+                                       new (comp->trHeapMemory()) TR::MemoryReference(metaReg, offsetof(struct J9VMThread, heapSizeForBarrierRange0), TR::Compiler->om.sizeofReferenceAddress(), cg),
                                        cursor);
    cursor = generateTrg1Src2Instruction(cg, TR::InstOpCode::subf, n, r5, r5, r3, cursor);
    cursor = generateTrg1Src2Instruction(cg,TR::InstOpCode::Op_cmpl, n, cr0, r5, r4, cursor);
@@ -1112,13 +1112,13 @@ static uint8_t* initializeCCPreLoadedCardMark(uint8_t *buffer, void **CCPreLoade
    if (TR::Compiler->om.writeBarrierType() != gc_modron_wrtbar_cardmark_incremental)
       {
       cursor = generateTrg1MemInstruction(cg, TR::InstOpCode::lwz, n, r4,
-                                          new (cg->trHeapMemory()) TR::MemoryReference(metaReg,  offsetof(struct J9VMThread, privateFlags), 4, cg),
+                                          new (comp->trHeapMemory()) TR::MemoryReference(metaReg,  offsetof(struct J9VMThread, privateFlags), 4, cg),
                                           cursor);
       cursor = generateTrg1Src1ImmInstruction(cg, cmActiveMaskOp, n, r4, r4, cr0, cmActiveMask, cursor);
       cursor = generateConditionalBranchInstruction(cg, TR::InstOpCode::beqlr, n, NULL, cr0, cursor);
       }
    cursor = generateTrg1MemInstruction(cg,TR::InstOpCode::Op_load, n, r4,
-                                       new (cg->trHeapMemory()) TR::MemoryReference(metaReg,  offsetof(struct J9VMThread, activeCardTableBase), TR::Compiler->om.sizeofReferenceAddress(), cg),
+                                       new (comp->trHeapMemory()) TR::MemoryReference(metaReg,  offsetof(struct J9VMThread, activeCardTableBase), TR::Compiler->om.sizeofReferenceAddress(), cg),
                                        cursor);
    if (cg->comp()->target().is64Bit())
       cursor = generateShiftRightLogicalImmediateLong(cg, n, r5, r5, cardTableShift, cursor);
@@ -1126,7 +1126,7 @@ static uint8_t* initializeCCPreLoadedCardMark(uint8_t *buffer, void **CCPreLoade
       cursor = generateShiftRightLogicalImmediate(cg, n, r5, r5, cardTableShift, cursor);
    cursor = generateTrg1ImmInstruction(cg, TR::InstOpCode::li, n, r11, 1, cursor);
    cursor = generateMemSrc1Instruction(cg, TR::InstOpCode::stbx, n,
-                                       new (cg->trHeapMemory()) TR::MemoryReference(r4, r5, 1, cg),
+                                       new (comp->trHeapMemory()) TR::MemoryReference(r4, r5, 1, cg),
                                        r11, cursor);
    cursor = generateInstruction(cg, TR::InstOpCode::blr, n, cursor);
 
@@ -1182,21 +1182,21 @@ static uint8_t* initializeCCPreLoadedArrayStoreCHK(uint8_t *buffer, void **CCPre
    TR::Register *cr0 = cg->machine()->getRealRegister(TR::RealRegister::cr0);
 
    cursor = generateTrg1MemInstruction(cg,Op_lclass, n, r5,
-                                       new (cg->trHeapMemory()) TR::MemoryReference(r3, TR::Compiler->om.offsetOfObjectVftField(), TR::Compiler->om.sizeofReferenceField(), cg),
+                                       new (comp->trHeapMemory()) TR::MemoryReference(r3, TR::Compiler->om.offsetOfObjectVftField(), TR::Compiler->om.sizeofReferenceField(), cg),
                                        cursor);
    cursor = generateTrg1MemInstruction(cg,Op_lclass, n, r6,
-                                       new (cg->trHeapMemory()) TR::MemoryReference(r4, TR::Compiler->om.offsetOfObjectVftField(), TR::Compiler->om.sizeofReferenceField(), cg),
+                                       new (comp->trHeapMemory()) TR::MemoryReference(r4, TR::Compiler->om.offsetOfObjectVftField(), TR::Compiler->om.sizeofReferenceField(), cg),
                                        cursor);
    cursor = TR::TreeEvaluator::generateVFTMaskInstruction(cg, n, r5, cursor);
    cursor = TR::TreeEvaluator::generateVFTMaskInstruction(cg, n, r6, cursor);
    cursor = generateTrg1MemInstruction(cg,TR::InstOpCode::Op_load, n, r5,
-                                       new (cg->trHeapMemory()) TR::MemoryReference(r5, offsetof(J9ArrayClass, componentType), TR::Compiler->om.sizeofReferenceAddress(), cg),
+                                       new (comp->trHeapMemory()) TR::MemoryReference(r5, offsetof(J9ArrayClass, componentType), TR::Compiler->om.sizeofReferenceAddress(), cg),
                                        cursor);
 
    cursor = generateTrg1Src2Instruction(cg,TR::InstOpCode::Op_cmpl, n, cr0, r5, r6, cursor);
    cursor = generateConditionalBranchInstruction(cg, TR::InstOpCode::beqlr, n, NULL, cr0, cursor);
    cursor = generateTrg1MemInstruction(cg,TR::InstOpCode::Op_load, n, r7,
-                                       new (cg->trHeapMemory()) TR::MemoryReference(r6, offsetof(J9Class, castClassCache), TR::Compiler->om.sizeofReferenceAddress(), cg),
+                                       new (comp->trHeapMemory()) TR::MemoryReference(r6, offsetof(J9Class, castClassCache), TR::Compiler->om.sizeofReferenceAddress(), cg),
                                        cursor);
    cursor = generateTrg1Src2Instruction(cg,TR::InstOpCode::Op_cmpl, n, cr0, r5, r7, cursor);
    cursor = generateConditionalBranchInstruction(cg, TR::InstOpCode::beqlr, n, NULL, cr0, cursor);
@@ -1204,10 +1204,10 @@ static uint8_t* initializeCCPreLoadedArrayStoreCHK(uint8_t *buffer, void **CCPre
    cursor = generateConditionalBranchInstruction(cg, TR::InstOpCode::beqlr, n, NULL, cr0, cursor);
 
    cursor = generateTrg1MemInstruction(cg,TR::InstOpCode::Op_load, n, r7,
-                                       new (cg->trHeapMemory()) TR::MemoryReference(r5, offsetof(J9Class, romClass), TR::Compiler->om.sizeofReferenceAddress(), cg),
+                                       new (comp->trHeapMemory()) TR::MemoryReference(r5, offsetof(J9Class, romClass), TR::Compiler->om.sizeofReferenceAddress(), cg),
                                        cursor);
    cursor = generateTrg1MemInstruction(cg, TR::InstOpCode::lwz, n, r7,
-                                       new (cg->trHeapMemory()) TR::MemoryReference(r7, offsetof(J9ROMClass, modifiers), 4, cg),
+                                       new (comp->trHeapMemory()) TR::MemoryReference(r7, offsetof(J9ROMClass, modifiers), 4, cg),
                                        cursor);
    cursor = generateShiftRightLogicalImmediate(cg, n, r7, r7, 1, cursor);
    TR_ASSERT(!(((J9AccClassArray | J9AccInterface) >> 1) & ~0xffff),
@@ -1216,17 +1216,17 @@ static uint8_t* initializeCCPreLoadedArrayStoreCHK(uint8_t *buffer, void **CCPre
    cursor = generateConditionalBranchInstruction(cg, TR::InstOpCode::bne, n, skipSuperclassTestLabel, cr0, cursor);
 
    cursor = generateTrg1MemInstruction(cg,TR::InstOpCode::Op_load, n, r7,
-                                       new (cg->trHeapMemory()) TR::MemoryReference(r6, offsetof(J9Class, classDepthAndFlags), TR::Compiler->om.sizeofReferenceAddress(), cg),
+                                       new (comp->trHeapMemory()) TR::MemoryReference(r6, offsetof(J9Class, classDepthAndFlags), TR::Compiler->om.sizeofReferenceAddress(), cg),
                                        cursor);
    TR_ASSERT(!(J9AccClassDepthMask & ~0xffff),
            "Expecting class depth mask to fit in immediate");
    cursor = generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::andi_r, n, r7, r7, cr0, J9AccClassDepthMask, cursor);
    cursor = generateConditionalBranchInstruction(cg, TR::InstOpCode::beq, n, skipSuperclassTestLabel, cr0, cursor);
    cursor = generateTrg1MemInstruction(cg,Op_lclass, n, r7,
-                                       new (cg->trHeapMemory()) TR::MemoryReference(r6, offsetof(J9Class, superclasses), TR::Compiler->om.sizeofReferenceField(), cg),
+                                       new (comp->trHeapMemory()) TR::MemoryReference(r6, offsetof(J9Class, superclasses), TR::Compiler->om.sizeofReferenceField(), cg),
                                        cursor);
    cursor = generateTrg1MemInstruction(cg,TR::InstOpCode::Op_load, n, r7,
-                                       new (cg->trHeapMemory()) TR::MemoryReference(r7, 0, TR::Compiler->om.sizeofReferenceAddress(), cg),
+                                       new (comp->trHeapMemory()) TR::MemoryReference(r7, 0, TR::Compiler->om.sizeofReferenceAddress(), cg),
                                        cursor);
    cursor = generateTrg1Src2Instruction(cg,TR::InstOpCode::Op_cmpl, n, cr0, r5, r7, cursor);
    cursor = generateConditionalBranchInstruction(cg, TR::InstOpCode::beqlr, n, NULL, cr0, cursor);

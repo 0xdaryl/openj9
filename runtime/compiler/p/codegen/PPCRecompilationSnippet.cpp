@@ -60,7 +60,7 @@ uint8_t *TR::PPCRecompilationSnippet::emitSnippetBody()
 
    // bl distance
    *(int32_t *)buffer = 0x48000001 | ((helperAddress - (intptr_t)buffer) & 0x03ffffff);
-   cg()->addExternalRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation(buffer,(uint8_t *)countingRecompMethodSymRef,TR_HelperAddress, cg()),
+   cg()->addExternalRelocation(new (comp->trHeapMemory()) TR::ExternalRelocation(buffer,(uint8_t *)countingRecompMethodSymRef,TR_HelperAddress, cg()),
                           __FILE__,
                           __LINE__,
                           getNode());

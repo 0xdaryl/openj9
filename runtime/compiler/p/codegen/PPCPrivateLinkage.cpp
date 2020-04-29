@@ -2074,7 +2074,7 @@ static TR::Instruction* buildStaticPICCall(TR::CodeGenerator *cg, TR::Node *call
    generateTrg1Src2Instruction(cg,TR::InstOpCode::Op_cmpl, callNode, condReg, vftReg, tempReg);
    generateConditionalBranchInstruction(cg, TR::InstOpCode::bne, callNode, missLabel, condReg);
    TR::Instruction *gcPoint = generateDepImmSymInstruction(cg, TR::InstOpCode::bl, callNode, (uintptr_t)profiledMethod->startAddressForJittedMethod(),
-                                                                                  new (cg->trHeapMemory()) TR::RegisterDependencyConditions(0,0, cg->trMemory()), profiledMethodSymRef);
+                                                                                  new (comp->trHeapMemory()) TR::RegisterDependencyConditions(0,0, cg->trMemory()), profiledMethodSymRef);
    gcPoint->PPCNeedsGCMap(regMapForGC);
    fej9->reserveTrampolineIfNecessary(comp, profiledMethodSymRef, false);
    return gcPoint;
@@ -2092,11 +2092,11 @@ static void buildVirtualCall(TR::CodeGenerator *cg, TR::Node *callNode, TR::Regi
       {
       generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::addis, callNode, gr12, vftReg,
                                      (offset>>16)+((offset & (1<<15))?1:0) & 0x0000ffff);
-      generateTrg1MemInstruction(cg,TR::InstOpCode::Op_load, callNode, gr12, new (cg->trHeapMemory()) TR::MemoryReference(gr12, ((offset & 0x0000ffff)<<16)>>16, TR::Compiler->om.sizeofReferenceAddress(), cg));
+      generateTrg1MemInstruction(cg,TR::InstOpCode::Op_load, callNode, gr12, new (comp->trHeapMemory()) TR::MemoryReference(gr12, ((offset & 0x0000ffff)<<16)>>16, TR::Compiler->om.sizeofReferenceAddress(), cg));
       }
    else
       {
-      generateTrg1MemInstruction(cg,TR::InstOpCode::Op_load, callNode, gr12, new (cg->trHeapMemory()) TR::MemoryReference(vftReg, offset, TR::Compiler->om.sizeofReferenceAddress(), cg));
+      generateTrg1MemInstruction(cg,TR::InstOpCode::Op_load, callNode, gr12, new (comp->trHeapMemory()) TR::MemoryReference(vftReg, offset, TR::Compiler->om.sizeofReferenceAddress(), cg));
       }
 
    generateSrc1Instruction(cg, TR::InstOpCode::mtctr, callNode, gr12);
@@ -2121,13 +2121,13 @@ static void buildInterfaceCall(TR::CodeGenerator *cg, TR::Node *callNode, TR::Re
          if (beginIndex < LOWER_IMMED || beginIndex > UPPER_IMMED)
             {
             generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::addis, callNode, gr12, cg->getTOCBaseRegister(), HI_VALUE(beginIndex));
-            generateTrg1MemInstruction(cg,TR::InstOpCode::Op_load, callNode, gr12, new (cg->trHeapMemory()) TR::MemoryReference(gr12, LO_VALUE(beginIndex), TR::Compiler->om.sizeofReferenceAddress(), cg));
+            generateTrg1MemInstruction(cg,TR::InstOpCode::Op_load, callNode, gr12, new (comp->trHeapMemory()) TR::MemoryReference(gr12, LO_VALUE(beginIndex), TR::Compiler->om.sizeofReferenceAddress(), cg));
             }
          else
             {
-            generateTrg1MemInstruction(cg,TR::InstOpCode::Op_load, callNode, gr12, new (cg->trHeapMemory()) TR::MemoryReference(cg->getTOCBaseRegister(), beginIndex, TR::Compiler->om.sizeofReferenceAddress(), cg));
+            generateTrg1MemInstruction(cg,TR::InstOpCode::Op_load, callNode, gr12, new (comp->trHeapMemory()) TR::MemoryReference(cg->getTOCBaseRegister(), beginIndex, TR::Compiler->om.sizeofReferenceAddress(), cg));
             }
-         generateTrg1MemInstruction(cg,TR::InstOpCode::Op_load, callNode, gr11, new (cg->trHeapMemory()) TR::MemoryReference(gr12, 0, TR::Compiler->om.sizeofReferenceAddress(), cg));
+         generateTrg1MemInstruction(cg,TR::InstOpCode::Op_load, callNode, gr11, new (comp->trHeapMemory()) TR::MemoryReference(gr12, 0, TR::Compiler->om.sizeofReferenceAddress(), cg));
          }
       else
          {
@@ -2141,20 +2141,20 @@ static void buildInterfaceCall(TR::CodeGenerator *cg, TR::Node *callNode, TR::Re
    else
       {
       ifcSnippet->setUpperInstruction(generateTrg1ImmInstruction(cg, TR::InstOpCode::lis, callNode, gr12, 0));
-      ifcSnippet->setLowerInstruction(generateTrg1MemInstruction(cg, TR::InstOpCode::lwzu, callNode, gr11, new (cg->trHeapMemory()) TR::MemoryReference(gr12, 0, 4, cg)));
+      ifcSnippet->setLowerInstruction(generateTrg1MemInstruction(cg, TR::InstOpCode::lwzu, callNode, gr11, new (comp->trHeapMemory()) TR::MemoryReference(gr12, 0, 4, cg)));
       }
-   TR::LabelSymbol *hitLabel = TR::LabelSymbol::create(cg->trHeapMemory(),cg);
+   TR::LabelSymbol *hitLabel = TR::LabelSymbol::create(comp->trHeapMemory(),cg);
    TR::LabelSymbol *snippetLabel = ifcSnippet->getSnippetLabel();
    generateTrg1Src2Instruction(cg,TR::InstOpCode::Op_cmpl, callNode, cr0, vftReg, gr11);
    generateConditionalBranchInstruction(cg, TR::InstOpCode::beq, callNode, hitLabel, cr0);
 
-   generateTrg1MemInstruction(cg,TR::InstOpCode::Op_loadu, callNode, gr11, new (cg->trHeapMemory()) TR::MemoryReference(gr12, 2 * TR::Compiler->om.sizeofReferenceAddress(), TR::Compiler->om.sizeofReferenceAddress(), cg));
+   generateTrg1MemInstruction(cg,TR::InstOpCode::Op_loadu, callNode, gr11, new (comp->trHeapMemory()) TR::MemoryReference(gr12, 2 * TR::Compiler->om.sizeofReferenceAddress(), TR::Compiler->om.sizeofReferenceAddress(), cg));
    generateTrg1Src2Instruction(cg,TR::InstOpCode::Op_cmpl, callNode, cr0, vftReg, gr11);
 
 #ifdef INLINE_LASTITABLE_CHECK
    // Doing this check inline doesn't perform too well because it prevents the PIC cache slots from being populated with the best candidates.
    // This check is done in the _interfaceSlotsUnavailable helper instead.
-   TR::LabelSymbol       *callLabel = TR::LabelSymbol::create(cg->trHeapMemory(),cg);
+   TR::LabelSymbol       *callLabel = TR::LabelSymbol::create(comp->trHeapMemory(),cg);
    TR_SymbolReference  *methodSymRef = callNode->getSymbolReference();
    TR_ResolvedMethod   *owningMethod = methodSymRef->getOwningMethod(comp);
    TR_OpaqueClassBlock *interfaceClassOfMethod;
@@ -2176,12 +2176,12 @@ static void buildInterfaceCall(TR::CodeGenerator *cg, TR::Node *callNode, TR::Re
       // Check if the lastITable belongs to the interface class we're using at this call site
       //
       generateTrg1MemInstruction(cg,TR::InstOpCode::Op_load, callNode, gr11,
-                                 new (cg->trHeapMemory()) TR::MemoryReference(vftReg, fej9->getOffsetOfLastITableFromClassField(), TR::Compiler->om.sizeofReferenceAddress(), cg));
+                                 new (comp->trHeapMemory()) TR::MemoryReference(vftReg, fej9->getOffsetOfLastITableFromClassField(), TR::Compiler->om.sizeofReferenceAddress(), cg));
       // Load the interface class from the snippet rather than materializing it, again because we want to do this in a single instruction
       generateTrg1MemInstruction(cg,TR::InstOpCode::Op_load, callNode, gr12,
-                                 new (cg->trHeapMemory()) TR::MemoryReference(gr12, -4 * TR::Compiler->om.sizeofReferenceAddress(), TR::Compiler->om.sizeofReferenceAddress(), cg));
+                                 new (comp->trHeapMemory()) TR::MemoryReference(gr12, -4 * TR::Compiler->om.sizeofReferenceAddress(), TR::Compiler->om.sizeofReferenceAddress(), cg));
       generateTrg1MemInstruction(cg,TR::InstOpCode::Op_load, callNode, gr0,
-                                 new (cg->trHeapMemory()) TR::MemoryReference(gr11, fej9->getOffsetOfInterfaceClassFromITableField(), TR::Compiler->om.sizeofReferenceAddress(), cg));
+                                 new (comp->trHeapMemory()) TR::MemoryReference(gr11, fej9->getOffsetOfInterfaceClassFromITableField(), TR::Compiler->om.sizeofReferenceAddress(), cg));
       generateTrg1Src2Instruction(cg,TR::InstOpCode::Op_cmpl, callNode, cr0, gr0, gr12);
       generateConditionalBranchInstruction(cg, TR::InstOpCode::bne, callNode, snippetLabel, cr0);
 
@@ -2189,11 +2189,11 @@ static void buildInterfaceCall(TR::CodeGenerator *cg, TR::Node *callNode, TR::Re
       // Use it to look up the VFT offset and use that to make a virtual call
       //
       generateTrg1MemInstruction(cg,TR::InstOpCode::Op_load, callNode, gr12,
-                                 new (cg->trHeapMemory()) TR::MemoryReference(gr11, fej9->convertITableIndexToOffset(itableIndex), TR::Compiler->om.sizeofReferenceAddress(), cg));
+                                 new (comp->trHeapMemory()) TR::MemoryReference(gr11, fej9->convertITableIndexToOffset(itableIndex), TR::Compiler->om.sizeofReferenceAddress(), cg));
       loadConstant(cg, callNode, fej9->getITableEntryJitVTableOffset(), gr11);
       generateTrg1Src2Instruction(cg, TR::InstOpCode::subf, callNode, gr12, gr12, gr11);
       generateTrg1MemInstruction(cg,TR::InstOpCode::Op_load, callNode, gr11,
-                                 new (cg->trHeapMemory()) TR::MemoryReference(vftReg, gr12, TR::Compiler->om.sizeofReferenceAddress(), cg));
+                                 new (comp->trHeapMemory()) TR::MemoryReference(vftReg, gr12, TR::Compiler->om.sizeofReferenceAddress(), cg));
       generateLabelInstruction(cg, TR::InstOpCode::b, callNode, callLabel);
       }
    else
@@ -2202,7 +2202,7 @@ static void buildInterfaceCall(TR::CodeGenerator *cg, TR::Node *callNode, TR::Re
       generateConditionalBranchInstruction(cg, TR::InstOpCode::bne, callNode, snippetLabel, cr0);
       }
    generateLabelInstruction(cg, TR::InstOpCode::label, callNode, hitLabel);
-   generateTrg1MemInstruction(cg,TR::InstOpCode::Op_load, callNode, gr11, new (cg->trHeapMemory()) TR::MemoryReference(gr12, TR::Compiler->om.sizeofReferenceAddress(), TR::Compiler->om.sizeofReferenceAddress(), cg));
+   generateTrg1MemInstruction(cg,TR::InstOpCode::Op_load, callNode, gr11, new (comp->trHeapMemory()) TR::MemoryReference(gr12, TR::Compiler->om.sizeofReferenceAddress(), TR::Compiler->om.sizeofReferenceAddress(), cg));
 #ifdef INLINE_LASTITABLE_CHECK
    generateLabelInstruction(cg, TR::InstOpCode::label, callNode, callLabel);
 #endif /* INLINE_LASTITABLE_CHECK */
@@ -2581,7 +2581,7 @@ void inlineCharacterIsMethod(TR::Node *node, TR::MethodSymbol* methodSymbol, TR:
    TR::Register *returnRegister = cg->allocateRegister(TR_GPR);
    TR::Register *tmpReg = cg->allocateRegister(TR_GPR);
 
-   TR::RegisterDependencyConditions *dependencies = new (cg->trHeapMemory()) TR::RegisterDependencyConditions(6, 6, cg->trMemory());
+   TR::RegisterDependencyConditions *dependencies = new (comp->trHeapMemory()) TR::RegisterDependencyConditions(6, 6, cg->trMemory());
    TR::addDependency(dependencies, srcReg, TR::RealRegister::NoReg, TR_GPR, cg);
    TR::addDependency(dependencies, rangeReg, TR::RealRegister::NoReg, TR_GPR, cg);
    TR::addDependency(dependencies, returnRegister, TR::RealRegister::gr3, TR_GPR, cg);

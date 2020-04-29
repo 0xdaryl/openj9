@@ -170,7 +170,7 @@ uint8_t *TR::PPCStackCheckFailureSnippet::emitSnippetBody()
 
    // bl distance
    *(int32_t *)buffer = 0x48000001 | ((helperAddress - (intptr_t)buffer) & 0x03ffffff);
-   cg()->addExternalRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation(buffer,
+   cg()->addExternalRelocation(new (comp->trHeapMemory()) TR::ExternalRelocation(buffer,
                                                          (uint8_t *)sofRef,
                                                          TR_HelperAddress, cg()),
                         __FILE__, __LINE__, getNode());
@@ -236,7 +236,7 @@ uint8_t *TR::PPCStackCheckFailureSnippet::emitSnippetBody()
       {
       // only the arg references are live at this point
       uint32_t  numberOfParmSlots = atlas->getNumberOfParmSlotsMapped();
-      TR_GCStackMap *map = new (cg()->trHeapMemory(), numberOfParmSlots) TR_GCStackMap(numberOfParmSlots);
+      TR_GCStackMap *map = new (comp->trHeapMemory(), numberOfParmSlots) TR_GCStackMap(numberOfParmSlots);
 
       map->copy(atlas->getParameterMap());
       while (paramCursor != NULL)

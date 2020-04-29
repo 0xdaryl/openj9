@@ -100,7 +100,7 @@ uint8_t *TR::PPCDepImmSymInstruction::generateBinaryEncoding()
          }
       else if (label != NULL)
          {
-         cg()->addRelocation(new (cg()->trHeapMemory()) TR::LabelRelative24BitRelocation(cursor, label));
+         cg()->addRelocation(new (comp->trHeapMemory()) TR::LabelRelative24BitRelocation(cursor, label));
          ((TR::PPCCallSnippet *)getCallSnippet())->setCallRA(cursor + 4);
          }
       else
@@ -137,12 +137,12 @@ uint8_t *TR::PPCDepImmSymInstruction::generateBinaryEncoding()
             }
          }
 
-      if ((cg()->comp()->compileRelocatableCode() 
-          #ifdef J9VM_OPT_JITSERVER 
+      if ((cg()->comp()->compileRelocatableCode()
+          #ifdef J9VM_OPT_JITSERVER
              || cg()->comp()->isOutOfProcessCompilation()
           #endif
           ) &&
-          label == NULL && 
+          label == NULL &&
           !callToSelf)
          {
          bool callIsJ2ITransition = runtimeHelperValue(TR_j2iTransition) == getSymbolReference()->getMethodAddress();
@@ -153,7 +153,7 @@ uint8_t *TR::PPCDepImmSymInstruction::generateBinaryEncoding()
             }
          else
             {
-            cg()->addExternalRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation(cursor,(uint8_t *)getSymbolReference(),TR_HelperAddress, cg()),
+            cg()->addExternalRelocation(new (comp->trHeapMemory()) TR::ExternalRelocation(cursor,(uint8_t *)getSymbolReference(),TR_HelperAddress, cg()),
                                __FILE__, __LINE__, getNode());
             }
          }

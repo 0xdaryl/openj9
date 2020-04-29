@@ -95,8 +95,8 @@ TR::Instruction *TR_PPCRecompilation::generatePrePrologue()
    if (useSampling() && couldBeCompiledAgain())
       {
       // gr0 must contain the saved LR; see Recompilation.s
-      cursor = new (cg()->trHeapMemory()) TR::PPCTrg1Instruction(TR::InstOpCode::mflr, firstNode, gr0, cursor, cg());
-      cursor = generateDepImmSymInstruction(cg(), TR::InstOpCode::bl, firstNode, (uintptr_t)recompileMethodSymRef->getMethodAddress(), new (cg()->trHeapMemory()) TR::RegisterDependencyConditions(0,0, cg()->trMemory()), recompileMethodSymRef, NULL, cursor);
+      cursor = new (comp->trHeapMemory()) TR::PPCTrg1Instruction(TR::InstOpCode::mflr, firstNode, gr0, cursor, cg());
+      cursor = generateDepImmSymInstruction(cg(), TR::InstOpCode::bl, firstNode, (uintptr_t)recompileMethodSymRef->getMethodAddress(), new (comp->trHeapMemory()) TR::RegisterDependencyConditions(0,0, cg()->trMemory()), recompileMethodSymRef, NULL, cursor);
       if (cg()->comp()->target().is64Bit())
          {
          int32_t highBits = (int32_t)((intptr_t)info>>32), lowBits = (int32_t)((intptr_t)info);
@@ -147,7 +147,7 @@ TR::Instruction *TR_PPCRecompilation::generatePrologue(TR::Instruction *cursor)
 
          // lwzu  gr0, last 16-bits(gr11)
          cursor = generateTrg1MemInstruction(cg(), (!isProfilingCompilation())?TR::InstOpCode::lwzu:TR::InstOpCode::lwz, firstNode, gr0,
-               new (cg()->trHeapMemory()) TR::MemoryReference(gr11, ((addr & 0x0000FFFF)<<48)>>48, 4, cg()), cursor);
+               new (cg()->comp()->trHeapMemory()) TR::MemoryReference(gr11, ((addr & 0x0000FFFF)<<48)>>48, 4, cg()), cursor);
          }
       else
          {
@@ -155,14 +155,14 @@ TR::Instruction *TR_PPCRecompilation::generatePrologue(TR::Instruction *cursor)
                ((addr>>16) + ((addr&0x00008000)==0?0:1)) & 0x0000FFFF, cursor);
 
          cursor = generateTrg1MemInstruction(cg(), (!isProfilingCompilation())?TR::InstOpCode::lwzu:TR::InstOpCode::lwz, firstNode, gr0,
-               new (cg()->trHeapMemory()) TR::MemoryReference(gr11, ((addr & 0x0000FFFF)<<16)>>16, 4, cg()), cursor);
+               new (cg()->comp()->trHeapMemory()) TR::MemoryReference(gr11, ((addr & 0x0000FFFF)<<16)>>16, 4, cg()), cursor);
          }
 
       if (!isProfilingCompilation())
          {
          cursor = generateTrg1Src1ImmInstruction(cg(), TR::InstOpCode::addic_r, firstNode, gr0, gr0, -1, cursor);
          cursor = generateMemSrc1Instruction(cg(), TR::InstOpCode::stw, firstNode,
-               new (cg()->trHeapMemory()) TR::MemoryReference(gr11, (int32_t)0, 4, cg()), gr0, cursor);
+               new (cg()->comp()->trHeapMemory()) TR::MemoryReference(gr11, (int32_t)0, 4, cg()), gr0, cursor);
          }
       else
          {
@@ -179,7 +179,7 @@ TR::Instruction *TR_PPCRecompilation::generatePrologue(TR::Instruction *cursor)
       // this instruction is replaced after successful recompilation
       cursor = generateTrg1Src2Instruction   (cg(), TR::InstOpCode::OR,    firstNode, gr11,  gr11, gr11, cursor);
       cursor = generateConditionalBranchInstruction(cg(), TR::InstOpCode::blt, firstNode, snippetLabel, cr0, cursor);
-      TR::Snippet     *snippet = new (cg()->trHeapMemory()) TR::PPCRecompilationSnippet(snippetLabel, cursor->getPPCConditionalBranchInstruction(), cg());
+      TR::Snippet     *snippet = new (cg()->comp()->trHeapMemory()) TR::PPCRecompilationSnippet(snippetLabel, cursor->getPPCConditionalBranchInstruction(), cg());
       cg()->addSnippet(snippet);
       }
    return(cursor);

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2019 IBM Corp. and others
+ * Copyright (c) 2000, 2020 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -55,6 +55,6 @@ TR::Instruction *generateVirtualGuardNOPInstruction(TR::CodeGenerator *cg,  TR::
    TR::RegisterDependencyConditions *cond, TR::LabelSymbol *sym, TR::Instruction *preced)
    {
    if (preced)
-      return new (cg->trHeapMemory()) TR::PPCVirtualGuardNOPInstruction(n, site, cond, sym, preced, cg);
-   return new (cg->trHeapMemory()) TR::PPCVirtualGuardNOPInstruction(n, site, cond, sym, cg);
+      return new (cg->comp()->trHeapMemory()) TR::PPCVirtualGuardNOPInstruction(n, site, cond, sym, preced, cg);
+   return new (cg->comp()->trHeapMemory()) TR::PPCVirtualGuardNOPInstruction(n, site, cond, sym, cg);
    }

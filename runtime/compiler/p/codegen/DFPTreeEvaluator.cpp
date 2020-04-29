@@ -160,12 +160,12 @@ static void overlapDFPOperandAndPrecisionLoad(
 
          // need to store each register word into mem & then load
          tempLHSSymRef = cg->allocateLocalTemp(TR::Int64);
-         tempLHSMR = new (cg->trHeapMemory()) TR::MemoryReference(node, tempLHSSymRef, 8, cg);
+         tempLHSMR = new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, tempLHSSymRef, 8, cg);
          if (cg->comp()->target().is32Bit())
             {
             generateMemSrc1Instruction(cg, TR::InstOpCode::stw, node, tempLHSMR, lhsRegister->getHighOrder());
             generateMemSrc1Instruction(cg, TR::InstOpCode::stw, node,
-               new (cg->trHeapMemory()) TR::MemoryReference(node, *tempLHSMR, 4, 4, cg), lhsRegister->getLowOrder());
+               new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, *tempLHSMR, 4, 4, cg), lhsRegister->getLowOrder());
             }
          else // !p8DirectMoveTest
             generateMemSrc1Instruction(cg, TR::InstOpCode::std, node, tempLHSMR, lhsRegister);
@@ -183,12 +183,12 @@ static void overlapDFPOperandAndPrecisionLoad(
 
          // need to store each register word into mem & then load
          tempRHSSymRef = cg->allocateLocalTemp(TR::Int64);
-         tempRHSMR = new (cg->trHeapMemory()) TR::MemoryReference(node, tempRHSSymRef, 8, cg);
+         tempRHSMR = new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, tempRHSSymRef, 8, cg);
          if (cg->comp()->target().is32Bit())
             {
             generateMemSrc1Instruction(cg, TR::InstOpCode::stw, node, tempRHSMR, rhsRegister->getHighOrder());
             generateMemSrc1Instruction(cg, TR::InstOpCode::stw, node,
-               new (cg->trHeapMemory()) TR::MemoryReference(node, *tempRHSMR, 4, 4, cg), rhsRegister->getLowOrder());
+               new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, *tempRHSMR, 4, 4, cg), rhsRegister->getLowOrder());
             }
          else
             generateMemSrc1Instruction(cg, TR::InstOpCode::std, node, tempRHSMR, rhsRegister);
@@ -201,7 +201,7 @@ static void overlapDFPOperandAndPrecisionLoad(
 
          // store register word to mem
          tempPrecSymRef = cg->allocateLocalTemp(TR::Int64);
-         TR::MemoryReference * tempMR = new (cg->trHeapMemory()) TR::MemoryReference(node, tempPrecSymRef, 8, cg);
+         TR::MemoryReference * tempMR = new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, tempPrecSymRef, 8, cg);
          generateMemSrc1Instruction(cg, TR::InstOpCode::std, node, tempMR, cg->evaluate(precChild));
          }
 
@@ -214,21 +214,21 @@ static void overlapDFPOperandAndPrecisionLoad(
       if (toRound == 1 && !isConst16Precision)
          {
          generateTrg1MemInstruction(cg, TR::InstOpCode::lfd, node, precFPRegister,
-            new (cg->trHeapMemory()) TR::MemoryReference(node, tempPrecSymRef, 8, cg));
+            new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, tempPrecSymRef, 8, cg));
          }
 
       if (!rhsLoaded)
          {
          rhsFPRegister = cg->allocateRegister(TR_FPR);
          generateTrg1MemInstruction(cg, TR::InstOpCode::lfd, node, rhsFPRegister,
-            new (cg->trHeapMemory()) TR::MemoryReference(node, tempRHSSymRef, 8, cg));
+            new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, tempRHSSymRef, 8, cg));
          }
 
       if (!lhsLoaded)
          {
          lhsFPRegister = cg->allocateRegister(TR_FPR);
          generateTrg1MemInstruction(cg, TR::InstOpCode::lfd, node, lhsFPRegister,
-            new (cg->trHeapMemory()) TR::MemoryReference(node, tempLHSSymRef, 8, cg));
+            new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, tempLHSSymRef, 8, cg));
          }
       }
    }
@@ -278,13 +278,13 @@ static void genSetDFPRoundingMode(
       {
       // store into first 32-bits of 64-bit memory, then lfd into an fpr
       TR::SymbolReference * tempSymRef = cg->allocateLocalTemp(TR::Int64);
-      TR::MemoryReference * tempMR = new (cg->trHeapMemory()) TR::MemoryReference(node, tempSymRef, 8, cg);
+      TR::MemoryReference * tempMR = new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, tempSymRef, 8, cg);
       generateMemSrc1Instruction(cg, TR::InstOpCode::stw, node, tempMR, rmRegister);
 
       cg->generateGroupEndingNop(node);
 
       generateTrg1MemInstruction(cg, TR::InstOpCode::lfd, node, fpRegister,
-          new (cg->trHeapMemory()) TR::MemoryReference(node, tempSymRef, 8, cg));
+          new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, tempSymRef, 8, cg));
       }
 
    generateSrc1Instruction(cg, TR::InstOpCode::mtfsfw, node, fpRegister, 0x1);
@@ -349,7 +349,7 @@ static void genStoreDFP(
       }
 
    // need a hand-crafted memref
-   TR::MemoryReference * tempMR = new (cg->trHeapMemory()) TR::MemoryReference(objRegister, dfpFieldOffset, 8, cg);
+   TR::MemoryReference * tempMR = new (comp->trHeapMemory()) TR::MemoryReference(objRegister, dfpFieldOffset, 8, cg);
 
    // store to memory
    generateMemSrc1Instruction(cg, TR::InstOpCode::stfd, node, tempMR, fprDFPRegister);
@@ -448,28 +448,28 @@ static TR::Register *inlineBigDecimalConstructor64(
       // (1) prep the exponent for the Store-Load sequence
       if (exp)
          {
-         tempExpMR = new (cg->trHeapMemory()) TR::MemoryReference(cg->getStackPointerRegister(), -4, 4, cg);
+         tempExpMR = new (cg->comp()->trHeapMemory()) TR::MemoryReference(cg->getStackPointerRegister(), -4, 4, cg);
          tempExpMR->forceIndexedForm(node, cg);
 
          // touch memory before performing Store-Load
          generateTrg1MemInstruction(cg, TR::InstOpCode::lfiwax, node, expFPRegister, tempExpMR);
 
          // store 32-bits into stack slot
-         generateMemSrc1Instruction(cg, TR::InstOpCode::stw, node, new (cg->trHeapMemory()) TR::MemoryReference(node, *tempExpMR, 0, 4, cg), expRegister);
+         generateMemSrc1Instruction(cg, TR::InstOpCode::stw, node, new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, *tempExpMR, 0, 4, cg), expRegister);
          }
 
       // (2) prep the value for the Store-Load sequence
       // NOTE:  We don't differentiate between isLong or !isLong since we've
       // sign extended above - so we'll need to prep both halves of the register
       tempValSymRef = cg->allocateLocalTemp(TR::Int64);
-      tempValMR = new (cg->trHeapMemory()) TR::MemoryReference(node, tempValSymRef, 8, cg);
+      tempValMR = new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, tempValSymRef, 8, cg);
       generateMemSrc1Instruction(cg, TR::InstOpCode::std, node, tempValMR, valRegister);
 
       // (3) prep the precision for the Store-Load sequence
       if (toRound == 1)
          {
          tempPrecSymRef = cg->allocateLocalTemp(TR::Int64);
-         TR::MemoryReference * tempMR = new (cg->trHeapMemory()) TR::MemoryReference(node, tempPrecSymRef, 8, cg);
+         TR::MemoryReference * tempMR = new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, tempPrecSymRef, 8, cg);
          generateMemSrc1Instruction(cg, TR::InstOpCode::std, node, tempMR, precRegister);
          }
 
@@ -480,17 +480,17 @@ static TR::Register *inlineBigDecimalConstructor64(
       if (toRound == 1)
          {
          generateTrg1MemInstruction(cg, TR::InstOpCode::lfd, node, precFPRegister,
-             new (cg->trHeapMemory()) TR::MemoryReference(node, tempPrecSymRef, 8, cg));
+             new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, tempPrecSymRef, 8, cg));
          }
 
       // complete the Store-Load sequence for value
       generateTrg1MemInstruction(cg, TR::InstOpCode::lfd, node, dfpRegister,
-            new (cg->trHeapMemory()) TR::MemoryReference(node, tempValSymRef, 8, cg));
+            new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, tempValSymRef, 8, cg));
 
       // complete the Store-Load sequence for exponent
       if (exp)
          {
-         generateTrg1MemInstruction(cg, TR::InstOpCode::lfiwax, node, expFPRegister, new (cg->trHeapMemory()) TR::MemoryReference(node, *tempExpMR, 0, 4, cg));
+         generateTrg1MemInstruction(cg, TR::InstOpCode::lfiwax, node, expFPRegister, new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, *tempExpMR, 0, 4, cg));
          tempExpMR->decNodeReferenceCounts(cg);
          }
       }
@@ -512,7 +512,7 @@ static TR::Register *inlineBigDecimalConstructor64(
       TR::Register * fp14Reg= cg->allocateRegister(TR_FPR);
       TR::Register * fp15Reg= cg->allocateRegister(TR_FPR);
       TR::RegisterDependencyConditions * dcffixqDeps =
-         new (cg->trHeapMemory()) TR::RegisterDependencyConditions(0, 2, cg->trMemory());
+         new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(0, 2, cg->trMemory());
       dcffixqDeps->addPostCondition(fp14Reg, TR::RealRegister::fp14);
       dcffixqDeps->addPostCondition(fp15Reg, TR::RealRegister::fp15);
 
@@ -526,7 +526,7 @@ static TR::Register *inlineBigDecimalConstructor64(
       // and stop using the FPR register pair
       generateTrg1Src1Instruction(cg, TR::InstOpCode::fmr, node, dfpRegister, fp14Reg);
 
-      TR::LabelSymbol *depLabel = TR::LabelSymbol::create(cg->trHeapMemory(),cg);  // somewhere to hang the dependencies
+      TR::LabelSymbol *depLabel = TR::LabelSymbol::create(cg->comp()->trHeapMemory(),cg);  // somewhere to hang the dependencies
       generateDepLabelInstruction (cg, TR::InstOpCode::label, node, depLabel, dcffixqDeps);
 
       cg->stopUsingRegister(fp14Reg);
@@ -558,7 +558,7 @@ static TR::Register *inlineBigDecimalConstructor64(
    if (toRound == 1 )
       {
       // End label
-      TR::LabelSymbol * labelEND = TR::LabelSymbol::create(cg->trHeapMemory(),cg);
+      TR::LabelSymbol * labelEND = TR::LabelSymbol::create(cg->comp()->trHeapMemory(),cg);
 
       // Test the data group and branch instruction
       TR::Register *crRegister = cg->allocateRegister(TR_CCR);
@@ -575,7 +575,7 @@ static TR::Register *inlineBigDecimalConstructor64(
 
       // which registers do we need alive after branching sequence?
       TR::RegisterDependencyConditions * deps =
-         new (cg->trHeapMemory()) TR::RegisterDependencyConditions(0, 4, cg->trMemory());
+         new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(0, 4, cg->trMemory());
       deps->addPostCondition(retRegister, TR::RealRegister::NoReg);
       deps->addPostCondition(dfpRegister, TR::RealRegister::NoReg);
       deps->addPostCondition(crRegister, TR::RealRegister::cr0);
@@ -613,6 +613,7 @@ static TR::Register *inlineBigDecimalConstructor32(
       bool isLong,
       bool exp)
    {
+   TR::Compilation *comp = cg->comp();
 
    // Load the value into a GPR, move to FPR and convert it to DFP
    TR::Register * dfpRegister = NULL;
@@ -646,9 +647,9 @@ static TR::Register *inlineBigDecimalConstructor32(
    if(!isLong)
       {
       // setup for store 32-bits into stack slot
-      tempValMR = new (cg->trHeapMemory()) TR::MemoryReference(cg->getStackPointerRegister(), -4, 4, cg);
-      tempValMR2 = new (cg->trHeapMemory()) TR::MemoryReference(node, *tempValMR, 0, 4, cg);
-      tempValMR3 = new (cg->trHeapMemory()) TR::MemoryReference(node, *tempValMR, 0, 4, cg);
+      tempValMR = new (comp->trHeapMemory()) TR::MemoryReference(cg->getStackPointerRegister(), -4, 4, cg);
+      tempValMR2 = new (comp->trHeapMemory()) TR::MemoryReference(node, *tempValMR, 0, 4, cg);
+      tempValMR3 = new (comp->trHeapMemory()) TR::MemoryReference(node, *tempValMR, 0, 4, cg);
       tempValMR3->forceIndexedForm(node, cg);
       tempValMR->forceIndexedForm(node, cg);
 
@@ -665,10 +666,10 @@ static TR::Register *inlineBigDecimalConstructor32(
       // 32-bit AIX (and possibly Linux) doesn't guarantee
       // saving left half of 64-bit regs
       tempValSymRef = cg->allocateLocalTemp(TR::Int64);
-      tempValMR = new (cg->trHeapMemory()) TR::MemoryReference(node, tempValSymRef, 8, cg);
+      tempValMR = new (comp->trHeapMemory()) TR::MemoryReference(node, tempValSymRef, 8, cg);
       generateMemSrc1Instruction(cg, TR::InstOpCode::stw, node, tempValMR, valRegister->getHighOrder());
       generateMemSrc1Instruction(cg, TR::InstOpCode::stw, node,
-            new (cg->trHeapMemory()) TR::MemoryReference(node, *tempValMR, 4, 4, cg), valRegister->getLowOrder());
+            new (comp->trHeapMemory()) TR::MemoryReference(node, *tempValMR, 4, 4, cg), valRegister->getLowOrder());
       }
 
    // prep the exponent for the Store-Load sequence
@@ -685,14 +686,14 @@ static TR::Register *inlineBigDecimalConstructor32(
       cg->decReferenceCount(node->getChild(2));
 
       // setup for store 32-bits into stack slot
-      tempExpMR = new (cg->trHeapMemory()) TR::MemoryReference(cg->getStackPointerRegister(), -4, 4, cg);
+      tempExpMR = new (comp->trHeapMemory()) TR::MemoryReference(cg->getStackPointerRegister(), -4, 4, cg);
       tempExpMR->forceIndexedForm(node, cg);
 
       // touch memory before performing Store-Load
       generateTrg1MemInstruction(cg, TR::InstOpCode::lfiwax, node, expFPRegister, tempExpMR);
 
       // store 32-bits into stack slot
-      generateMemSrc1Instruction(cg, TR::InstOpCode::stw, node, new (cg->trHeapMemory()) TR::MemoryReference(node, *tempExpMR, 0, 4, cg), expRegister);
+      generateMemSrc1Instruction(cg, TR::InstOpCode::stw, node, new (comp->trHeapMemory()) TR::MemoryReference(node, *tempExpMR, 0, 4, cg), expRegister);
       }
 
    // prep Rounding (rounding mode + precision) for Store-Load sequence
@@ -743,7 +744,7 @@ static TR::Register *inlineBigDecimalConstructor32(
    // complete the Store-Load sequence for exponent
    if (exp)
       {
-      generateTrg1MemInstruction(cg, TR::InstOpCode::lfiwax, node, expFPRegister, new (cg->trHeapMemory()) TR::MemoryReference(node, *tempExpMR, 0, 4, cg));
+      generateTrg1MemInstruction(cg, TR::InstOpCode::lfiwax, node, expFPRegister, new (comp->trHeapMemory()) TR::MemoryReference(node, *tempExpMR, 0, 4, cg));
       tempExpMR->decNodeReferenceCounts(cg);
       }
 
@@ -757,7 +758,7 @@ static TR::Register *inlineBigDecimalConstructor32(
    else
       {
       generateTrg1MemInstruction(cg, TR::InstOpCode::lfd, node, dfpRegister,
-            new (cg->trHeapMemory()) TR::MemoryReference(node, tempValSymRef, 8, cg));
+            new (comp->trHeapMemory()) TR::MemoryReference(node, tempValSymRef, 8, cg));
       }
 
    /* Now convert to DFP, insert exponent and round */
@@ -777,7 +778,7 @@ static TR::Register *inlineBigDecimalConstructor32(
       TR::Register * fp14Reg= cg->allocateRegister(TR_FPR);
       TR::Register * fp15Reg= cg->allocateRegister(TR_FPR);
       TR::RegisterDependencyConditions * dcffixqDeps =
-         new (cg->trHeapMemory()) TR::RegisterDependencyConditions(0, 2, cg->trMemory());
+         new (comp->trHeapMemory()) TR::RegisterDependencyConditions(0, 2, cg->trMemory());
       dcffixqDeps->addPostCondition(fp14Reg, TR::RealRegister::fp14);
       dcffixqDeps->addPostCondition(fp15Reg, TR::RealRegister::fp15);
 
@@ -791,7 +792,7 @@ static TR::Register *inlineBigDecimalConstructor32(
       // and stop using the FPR register pair
       generateTrg1Src1Instruction(cg, TR::InstOpCode::fmr, node, dfpRegister, fp14Reg);
 
-      TR::LabelSymbol *depLabel = TR::LabelSymbol::create(cg->trHeapMemory(),cg);  // somewhere to hang the dependencies
+      TR::LabelSymbol *depLabel = TR::LabelSymbol::create(comp->trHeapMemory(),cg);  // somewhere to hang the dependencies
       generateDepLabelInstruction (cg, TR::InstOpCode::label, node, depLabel, dcffixqDeps);
 
       cg->stopUsingRegister(fp14Reg);
@@ -823,7 +824,7 @@ static TR::Register *inlineBigDecimalConstructor32(
    if (toRound == 1)
       {
       // End label
-      TR::LabelSymbol * labelEND = TR::LabelSymbol::create(cg->trHeapMemory(),cg);
+      TR::LabelSymbol * labelEND = TR::LabelSymbol::create(comp->trHeapMemory(),cg);
 
       // Test the data group and branch instruction
       TR::Register *crRegister = cg->allocateRegister(TR_CCR);
@@ -840,7 +841,7 @@ static TR::Register *inlineBigDecimalConstructor32(
 
       // which registers do we need alive after branching sequence?
       TR::RegisterDependencyConditions * deps =
-         new (cg->trHeapMemory()) TR::RegisterDependencyConditions(0, 4, cg->trMemory());
+         new (comp->trHeapMemory()) TR::RegisterDependencyConditions(0, 4, cg->trMemory());
       deps->addPostCondition(retRegister, TR::RealRegister::NoReg);
       deps->addPostCondition(dfpRegister, TR::RealRegister::NoReg);
       deps->addPostCondition(crRegister, TR::RealRegister::cr0);
@@ -971,7 +972,7 @@ extern TR::Register *inlineBigDecimalBinaryOp(
    // 0010 or 1010 - both have 3rd bit on, which is same as EQUALS
 
    TR::Register * retRegister = cg->allocateRegister();
-   TR::LabelSymbol * labelEND = TR::LabelSymbol::create(cg->trHeapMemory(),cg);
+   TR::LabelSymbol * labelEND = TR::LabelSymbol::create(cg->comp()->trHeapMemory(),cg);
 
    // did we fail?
    loadConstant(cg, node, 0, retRegister);
@@ -988,7 +989,7 @@ extern TR::Register *inlineBigDecimalBinaryOp(
       cg->decReferenceCount(node->getFirstChild());
 
       // which registers do we need alive after branching sequence?
-      deps = new (cg->trHeapMemory()) TR::RegisterDependencyConditions(0, 4, cg->trMemory());
+      deps = new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(0, 4, cg->trMemory());
       deps->addPostCondition(retRegister, TR::RealRegister::NoReg);
       deps->addPostCondition(resRegister, TR::RealRegister::NoReg);
       deps->addPostCondition(crRegister, TR::RealRegister::cr0);
@@ -1070,7 +1071,7 @@ extern TR::Register *inlineBigDecimalBinaryOp(
                   node->getSecondChild()->getSymbolReference(), resRegister);
 
       // which registers do we need alive after branching sequence?
-      deps = new (cg->trHeapMemory()) TR::RegisterDependencyConditions(0, 9, cg->trMemory());
+      deps = new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(0, 9, cg->trMemory());
       deps->addPostCondition(retRegister, TR::RealRegister::NoReg);
       deps->addPostCondition(resRegister, TR::RealRegister::NoReg);
       deps->addPostCondition(crRegister, TR::RealRegister::cr0);
@@ -1174,12 +1175,12 @@ extern TR::Register *inlineBigDecimalScaledDivide(
 
          // need to store each register word into mem & then load
          tempLHSSymRef = cg->allocateLocalTemp(TR::Int64);
-         tempLHSMR = new (cg->trHeapMemory()) TR::MemoryReference(node, tempLHSSymRef, 8, cg);
+         tempLHSMR = new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, tempLHSSymRef, 8, cg);
          if (cg->comp()->target().is32Bit())
             {
             generateMemSrc1Instruction(cg, TR::InstOpCode::stw, node, tempLHSMR, lhsRegister->getHighOrder());
             generateMemSrc1Instruction(cg, TR::InstOpCode::stw, node,
-                  new (cg->trHeapMemory()) TR::MemoryReference(node, *tempLHSMR, 4, 4, cg), lhsRegister->getLowOrder());
+                  new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, *tempLHSMR, 4, 4, cg), lhsRegister->getLowOrder());
             }
          else // another case if we cannot use the POWER 8 direct move instructions
             generateMemSrc1Instruction(cg, TR::InstOpCode::std, node, tempLHSMR, lhsRegister);
@@ -1196,12 +1197,12 @@ extern TR::Register *inlineBigDecimalScaledDivide(
 
          // need to store each register word into mem & then load
          tempRHSSymRef = cg->allocateLocalTemp(TR::Int64);
-         tempRHSMR = new (cg->trHeapMemory()) TR::MemoryReference(node, tempRHSSymRef, 8, cg);
+         tempRHSMR = new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, tempRHSSymRef, 8, cg);
          if (cg->comp()->target().is32Bit())
             {
             generateMemSrc1Instruction(cg, TR::InstOpCode::stw, node, tempRHSMR, rhsRegister->getHighOrder());
             generateMemSrc1Instruction(cg, TR::InstOpCode::stw, node,
-                  new (cg->trHeapMemory()) TR::MemoryReference(node, *tempRHSMR, 4, 4, cg), rhsRegister->getLowOrder());
+                  new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, *tempRHSMR, 4, 4, cg), rhsRegister->getLowOrder());
             }
          else
             generateMemSrc1Instruction(cg, TR::InstOpCode::std, node, tempRHSMR, rhsRegister);
@@ -1217,13 +1218,13 @@ extern TR::Register *inlineBigDecimalScaledDivide(
          {
          lhsFPRegister = cg->allocateRegister(TR_FPR);
          generateTrg1MemInstruction(cg, TR::InstOpCode::lfd, node, lhsFPRegister,
-             new (cg->trHeapMemory()) TR::MemoryReference(node, tempLHSSymRef, 8, cg));
+             new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, tempLHSSymRef, 8, cg));
          }
       if (!rhsLoaded)
          {
          rhsFPRegister = cg->allocateRegister(TR_FPR);
          generateTrg1MemInstruction(cg, TR::InstOpCode::lfd, node, rhsFPRegister,
-             new (cg->trHeapMemory()) TR::MemoryReference(node, tempRHSSymRef, 8, cg));
+             new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, tempRHSSymRef, 8, cg));
          }
       }
 
@@ -1255,8 +1256,8 @@ extern TR::Register *inlineBigDecimalScaledDivide(
    genTestDataGroup(node, cg, resRegister, crRegister, tgdtScaledTest);
 
    TR::Register * retRegister = cg->allocateRegister();
-   TR::LabelSymbol * labelScalesEQUAL = TR::LabelSymbol::create(cg->trHeapMemory(),cg);
-   TR::LabelSymbol * labelEND = TR::LabelSymbol::create(cg->trHeapMemory(),cg);
+   TR::LabelSymbol * labelScalesEQUAL = TR::LabelSymbol::create(cg->comp()->trHeapMemory(),cg);
+   TR::LabelSymbol * labelEND = TR::LabelSymbol::create(cg->comp()->trHeapMemory(),cg);
 
    // did we TGDT fail the original divide?
    loadConstant(cg, node, -1, retRegister);
@@ -1283,14 +1284,14 @@ extern TR::Register *inlineBigDecimalScaledDivide(
       {
       //NOTE:  Since exponent will never be > 32-bits, ok to use doubleword store-loads here
       TR::SymbolReference * tempExpSymRef = cg->allocateLocalTemp(TR::Int64);
-      TR::MemoryReference * tempMR = new (cg->trHeapMemory()) TR::MemoryReference(node, tempExpSymRef, 8, cg);
+      TR::MemoryReference * tempMR = new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, tempExpSymRef, 8, cg);
       generateMemSrc1Instruction(cg, TR::InstOpCode::stfd, node, tempMR, fprActualBiasedExpRegister);
 
       // now finish off the Store-Load sequence in REVERSE!
       cg->generateGroupEndingNop(node);
 
       generateTrg1MemInstruction(cg, TR::InstOpCode::ld, node, actualBiasedExpRegister,
-         new (cg->trHeapMemory()) TR::MemoryReference(node, tempExpSymRef, 8, cg));
+         new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, tempExpSymRef, 8, cg));
       }
     cg->stopUsingRegister(fprActualBiasedExpRegister);
 
@@ -1331,13 +1332,13 @@ extern TR::Register *inlineBigDecimalScaledDivide(
       {
       // store register word to mem & then load
       TR::SymbolReference * tempSymRef = cg->allocateLocalTemp(TR::Int64);
-      TR::MemoryReference * tempMR = new (cg->trHeapMemory()) TR::MemoryReference(node, tempSymRef, 8, cg);
+      TR::MemoryReference * tempMR = new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, tempSymRef, 8, cg);
       generateMemSrc1Instruction(cg, TR::InstOpCode::std, node, tempMR, desiredBiasedExpRegister);
 
       cg->generateGroupEndingNop(node);
 
       generateTrg1MemInstruction(cg, TR::InstOpCode::lfd, node, fprDesiredBiasedExpRegister,
-         new (cg->trHeapMemory()) TR::MemoryReference(node, tempSymRef, 8, cg));
+         new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, tempSymRef, 8, cg));
       }
    generateTrg1Src2Instruction(cg, TR::InstOpCode::diex, node, dfpDummyFPRegister, fprDesiredBiasedExpRegister, dfpDummyFPRegister);
    cg->stopUsingRegister(fprDesiredBiasedExpRegister);
@@ -1384,7 +1385,7 @@ extern TR::Register *inlineBigDecimalScaledDivide(
 
    // which registers do we need alive after branching sequence?
    TR::RegisterDependencyConditions * deps =
-      new (cg->trHeapMemory()) TR::RegisterDependencyConditions(0, 9, cg->trMemory());
+      new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(0, 9, cg->trMemory());
    deps->addPostCondition(retRegister, TR::RealRegister::NoReg);
    deps->addPostCondition(resRegister, TR::RealRegister::NoReg);
    deps->addPostCondition(crRegister, TR::RealRegister::cr0);
@@ -1508,7 +1509,7 @@ extern TR::Register *inlineBigDecimalDivide(
    genTestDataGroup(node, cg, resRegister, crRegister, tgdtLaxTest);
 
    TR::Register * retRegister = cg->allocateRegister();
-   TR::LabelSymbol * labelEND = TR::LabelSymbol::create(cg->trHeapMemory(),cg);
+   TR::LabelSymbol * labelEND = TR::LabelSymbol::create(cg->comp()->trHeapMemory(),cg);
 
    // did we fail?
    loadConstant(cg, node, -1, retRegister);
@@ -1538,7 +1539,7 @@ extern TR::Register *inlineBigDecimalDivide(
 
    // which registers do we need alive after branching sequence?
    TR::RegisterDependencyConditions * deps =
-      new (cg->trHeapMemory()) TR::RegisterDependencyConditions(0, 4, cg->trMemory());
+      new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(0, 4, cg->trMemory());
    deps->addPostCondition(retRegister, TR::RealRegister::NoReg);
    deps->addPostCondition(resRegister, TR::RealRegister::NoReg);
    deps->addPostCondition(crRegister, TR::RealRegister::cr0);
@@ -1603,14 +1604,14 @@ extern TR::Register *inlineBigDecimalRound(
          dfpFPRegister = cg->allocateRegister(TR_FPR);
 
          tempSymRef = cg->allocateLocalTemp(TR::Int64);
-         tempMR = new (cg->trHeapMemory()) TR::MemoryReference(node, tempSymRef, 8, cg);
+         tempMR = new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, tempSymRef, 8, cg);
 
          // need to store each register word into mem & then load
          if (cg->comp()->target().is32Bit())
             {
             generateMemSrc1Instruction(cg, TR::InstOpCode::stw, node, tempMR, dfpRegister->getHighOrder());
             generateMemSrc1Instruction(cg, TR::InstOpCode::stw, node,
-                  new (cg->trHeapMemory()) TR::MemoryReference(node, *tempMR, 4, 4, cg), dfpRegister->getLowOrder());
+                  new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, *tempMR, 4, 4, cg), dfpRegister->getLowOrder());
             }
          else //!p8DirectMoveTest
             generateMemSrc1Instruction(cg, TR::InstOpCode::std, node, tempMR, dfpRegister);
@@ -1621,20 +1622,20 @@ extern TR::Register *inlineBigDecimalRound(
 
       // store register word to mem
       tempPrecSymRef = cg->allocateLocalTemp(TR::Int64);
-      TR::MemoryReference * tempPrecMR = new (cg->trHeapMemory()) TR::MemoryReference(node, tempPrecSymRef, 8, cg);
+      TR::MemoryReference * tempPrecMR = new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, tempPrecSymRef, 8, cg);
       generateMemSrc1Instruction(cg, TR::InstOpCode::std, node, tempPrecMR, cg->evaluate(node->getChild(2)));
 
       cg->generateGroupEndingNop(node);
 
       // load the precision
       generateTrg1MemInstruction(cg, TR::InstOpCode::lfd, node, precFPRegister,
-         new (cg->trHeapMemory()) TR::MemoryReference(node, tempPrecSymRef, 8, cg));
+         new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, tempPrecSymRef, 8, cg));
 
       // load the dfp
       if (!dfpLoaded)
          {
          generateTrg1MemInstruction(cg, TR::InstOpCode::lfd, node, dfpFPRegister,
-            new (cg->trHeapMemory()) TR::MemoryReference(node, tempSymRef, 8, cg));
+            new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, tempSymRef, 8, cg));
          }
       }
 
@@ -1659,7 +1660,7 @@ extern TR::Register *inlineBigDecimalRound(
    genTestDataGroup(node, cg, resFPRegister, crRegister, tgdtLaxTest);
 
    TR::Register * retRegister = cg->allocateRegister();
-   TR::LabelSymbol * labelEND = TR::LabelSymbol::create(cg->trHeapMemory(),cg);
+   TR::LabelSymbol * labelEND = TR::LabelSymbol::create(cg->comp()->trHeapMemory(),cg);
 
    // did we fail?
    loadConstant(cg, node, 0, retRegister);
@@ -1673,7 +1674,7 @@ extern TR::Register *inlineBigDecimalRound(
 
    // which registers do we need alive after branching sequence?
    TR::RegisterDependencyConditions * deps =
-      new (cg->trHeapMemory()) TR::RegisterDependencyConditions(0, 4, cg->trMemory());
+      new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(0, 4, cg->trMemory());
    deps->addPostCondition(retRegister, TR::RealRegister::NoReg);
    deps->addPostCondition(resFPRegister, TR::RealRegister::NoReg);
    deps->addPostCondition(crRegister, TR::RealRegister::cr0);
@@ -1743,12 +1744,12 @@ extern TR::Register *inlineBigDecimalCompareTo(
 
          // need to store each register word into mem & then load
          tempLHSSymRef = cg->allocateLocalTemp(TR::Int64);
-         tempLHSMR = new (cg->trHeapMemory()) TR::MemoryReference(node, tempLHSSymRef, 8, cg);
+         tempLHSMR = new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, tempLHSSymRef, 8, cg);
          if (cg->comp()->target().is32Bit())
             {
             generateMemSrc1Instruction(cg, TR::InstOpCode::stw, node, tempLHSMR, lhsRegister->getHighOrder());
             generateMemSrc1Instruction(cg, TR::InstOpCode::stw, node,
-                  new (cg->trHeapMemory()) TR::MemoryReference(node, *tempLHSMR, 4, 4, cg), lhsRegister->getLowOrder());
+                  new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, *tempLHSMR, 4, 4, cg), lhsRegister->getLowOrder());
             }
          else //!p8DirectMoveTest
             generateMemSrc1Instruction(cg, TR::InstOpCode::std, node, tempLHSMR, lhsRegister);
@@ -1765,13 +1766,13 @@ extern TR::Register *inlineBigDecimalCompareTo(
 
          // need to store each register word into mem & then load
          tempRHSSymRef = cg->allocateLocalTemp(TR::Int64);
-         tempRHSMR = new (cg->trHeapMemory()) TR::MemoryReference(node, tempRHSSymRef, 8, cg);
+         tempRHSMR = new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, tempRHSSymRef, 8, cg);
 
          if (cg->comp()->target().is32Bit())
             {
             generateMemSrc1Instruction(cg, TR::InstOpCode::stw, node, tempRHSMR, rhsRegister->getHighOrder());
             generateMemSrc1Instruction(cg, TR::InstOpCode::stw, node,
-                  new (cg->trHeapMemory()) TR::MemoryReference(node, *tempRHSMR, 4, 4, cg), rhsRegister->getLowOrder());
+                  new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, *tempRHSMR, 4, 4, cg), rhsRegister->getLowOrder());
             }
          else //!p8DirectMoveTest
             generateMemSrc1Instruction(cg, TR::InstOpCode::std, node, tempRHSMR, rhsRegister);
@@ -1787,20 +1788,20 @@ extern TR::Register *inlineBigDecimalCompareTo(
          {
          rhsFPRegister = cg->allocateRegister(TR_FPR);
          generateTrg1MemInstruction(cg, TR::InstOpCode::lfd, node, rhsFPRegister,
-             new (cg->trHeapMemory()) TR::MemoryReference(node, tempRHSSymRef, 8, cg));
+             new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, tempRHSSymRef, 8, cg));
          }
       if (!lhsLoaded)
          {
          lhsFPRegister = cg->allocateRegister(TR_FPR);
          generateTrg1MemInstruction(cg, TR::InstOpCode::lfd, node, lhsFPRegister,
-             new (cg->trHeapMemory()) TR::MemoryReference(node, tempLHSSymRef, 8, cg));
+             new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, tempLHSSymRef, 8, cg));
          }
       }
 
    // compare both values
    TR::Register * crRegister = cg->allocateRegister(TR_CCR);
    TR::Instruction * cursor = NULL;
-   TR::RegisterDependencyConditions * deps = new (cg->trHeapMemory()) TR::RegisterDependencyConditions(1, 1, cg->trMemory());
+   TR::RegisterDependencyConditions * deps = new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(1, 1, cg->trMemory());
 
    cursor = generateTrg1Src2Instruction(cg, TR::InstOpCode::dcmpu, node, crRegister, lhsFPRegister, rhsFPRegister);
    cg->stopUsingRegister(lhsFPRegister);
@@ -1824,7 +1825,7 @@ extern TR::Register *inlineBigDecimalCompareTo(
    cg->stopUsingRegister(crGPRegister);
 
    TR::addDependency(deps, crRegister, TR::RealRegister::cr0, TR_CCR, cg);
-   generateDepLabelInstruction(cg, TR::InstOpCode::label, node, TR::LabelSymbol::create(cg->trHeapMemory(),cg), deps);
+   generateDepLabelInstruction(cg, TR::InstOpCode::label, node, TR::LabelSymbol::create(cg->comp()->trHeapMemory(),cg), deps);
    deps->stopUsingDepRegs(cg);
 
    node->setRegister(retRegister);
@@ -1870,12 +1871,12 @@ extern TR::Register *inlineBigDecimalUnaryOp(
 
          // need to store each register word into mem & then load
          tempSymRef = cg->allocateLocalTemp(TR::Int64);
-         tempMR = new (cg->trHeapMemory()) TR::MemoryReference(node, tempSymRef, 8, cg);
+         tempMR = new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, tempSymRef, 8, cg);
          if(cg->comp()->target().is32Bit())
             {
             generateMemSrc1Instruction(cg, TR::InstOpCode::stw, node, tempMR, dfpRegister->getHighOrder());
             generateMemSrc1Instruction(cg, TR::InstOpCode::stw, node,
-                  new (cg->trHeapMemory()) TR::MemoryReference(node, *tempMR, 4, 4, cg), dfpRegister->getLowOrder());
+                  new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, *tempMR, 4, 4, cg), dfpRegister->getLowOrder());
             }
          else
             generateMemSrc1Instruction(cg, TR::InstOpCode::std, node, tempMR, dfpRegister);
@@ -1884,7 +1885,7 @@ extern TR::Register *inlineBigDecimalUnaryOp(
 
          dfpFPRegister = cg->allocateRegister(TR_FPR);
          generateTrg1MemInstruction(cg, TR::InstOpCode::lfd, node, dfpFPRegister,
-            new (cg->trHeapMemory()) TR::MemoryReference(node, tempSymRef, 8, cg));
+            new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, tempSymRef, 8, cg));
          }
 
       }
@@ -1913,14 +1914,14 @@ extern TR::Register *inlineBigDecimalUnaryOp(
       else
          {
          TR::SymbolReference * tempSymRef = cg->allocateLocalTemp(TR::Int64);
-         TR::MemoryReference * tempMR = new (cg->trHeapMemory()) TR::MemoryReference(node, tempSymRef, 8, cg);
+         TR::MemoryReference * tempMR = new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, tempSymRef, 8, cg);
          generateMemSrc1Instruction(cg, TR::InstOpCode::stfd, node, tempMR, resFPRegister);
 
          // now finish off the Store-Load sequence in REVERSE!
          cg->generateGroupEndingNop(node);
 
          generateTrg1MemInstruction(cg, TR::InstOpCode::ld, node, resRegister,
-            new (cg->trHeapMemory()) TR::MemoryReference(node, tempSymRef, 8, cg));
+            new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, tempSymRef, 8, cg));
          }
 
       //we can do 64-bit precision
@@ -1940,7 +1941,7 @@ extern TR::Register *inlineBigDecimalUnaryOp(
       {
       // Allocate temporary memory
       temp = cg->allocateLocalTemp(TR::Int64);
-      tempMR = new (cg->trHeapMemory()) TR::MemoryReference(node, temp, 8, cg);
+      tempMR = new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, temp, 8, cg);
 
       // store the 64-bit result to memory
       generateMemSrc1Instruction(cg, TR::InstOpCode::stfd, node, tempMR, resFPRegister);
@@ -1954,9 +1955,9 @@ extern TR::Register *inlineBigDecimalUnaryOp(
       TR::Register           *lowRegister = cg->allocateRegister();
       resRegister = cg->allocateRegisterPair(lowRegister, highRegister);
       generateTrg1MemInstruction(cg, TR::InstOpCode::lwz, node, highRegister,
-         new (cg->trHeapMemory()) TR::MemoryReference(node, *tempMR, 0, 4, cg));
+         new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, *tempMR, 0, 4, cg));
       generateTrg1MemInstruction(cg, TR::InstOpCode::lwz, node, lowRegister,
-         new (cg->trHeapMemory()) TR::MemoryReference(node, *tempMR, 4, 4, cg));
+         new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, *tempMR, 4, 4, cg));
 
       // some extra processing for extracting significance
       if (precision)
@@ -1975,11 +1976,11 @@ extern TR::Register *inlineBigDecimalUnaryOp(
          generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::subfic, node, tempRegister, tempRegister, 16);
 
          TR::Register * crRegister = cg->allocateRegister(TR_CCR);
-         TR::LabelSymbol * labelEND = TR::LabelSymbol::create(cg->trHeapMemory(),cg);
+         TR::LabelSymbol * labelEND = TR::LabelSymbol::create(cg->comp()->trHeapMemory(),cg);
 
          // which registers do we need alive after branching sequence?
          TR::RegisterDependencyConditions * deps =
-             new (cg->trHeapMemory()) TR::RegisterDependencyConditions(0, 4, cg->trMemory());
+             new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(0, 4, cg->trMemory());
          deps->addPostCondition(tempRegister, TR::RealRegister::NoReg);
          deps->addPostCondition(highRegister, TR::RealRegister::NoReg);
          deps->addPostCondition(lowRegister, TR::RealRegister::NoReg);
@@ -2088,12 +2089,12 @@ extern TR::Register *inlineBigDecimalSetScale(
 
          // need to store each register word into mem & then load
          tempDFPSymRef = cg->allocateLocalTemp(TR::Int64);
-         tempDFPMR = new (cg->trHeapMemory()) TR::MemoryReference(node, tempDFPSymRef, 8, cg);
+         tempDFPMR = new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, tempDFPSymRef, 8, cg);
          if (cg->comp()->target().is32Bit())
             {
             generateMemSrc1Instruction(cg, TR::InstOpCode::stw, node, tempDFPMR, dfpRegister->getHighOrder());
             generateMemSrc1Instruction(cg, TR::InstOpCode::stw, node,
-                  new (cg->trHeapMemory()) TR::MemoryReference(node, *tempDFPMR, 4, 4, cg), dfpRegister->getLowOrder());
+                  new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, *tempDFPMR, 4, 4, cg), dfpRegister->getLowOrder());
             }
          else
             generateMemSrc1Instruction(cg, TR::InstOpCode::std, node, tempDFPMR, dfpRegister);
@@ -2104,26 +2105,26 @@ extern TR::Register *inlineBigDecimalSetScale(
 
       // setup for store 32-bits into stack slot
 
-      tempExpMR = new (cg->trHeapMemory()) TR::MemoryReference(cg->getStackPointerRegister(), -4, 4, cg);
+      tempExpMR = new (cg->comp()->trHeapMemory()) TR::MemoryReference(cg->getStackPointerRegister(), -4, 4, cg);
       tempExpMR->forceIndexedForm(node, cg);
 
       // touch memory before performing Store-Load
       generateTrg1MemInstruction(cg, TR::InstOpCode::lfiwax, node, expFPRegister, tempExpMR);
 
       // store 32-bits into stack slot
-      generateMemSrc1Instruction(cg, TR::InstOpCode::stw, node, new (cg->trHeapMemory()) TR::MemoryReference(node, *tempExpMR, 0, 4, cg), expRegister);
+      generateMemSrc1Instruction(cg, TR::InstOpCode::stw, node, new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, *tempExpMR, 0, 4, cg), expRegister);
 
       // now load them in REVERSE!
       cg->generateGroupEndingNop(node);
 
-      generateTrg1MemInstruction(cg, TR::InstOpCode::lfiwax, node, expFPRegister, new (cg->trHeapMemory()) TR::MemoryReference(node, *tempExpMR, 0, 4, cg));
+      generateTrg1MemInstruction(cg, TR::InstOpCode::lfiwax, node, expFPRegister, new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, *tempExpMR, 0, 4, cg));
       tempExpMR->decNodeReferenceCounts(cg);
 
       if (!dfpLoaded)
          {
          dfpFPRegister = cg->allocateRegister(TR_FPR);
          generateTrg1MemInstruction(cg, TR::InstOpCode::lfd, node, dfpFPRegister,
-             new (cg->trHeapMemory()) TR::MemoryReference(node, tempDFPSymRef, 8, cg));
+             new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, tempDFPSymRef, 8, cg));
          }
       }
 
@@ -2150,7 +2151,7 @@ extern TR::Register *inlineBigDecimalSetScale(
    // reset rounding mode back to default
    genSetDFPRoundingMode(node, cg, rmIEEEdefault);
 
-   TR::LabelSymbol * labelEND = TR::LabelSymbol::create(cg->trHeapMemory(),cg);
+   TR::LabelSymbol * labelEND = TR::LabelSymbol::create(cg->comp()->trHeapMemory(),cg);
    TR::Register * retRegister = cg->allocateRegister();
    TR::Register *crRegister = cg->allocateRegister(TR_CCR);
 
@@ -2185,7 +2186,7 @@ extern TR::Register *inlineBigDecimalSetScale(
 
    // which registers do we need alive after branching sequence?
    TR::RegisterDependencyConditions * deps =
-      new (cg->trHeapMemory()) TR::RegisterDependencyConditions(0, 4, cg->trMemory());
+      new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(0, 4, cg->trMemory());
    deps->addPostCondition(retRegister, TR::RealRegister::NoReg);
    deps->addPostCondition(resRegister, TR::RealRegister::NoReg);
    deps->addPostCondition(crRegister, TR::RealRegister::cr0);
@@ -2255,39 +2256,39 @@ extern TR::Register *inlineBigDecimalUnscaledValue(
 
          // need to store each register word into mem & then load
          tempDFPSymRef = cg->allocateLocalTemp(TR::Int64);
-         tempDFPMR = new (cg->trHeapMemory()) TR::MemoryReference(node, tempDFPSymRef, 8, cg);
+         tempDFPMR = new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, tempDFPSymRef, 8, cg);
          if (cg->comp()->target().is32Bit())
             {
             generateMemSrc1Instruction(cg, TR::InstOpCode::stw, node, tempDFPMR, dfpRegister->getHighOrder());
             generateMemSrc1Instruction(cg, TR::InstOpCode::stw, node,
-                  new (cg->trHeapMemory()) TR::MemoryReference(node, *tempDFPMR, 4, 4, cg), dfpRegister->getLowOrder());
+                  new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, *tempDFPMR, 4, 4, cg), dfpRegister->getLowOrder());
             }
          else
              generateMemSrc1Instruction(cg, TR::InstOpCode::std, node, tempDFPMR, dfpRegister);
          }
 
       // prep the exponent for the Store-Load sequence
-      TR::MemoryReference * tempExpMR = new (cg->trHeapMemory()) TR::MemoryReference(cg->getStackPointerRegister(), -4, 4, cg);
+      TR::MemoryReference * tempExpMR = new (cg->comp()->trHeapMemory()) TR::MemoryReference(cg->getStackPointerRegister(), -4, 4, cg);
       tempExpMR->forceIndexedForm(node, cg);
 
       // touch memory before performing Store-Load
       generateTrg1MemInstruction(cg, TR::InstOpCode::lfiwax, node, expFPRegister, tempExpMR);
 
       // store 32-bits into stack slot
-      generateMemSrc1Instruction(cg, TR::InstOpCode::stw, node, new (cg->trHeapMemory()) TR::MemoryReference(node, *tempExpMR, 0, 4, cg), expRegister);
+      generateMemSrc1Instruction(cg, TR::InstOpCode::stw, node, new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, *tempExpMR, 0, 4, cg), expRegister);
       cg->stopUsingRegister(expRegister);
 
       // now load them in REVERSE!
       cg->generateGroupEndingNop(node);
 
-      generateTrg1MemInstruction(cg, TR::InstOpCode::lfiwax, node, expFPRegister, new (cg->trHeapMemory()) TR::MemoryReference(node, *tempExpMR, 0, 4, cg));
+      generateTrg1MemInstruction(cg, TR::InstOpCode::lfiwax, node, expFPRegister, new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, *tempExpMR, 0, 4, cg));
       tempExpMR->decNodeReferenceCounts(cg);
 
       if (!dfpLoaded)
          {
          dfpFPRegister = cg->allocateRegister(TR_FPR);
          generateTrg1MemInstruction(cg, TR::InstOpCode::lfd, node, dfpFPRegister,
-             new (cg->trHeapMemory()) TR::MemoryReference(node, tempDFPSymRef, 8, cg));
+             new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, tempDFPSymRef, 8, cg));
          }
       }
 
@@ -2318,7 +2319,7 @@ extern TR::Register *inlineBigDecimalUnscaledValue(
       {
       // Allocate temporary memory
       TR::SymbolReference * tempSymRef = cg->allocateLocalTemp(TR::Int64);
-      TR::MemoryReference * tempMR = new (cg->trHeapMemory()) TR::MemoryReference(node, tempSymRef, 8, cg);
+      TR::MemoryReference * tempMR = new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, tempSymRef, 8, cg);
 
 
       // store the 64-bit result to memory
@@ -2335,15 +2336,15 @@ extern TR::Register *inlineBigDecimalUnscaledValue(
          lowRegister = cg->allocateRegister();
          retRegister = cg->allocateRegisterPair(lowRegister, highRegister);
          generateTrg1MemInstruction(cg, TR::InstOpCode::lwz, node, highRegister,
-            new (cg->trHeapMemory()) TR::MemoryReference(node, *tempMR, 0, 4, cg));
+            new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, *tempMR, 0, 4, cg));
          generateTrg1MemInstruction(cg, TR::InstOpCode::lwz, node, lowRegister,
-            new (cg->trHeapMemory()) TR::MemoryReference(node, *tempMR, 4, 4, cg));
+            new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, *tempMR, 4, 4, cg));
          }
       else //!p8DirectMoveTest
          {
          retRegister = cg->allocateRegister();
          generateTrg1MemInstruction(cg, TR::InstOpCode::ld, node, retRegister,
-            new (cg->trHeapMemory()) TR::MemoryReference(node, tempSymRef, 8, cg));
+            new (cg->comp()->trHeapMemory()) TR::MemoryReference(node, tempSymRef, 8, cg));
          }
       }
    cg->stopUsingRegister(dfpTempFPRegister);
