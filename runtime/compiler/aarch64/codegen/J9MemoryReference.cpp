@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2019, 2019 IBM Corp. and others
+ * Copyright (c) 2019, 2020 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -242,7 +242,7 @@ J9::ARM64::MemoryReference::generateBinaryEncoding(TR::Instruction *currentInstr
          uint32_t preserve = *wcursor; // original instruction
          snippet->setAddressOfDataReference(cursor);
          snippet->setMemoryReference(self());
-         cg->addRelocation(new (cg->trHeapMemory()) TR::LabelRelative32BitRelocation(cursor, snippet->getSnippetLabel()));
+         cg->addRelocation(new (cg->comp()->trHeapMemory()) TR::LabelRelative32BitRelocation(cursor, snippet->getSnippetLabel()));
          *wcursor = TR::InstOpCode::getOpCodeBinaryEncoding(TR::InstOpCode::b); // b snippetLabel
          wcursor++;
          cursor += ARM64_INSTRUCTION_LENGTH;

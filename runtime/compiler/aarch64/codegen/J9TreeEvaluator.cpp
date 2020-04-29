@@ -117,7 +117,7 @@ static void wrtbarEvaluator(TR::Node *node, TR::Register *srcReg, TR::Register *
 
    if (needDeps)
       {
-      conditions = new (cg->trHeapMemory()) TR::RegisterDependencyConditions(2, 2, cg->trMemory());
+      conditions = new (comp->trHeapMemory()) TR::RegisterDependencyConditions(2, 2, cg->trMemory());
       TR::addDependency(conditions, dstReg,  TR::RealRegister::x0, TR_GPR, cg);
       TR::addDependency(conditions, srcReg,  TR::RealRegister::x1, TR_GPR, cg);
       }
@@ -129,7 +129,7 @@ static void wrtbarEvaluator(TR::Node *node, TR::Register *srcReg, TR::Register *
       generateCompareBranchInstruction(cg, TR::InstOpCode::cbzx, node, srcReg, doneLabel, NULL);
       }
    generateImmSymInstruction(cg, TR::InstOpCode::bl, node, (uintptr_t)wbRef->getMethodAddress(),
-                                        new (cg->trHeapMemory()) TR::RegisterDependencyConditions((uint8_t)0, 0, cg->trMemory()),
+                                        new (comp->trHeapMemory()) TR::RegisterDependencyConditions((uint8_t)0, 0, cg->trMemory()),
                                         wbRef, NULL);
 
    generateLabelInstruction(cg, TR::InstOpCode::label, node, doneLabel, conditions, NULL);
@@ -147,7 +147,7 @@ J9::ARM64::TreeEvaluator::conditionalHelperEvaluator(TR::Node *node, TR::CodeGen
    TR::Register *jumpReg = cg->evaluate(firstChild);
    TR::Register *valReg = NULL;
    int32_t i, numArgs = callNode->getNumChildren();
-   TR::RegisterDependencyConditions *conditions = new (cg->trHeapMemory()) TR::RegisterDependencyConditions(3, 3, cg->trMemory());
+   TR::RegisterDependencyConditions *conditions = new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(3, 3, cg->trMemory());
 
    TR_ASSERT(numArgs <= 2, "Unexpected number of arguments for helper.");
 
@@ -177,7 +177,7 @@ J9::ARM64::TreeEvaluator::conditionalHelperEvaluator(TR::Node *node, TR::CodeGen
       }
 
    TR::LabelSymbol *snippetLabel = generateLabelSymbol(cg);
-   TR::Snippet *snippet = new (cg->trHeapMemory()) TR::ARM64HelperCallSnippet(cg, node, snippetLabel, node->getSymbolReference());
+   TR::Snippet *snippet = new (cg->comp()->trHeapMemory()) TR::ARM64HelperCallSnippet(cg, node, snippetLabel, node->getSymbolReference());
    cg->addSnippet(snippet);
    TR::ARM64ConditionCode cc = (testNode->getOpCodeValue() == TR::icmpeq) ? TR::CC_EQ : TR::CC_NE;
    TR::Instruction *gcPoint = generateConditionalBranchInstruction(cg, TR::InstOpCode::b_cond, node, snippetLabel, cc, conditions);
@@ -226,7 +226,7 @@ J9::ARM64::TreeEvaluator::awrtbarEvaluator(TR::Node *node, TR::CodeGenerator *cg
    else
       sourceRegister = valueReg;
 
-   TR::MemoryReference *tempMR = new (cg->trHeapMemory()) TR::MemoryReference(node, TR::Compiler->om.sizeofReferenceAddress(), cg);
+   TR::MemoryReference *tempMR = new (comp->trHeapMemory()) TR::MemoryReference(node, TR::Compiler->om.sizeofReferenceAddress(), cg);
 
    if (needSync)
       generateSynchronizationInstruction(cg, TR::InstOpCode::dmb, node, 0xE);
@@ -325,7 +325,7 @@ J9::ARM64::TreeEvaluator::awrtbariEvaluator(TR::Node *node, TR::CodeGenerator *c
    TR::Register *translatedSrcReg = usingCompressedPointers ? cg->evaluate(node->getSecondChild()) : sourceRegister;
    int32_t sizeofMR = usingCompressedPointers ? TR::Compiler->om.sizeofReferenceField() : TR::Compiler->om.sizeofReferenceAddress();
 
-   TR::MemoryReference *tempMR = new (cg->trHeapMemory()) TR::MemoryReference(node, sizeofMR, cg);
+   TR::MemoryReference *tempMR = new (comp->trHeapMemory()) TR::MemoryReference(node, sizeofMR, cg);
 
    if (needSync)
       generateSynchronizationInstruction(cg, TR::InstOpCode::dmb, node, 0xE);
@@ -358,7 +358,7 @@ J9::ARM64::TreeEvaluator::DIVCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg)
       {
       TR::LabelSymbol *snippetLabel = generateLabelSymbol(cg);
       TR::Instruction *gcPoint;
-      TR::Snippet *snippet = new (cg->trHeapMemory()) TR::ARM64HelperCallSnippet(cg, node, snippetLabel, node->getSymbolReference());
+      TR::Snippet *snippet = new (cg->comp()->trHeapMemory()) TR::ARM64HelperCallSnippet(cg, node, snippetLabel, node->getSymbolReference());
       cg->addSnippet(snippet);
 
       if (isConstDivisor)
@@ -408,19 +408,19 @@ J9::ARM64::TreeEvaluator::monexitEvaluator(TR::Node *node, TR::CodeGenerator *cg
    TR::Register *tempReg = cg->allocateRegister();
    TR::Register *metaReg = cg->getMethodMetaDataRegister();
 
-   TR::RegisterDependencyConditions *deps = new (cg->trHeapMemory()) TR::RegisterDependencyConditions(4, 4, cg->trMemory());
+   TR::RegisterDependencyConditions *deps = new (comp->trHeapMemory()) TR::RegisterDependencyConditions(4, 4, cg->trMemory());
    TR::addDependency(deps, objReg, TR::RealRegister::x0, TR_GPR, cg);
    TR::addDependency(deps, dataReg, TR::RealRegister::NoReg, TR_GPR, cg);
    TR::addDependency(deps, addrReg, TR::RealRegister::NoReg, TR_GPR, cg);
    TR::addDependency(deps, tempReg, TR::RealRegister::NoReg, TR_GPR, cg);
 
-   TR::LabelSymbol *callLabel = TR::LabelSymbol::create(cg->trHeapMemory(),cg);
-   TR::LabelSymbol *decLabel = TR::LabelSymbol::create(cg->trHeapMemory(),cg);
-   TR::LabelSymbol *doneLabel = TR::LabelSymbol::create(cg->trHeapMemory(),cg);
+   TR::LabelSymbol *callLabel = TR::LabelSymbol::create(comp->trHeapMemory(),cg);
+   TR::LabelSymbol *decLabel = TR::LabelSymbol::create(comp->trHeapMemory(),cg);
+   TR::LabelSymbol *doneLabel = TR::LabelSymbol::create(comp->trHeapMemory(),cg);
 
    generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::addimmx, node, addrReg, objReg, lwOffset);
    op = fej9->generateCompressedLockWord() ? TR::InstOpCode::ldrimmw : TR::InstOpCode::ldrimmx;
-   generateTrg1MemInstruction(cg, op, node, dataReg, new (cg->trHeapMemory()) TR::MemoryReference(addrReg, (int32_t)0, cg));
+   generateTrg1MemInstruction(cg, op, node, dataReg, new (comp->trHeapMemory()) TR::MemoryReference(addrReg, (int32_t)0, cg));
    generateCompareInstruction(cg, node, dataReg, metaReg, true);
 
    generateConditionalBranchInstruction(cg, TR::InstOpCode::b_cond, node, decLabel, TR::CC_NE);
@@ -428,11 +428,11 @@ J9::ARM64::TreeEvaluator::monexitEvaluator(TR::Node *node, TR::CodeGenerator *cg
    generateTrg1ImmInstruction(cg, TR::InstOpCode::movzx, node, tempReg, 0);
    generateSynchronizationInstruction(cg, TR::InstOpCode::dmb, node, 0xF); // dmb SY
    op = fej9->generateCompressedLockWord() ? TR::InstOpCode::strimmw : TR::InstOpCode::strimmx;
-   generateMemSrc1Instruction(cg, op, node, new (cg->trHeapMemory()) TR::MemoryReference(addrReg, (int32_t)0, cg), tempReg);
+   generateMemSrc1Instruction(cg, op, node, new (comp->trHeapMemory()) TR::MemoryReference(addrReg, (int32_t)0, cg), tempReg);
 
    generateLabelInstruction(cg, TR::InstOpCode::label, node, doneLabel, deps);
 
-   TR::Snippet *snippet = new (cg->trHeapMemory()) TR::ARM64MonitorExitSnippet(cg, node, decLabel, callLabel, doneLabel);
+   TR::Snippet *snippet = new (comp->trHeapMemory()) TR::ARM64MonitorExitSnippet(cg, node, decLabel, callLabel, doneLabel);
    cg->addSnippet(snippet);
    doneLabel->setEndInternalControlFlow();
 
@@ -458,7 +458,7 @@ J9::ARM64::TreeEvaluator::asynccheckEvaluator(TR::Node *node, TR::CodeGenerator 
    TR::LabelSymbol *snippetLabel = generateLabelSymbol(cg);
    TR::LabelSymbol *doneLabel = generateLabelSymbol(cg);
    TR::SymbolReference *asynccheckHelper = node->getSymbolReference();
-   TR::Snippet *snippet = new (cg->trHeapMemory()) TR::ARM64HelperCallSnippet(cg, node, snippetLabel, asynccheckHelper, doneLabel);
+   TR::Snippet *snippet = new (cg->comp()->trHeapMemory()) TR::ARM64HelperCallSnippet(cg, node, snippetLabel, asynccheckHelper, doneLabel);
    cg->addSnippet(snippet);
 
    // ToDo:
@@ -611,33 +611,33 @@ J9::ARM64::TreeEvaluator::monentEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    TR::Register *tempReg = cg->allocateRegister();
    TR::Register *metaReg = cg->getMethodMetaDataRegister();
 
-   TR::RegisterDependencyConditions *deps = new (cg->trHeapMemory()) TR::RegisterDependencyConditions(4, 4, cg->trMemory());
+   TR::RegisterDependencyConditions *deps = new (comp->trHeapMemory()) TR::RegisterDependencyConditions(4, 4, cg->trMemory());
    TR::addDependency(deps, objReg, TR::RealRegister::x0, TR_GPR, cg);
    TR::addDependency(deps, dataReg, TR::RealRegister::NoReg, TR_GPR, cg);
    TR::addDependency(deps, addrReg, TR::RealRegister::NoReg, TR_GPR, cg);
    TR::addDependency(deps, tempReg, TR::RealRegister::NoReg, TR_GPR, cg);
 
-   TR::LabelSymbol *callLabel = TR::LabelSymbol::create(cg->trHeapMemory(),cg);
-   TR::LabelSymbol *incLabel = TR::LabelSymbol::create(cg->trHeapMemory(),cg);
-   TR::LabelSymbol *loopLabel = TR::LabelSymbol::create(cg->trHeapMemory(),cg);
-   TR::LabelSymbol *doneLabel = TR::LabelSymbol::create(cg->trHeapMemory(),cg);
+   TR::LabelSymbol *callLabel = TR::LabelSymbol::create(comp->trHeapMemory(),cg);
+   TR::LabelSymbol *incLabel = TR::LabelSymbol::create(comp->trHeapMemory(),cg);
+   TR::LabelSymbol *loopLabel = TR::LabelSymbol::create(comp->trHeapMemory(),cg);
+   TR::LabelSymbol *doneLabel = TR::LabelSymbol::create(comp->trHeapMemory(),cg);
 
    generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::addimmx, node, addrReg, objReg, lwOffset); // ldxr/stxr instructions does not take immediate offset
    generateLabelInstruction(cg, TR::InstOpCode::label, node, loopLabel);
 
    op = fej9->generateCompressedLockWord() ? TR::InstOpCode::ldxrw : TR::InstOpCode::ldxrx;
-   generateTrg1MemInstruction(cg, op, node, dataReg, new (cg->trHeapMemory()) TR::MemoryReference(addrReg, (int32_t)0, cg));
+   generateTrg1MemInstruction(cg, op, node, dataReg, new (comp->trHeapMemory()) TR::MemoryReference(addrReg, (int32_t)0, cg));
    generateCompareBranchInstruction(cg, TR::InstOpCode::cbnzx, node, dataReg, incLabel, NULL);
 
    op = fej9->generateCompressedLockWord() ? TR::InstOpCode::stxrw : TR::InstOpCode::stxrx;
-   generateTrg1MemSrc1Instruction(cg, op, node, tempReg, new (cg->trHeapMemory()) TR::MemoryReference(addrReg, (int32_t)0, cg), metaReg);
+   generateTrg1MemSrc1Instruction(cg, op, node, tempReg, new (comp->trHeapMemory()) TR::MemoryReference(addrReg, (int32_t)0, cg), metaReg);
    generateCompareBranchInstruction(cg, TR::InstOpCode::cbnzx, node, tempReg, loopLabel, NULL);
 
    generateSynchronizationInstruction(cg, TR::InstOpCode::dmb, node, 0xF); // dmb SY
 
    generateLabelInstruction(cg, TR::InstOpCode::label, node, doneLabel, deps);
 
-   TR::Snippet *snippet = new (cg->trHeapMemory()) TR::ARM64MonitorEnterSnippet(cg, node, incLabel, callLabel, doneLabel);
+   TR::Snippet *snippet = new (comp->trHeapMemory()) TR::ARM64MonitorEnterSnippet(cg, node, incLabel, callLabel, doneLabel);
    cg->addSnippet(snippet);
    doneLabel->setEndInternalControlFlow();
 
@@ -658,8 +658,8 @@ J9::ARM64::TreeEvaluator::arraylengthEvaluator(TR::Node *node, TR::CodeGenerator
    TR::Register *lengthReg = cg->allocateRegister();
    TR::Register *discontiguousLengthReg = cg->allocateRegister();
 
-   TR::MemoryReference *contiguousArraySizeMR = new (cg->trHeapMemory()) TR::MemoryReference(objectReg, fej9->getOffsetOfContiguousArraySizeField(), cg);
-   TR::MemoryReference *discontiguousArraySizeMR = new (cg->trHeapMemory()) TR::MemoryReference(objectReg, fej9->getOffsetOfDiscontiguousArraySizeField(), cg);
+   TR::MemoryReference *contiguousArraySizeMR = new (cg->comp()->trHeapMemory()) TR::MemoryReference(objectReg, fej9->getOffsetOfContiguousArraySizeField(), cg);
+   TR::MemoryReference *discontiguousArraySizeMR = new (cg->comp()->trHeapMemory()) TR::MemoryReference(objectReg, fej9->getOffsetOfDiscontiguousArraySizeField(), cg);
 
    generateTrg1MemInstruction(cg, TR::InstOpCode::ldrw, node, lengthReg, contiguousArraySizeMR);
    generateCompareImmInstruction(cg, node, lengthReg, 0);
@@ -691,7 +691,7 @@ J9::ARM64::TreeEvaluator::ZEROCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg
    TR::Register *value = cg->evaluate(valueToCheck);
 
    // We do not need restart label because the helper throws exception
-   TR::Snippet *snippet = new (cg->trHeapMemory()) TR::ARM64HelperCallSnippet(cg, node, slowPathLabel, node->getSymbolReference());
+   TR::Snippet *snippet = new (cg->comp()->trHeapMemory()) TR::ARM64HelperCallSnippet(cg, node, slowPathLabel, node->getSymbolReference());
    cg->addSnippet(snippet);
 
    TR::Instruction *gcPoint = generateCompareBranchInstruction(cg, TR::InstOpCode::cbzx, node, value, slowPathLabel);
@@ -751,7 +751,7 @@ J9::ARM64::TreeEvaluator::BNDCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg)
       }
 
    snippetLabel = generateLabelSymbol(cg);
-   TR::Snippet *snippet = new (cg->trHeapMemory()) TR::ARM64HelperCallSnippet(cg, node, snippetLabel, node->getSymbolReference());
+   TR::Snippet *snippet = new (cg->comp()->trHeapMemory()) TR::ARM64HelperCallSnippet(cg, node, snippetLabel, node->getSymbolReference());
    cg->addSnippet(snippet);
 
    gcPoint = generateConditionalBranchInstruction(cg, TR::InstOpCode::b_cond, node, snippetLabel, (reversed ? TR::CC_CS : TR::CC_LS));
@@ -769,7 +769,7 @@ static void VMoutlinedHelperArrayStoreCHKEvaluator(TR::Node *node, TR::Register 
    {
    TR::SymbolReference *arrayStoreChkHelper = node->getSymbolReference();
 
-   TR::RegisterDependencyConditions *deps = new (cg->trHeapMemory()) TR::RegisterDependencyConditions(2, 2, cg->trMemory());
+   TR::RegisterDependencyConditions *deps = new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(2, 2, cg->trMemory());
    TR::addDependency(deps, dstReg, TR::RealRegister::x0, TR_GPR, cg);
    TR::addDependency(deps, srcReg, TR::RealRegister::x1, TR_GPR, cg);
 
@@ -791,7 +791,7 @@ static void VMoutlinedHelperWrtbarEvaluator(TR::Node *node, TR::Register *srcReg
    TR::LabelSymbol *doneLabel = generateLabelSymbol(cg);
    TR::SymbolReference *wbref = comp->getSymRefTab()->findOrCreateWriteBarrierStoreSymbolRef(comp->getMethodSymbol());
 
-   TR::RegisterDependencyConditions *deps = new (cg->trHeapMemory()) TR::RegisterDependencyConditions(2, 2, cg->trMemory());
+   TR::RegisterDependencyConditions *deps = new (comp->trHeapMemory()) TR::RegisterDependencyConditions(2, 2, cg->trMemory());
    TR::addDependency(deps, dstReg, TR::RealRegister::x0, TR_GPR, cg);
    TR::addDependency(deps, srcReg, TR::RealRegister::x1, TR_GPR, cg);
 
@@ -799,7 +799,7 @@ static void VMoutlinedHelperWrtbarEvaluator(TR::Node *node, TR::Register *srcReg
 
    TR::Instruction *gcPoint = generateImmSymInstruction(cg, TR::InstOpCode::bl, node,
                                                         (uintptr_t)wbref->getMethodAddress(),
-                                                        new (cg->trHeapMemory()) TR::RegisterDependencyConditions((uint8_t)0, 0, cg->trMemory()),
+                                                        new (comp->trHeapMemory()) TR::RegisterDependencyConditions((uint8_t)0, 0, cg->trMemory()),
                                                         wbref, NULL);
    gcPoint->ARM64NeedsGCMap(cg, 0xFFFFFFFF);
 
@@ -890,7 +890,7 @@ J9::ARM64::TreeEvaluator::ArrayStoreCHKEvaluator(TR::Node *node, TR::CodeGenerat
    TR::Register *translatedSrcReg = usingCompressedPointers ? cg->evaluate(firstChild->getSecondChild()) : srcReg;
    int32_t sizeofMR = usingCompressedPointers ? TR::Compiler->om.sizeofReferenceField() : TR::Compiler->om.sizeofReferenceAddress();
 
-   TR::MemoryReference *storeMR = new (cg->trHeapMemory()) TR::MemoryReference(firstChild, sizeofMR, cg);
+   TR::MemoryReference *storeMR = new (comp->trHeapMemory()) TR::MemoryReference(firstChild, sizeofMR, cg);
    generateMemSrc1Instruction(cg, storeOp, node, storeMR, translatedSrcReg);
 
    if (!sourceChild->isNull())
@@ -970,7 +970,7 @@ VMinlineCompareAndSwap(TR::Node *node, TR::CodeGenerator *cg, bool isLong)
    // Compare and swap:
    resultReg = genCAS(node, cg, objReg, offsetReg, oldVReg, newVReg, doneLabel, secondChild, oldValue, oldValueInReg, isLong, casWithoutSync);
 
-   conditions = new (cg->trHeapMemory()) TR::RegisterDependencyConditions(5, 5, cg->trMemory());
+   conditions = new (comp->trHeapMemory()) TR::RegisterDependencyConditions(5, 5, cg->trMemory());
    TR::addDependency(conditions, objReg, TR::RealRegister::NoReg, TR_GPR, cg);
    TR::addDependency(conditions, offsetReg, TR::RealRegister::NoReg, TR_GPR, cg);
    TR::addDependency(conditions, resultReg, TR::RealRegister::NoReg, TR_GPR, cg);
@@ -1058,7 +1058,7 @@ J9::ARM64::TreeEvaluator::loadaddrEvaluator(TR::Node *node, TR::CodeGenerator *c
    TR::Register *resultReg;
    TR::Symbol *sym = node->getSymbol();
    TR::Compilation *comp = cg->comp();
-   TR::MemoryReference *mref = new (cg->trHeapMemory()) TR::MemoryReference(node, node->getSymbolReference(), 0, cg);
+   TR::MemoryReference *mref = new (comp->trHeapMemory()) TR::MemoryReference(node, node->getSymbolReference(), 0, cg);
 
    if (mref->getUnresolvedSnippet() != NULL)
       {
@@ -1152,7 +1152,7 @@ TR::Register *J9::ARM64::TreeEvaluator::fremHelper(TR::Node *node, TR::CodeGener
          }
       }
 
-   TR::RegisterDependencyConditions *dependencies = new (cg->trHeapMemory()) TR::RegisterDependencyConditions(nregs, nregs, cg->trMemory());
+   TR::RegisterDependencyConditions *dependencies = new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(nregs, nregs, cg->trMemory());
 
    // Then, add all volatile registers to dependencies except for v0 and v1.
    for (int32_t i = TR::RealRegister::FirstGPR; i <= TR::RealRegister::LastAssignableGPR; i++)
@@ -1243,7 +1243,7 @@ J9::ARM64::TreeEvaluator::evaluateNULLCHKWithPossibleResolve(TR::Node *node, boo
 
    // Only explicit test needed for now.
    TR::LabelSymbol *snippetLabel = generateLabelSymbol(cg);
-   TR::Snippet *snippet = new (cg->trHeapMemory()) TR::ARM64HelperCallSnippet(cg, node, snippetLabel, node->getSymbolReference(), NULL);
+   TR::Snippet *snippet = new (comp->trHeapMemory()) TR::ARM64HelperCallSnippet(cg, node, snippetLabel, node->getSymbolReference(), NULL);
    cg->addSnippet(snippet);
    TR::Register *referenceReg = cg->evaluate(reference);
    TR::Instruction *cbzInstruction = generateCompareBranchInstruction(cg, TR::InstOpCode::cbzx, node, referenceReg, snippetLabel, NULL);

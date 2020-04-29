@@ -256,7 +256,7 @@ uint8_t *TR::ARM64CallSnippet::emitSnippetBody()
 
    // Store the code cache RA
    *(intptr_t *)cursor = (intptr_t)getCallRA();
-   cg()->addExternalRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation(
+   cg()->addExternalRelocation(new (comp->trHeapMemory()) TR::ExternalRelocation(
                                cursor,
                                NULL,
                                TR_AbsoluteMethodAddress, cg()),
@@ -274,7 +274,7 @@ uint8_t *TR::ARM64CallSnippet::emitSnippetBody()
          if (comp->getOption(TR_EnableHCR))
             {
             cg()->jitAddPicToPatchOnClassRedefinition((void*)-1, (void *)cursor, true);
-            cg()->addExternalRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation((uint8_t *)cursor, NULL,(uint8_t *)needsFullSizeRuntimeAssumption,
+            cg()->addExternalRelocation(new (comp->trHeapMemory()) TR::ExternalRelocation((uint8_t *)cursor, NULL,(uint8_t *)needsFullSizeRuntimeAssumption,
                                     TR_HCR, cg()),
                                        __FILE__, __LINE__, getNode());
             }
@@ -285,7 +285,7 @@ uint8_t *TR::ARM64CallSnippet::emitSnippetBody()
          if (comp->getOption(TR_EnableHCR))
             {
             cg()->jitAddPicToPatchOnClassRedefinition((void *)methodSymbol->getMethodAddress(), (void *)cursor);
-            cg()->addExternalRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation(cursor, (uint8_t *)methodSymRef,
+            cg()->addExternalRelocation(new (comp->trHeapMemory()) TR::ExternalRelocation(cursor, (uint8_t *)methodSymRef,
                                                                                     getNode() ? (uint8_t *)getNode()->getInlinedSiteIndex() : (uint8_t *)-1,
                                                                                     TR_MethodObject, cg()),
                                        __FILE__, __LINE__, callNode);
@@ -353,7 +353,7 @@ uint8_t *TR::ARM64UnresolvedCallSnippet::emitSnippetBody()
       traceMsg(comp, "</relocatableDataTrampolinesCG>\n");
       }
 
-   cg()->addExternalRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation(
+   cg()->addExternalRelocation(new (comp->trHeapMemory()) TR::ExternalRelocation(
                                cursor,
                                *(uint8_t **)cursor,
                                getNode() ? (uint8_t *)getNode()->getInlinedSiteIndex() : (uint8_t *)-1,
@@ -426,7 +426,7 @@ uint8_t *TR::ARM64VirtualUnresolvedSnippet::emitSnippetBody()
 
    // Store the code cache RA
    *(intptr_t *)cursor = (intptr_t)getReturnLabel()->getCodeLocation();
-   cg()->addExternalRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation(
+   cg()->addExternalRelocation(new (comp->trHeapMemory()) TR::ExternalRelocation(
                                cursor,
                                NULL,
                                TR_AbsoluteMethodAddress, cg()),
@@ -437,7 +437,7 @@ uint8_t *TR::ARM64VirtualUnresolvedSnippet::emitSnippetBody()
    intptr_t cpAddr = (intptr_t)methodSymRef->getOwningMethod(comp)->constantPool();
    *(intptr_t *)cursor = cpAddr;
    uint8_t *j2iThunkRelocationPoint = cursor;
-   cg()->addExternalRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation(
+   cg()->addExternalRelocation(new (comp->trHeapMemory()) TR::ExternalRelocation(
                                cursor,
                                *(uint8_t **)cursor,
                                getNode() ? (uint8_t *)getNode()->getInlinedSiteIndex() : (uint8_t *)-1,
@@ -473,7 +473,7 @@ uint8_t *TR::ARM64VirtualUnresolvedSnippet::emitSnippetBody()
    // data3 = distance in bytes from Constant Pool Pointer to J2I Thunk
    info->data3 = (intptr_t)cursor - (intptr_t)j2iThunkRelocationPoint;
 
-   cg()->addExternalRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation(
+   cg()->addExternalRelocation(new (comp->trHeapMemory()) TR::ExternalRelocation(
                                j2iThunkRelocationPoint,
                                (uint8_t *)info,
                                NULL,
@@ -568,7 +568,7 @@ uint8_t *TR::ARM64InterfaceCallSnippet::emitSnippetBody()
 
    // Store the code cache RA
    *(intptr_t *)cursor = (intptr_t)getReturnLabel()->getCodeLocation();
-   cg()->addExternalRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation(
+   cg()->addExternalRelocation(new (comp->trHeapMemory()) TR::ExternalRelocation(
                                cursor,
                                NULL,
                                TR_AbsoluteMethodAddress, cg()),
@@ -612,7 +612,7 @@ uint8_t *TR::ARM64InterfaceCallSnippet::emitSnippetBody()
       // data3 = distance in bytes from Constant Pool Pointer to J2I Thunk
       info->data3 = (intptr_t)cursor - (intptr_t)j2iThunkRelocationPoint;
 
-      cg()->addExternalRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation(
+      cg()->addExternalRelocation(new (comp->trHeapMemory()) TR::ExternalRelocation(
                                   j2iThunkRelocationPoint,
                                   (uint8_t *)info,
                                   NULL,

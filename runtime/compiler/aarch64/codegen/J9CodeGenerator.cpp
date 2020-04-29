@@ -37,7 +37,7 @@ J9::ARM64::CodeGenerator::CodeGenerator() :
    {
    TR::CodeGenerator *cg = self();
 
-   cg->setAheadOfTimeCompile(new (cg->trHeapMemory()) TR::AheadOfTimeCompile(cg));
+   cg->setAheadOfTimeCompile(new (cg->comp()->trHeapMemory()) TR::AheadOfTimeCompile(cg));
 
    /*
     * "Statically" initialize the FE-specific tree evaluator functions.
@@ -59,24 +59,25 @@ J9::ARM64::CodeGenerator::CodeGenerator() :
 TR::Linkage *
 J9::ARM64::CodeGenerator::createLinkage(TR_LinkageConventions lc)
    {
+   TR::Compilation *comp = self()->comp();
    TR::Linkage *linkage;
    switch (lc)
       {
       case TR_Private:
-         linkage = new (self()->trHeapMemory()) J9::ARM64::PrivateLinkage(self());
+         linkage = new (comp->trHeapMemory()) J9::ARM64::PrivateLinkage(self());
          break;
       case TR_System:
-         linkage = new (self()->trHeapMemory()) TR::ARM64SystemLinkage(self());
+         linkage = new (comp->trHeapMemory()) TR::ARM64SystemLinkage(self());
          break;
       case TR_CHelper:
       case TR_Helper:
-         linkage = new (self()->trHeapMemory()) J9::ARM64::HelperLinkage(self(), lc);
+         linkage = new (comp->trHeapMemory()) J9::ARM64::HelperLinkage(self(), lc);
          break;
       case TR_J9JNILinkage:
-         linkage = new (self()->trHeapMemory()) J9::ARM64::JNILinkage(self());
+         linkage = new (comp->trHeapMemory()) J9::ARM64::JNILinkage(self());
          break;
       default :
-         linkage = new (self()->trHeapMemory()) TR::ARM64SystemLinkage(self());
+         linkage = new (comp->trHeapMemory()) TR::ARM64SystemLinkage(self());
          TR_ASSERT_FATAL(false, "Unexpected linkage convention");
       }
 
@@ -104,7 +105,7 @@ J9::ARM64::CodeGenerator::encodeHelperBranchAndLink(TR::SymbolReference *symRef,
                       "Target address is out of range");
       }
 
-   cg->addExternalRelocation(new (cg->trHeapMemory()) TR::ExternalRelocation(
+   cg->addExternalRelocation(new (cg->comp()->trHeapMemory()) TR::ExternalRelocation(
                              cursor,
                              (uint8_t *)symRef,
                              TR_HelperAddress, cg),
@@ -130,7 +131,7 @@ J9::ARM64::CodeGenerator::generateBinaryEncodingPrePrologue(TR_ARM64BinaryEncodi
       uintptr_t methodAddress = reinterpret_cast<uintptr_t>(methodSymbol->getResolvedMethod()->startAddressForJNIMethod(comp));
       uint32_t low = methodAddress & static_cast<uint32_t>(0xffffffff);
       uint32_t high = (methodAddress >> 32) & static_cast<uint32_t>(0xffffffff);
-      TR::Instruction *cursor = new (self()->trHeapMemory()) TR::ARM64ImmInstruction(TR::InstOpCode::dd, startNode, low, NULL, self());
+      TR::Instruction *cursor = new (comp->trHeapMemory()) TR::ARM64ImmInstruction(TR::InstOpCode::dd, startNode, low, NULL, self());
       generateImmInstruction(self(), TR::InstOpCode::dd, startNode, high, cursor);
       }
    }
