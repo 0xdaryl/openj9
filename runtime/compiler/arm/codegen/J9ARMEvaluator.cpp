@@ -212,10 +212,10 @@ TR::Register *OMR::ARM::TreeEvaluator::VMcheckcastEvaluator(TR::Node *node, TR::
    TR::Node            *objNode         = node->getFirstChild();
    TR::Node            *castClassNode   = node->getSecondChild();
    TR::SymbolReference *castClassSymRef = castClassNode->getSymbolReference();
-   TR::Compilation *comp = TR::comp();
+   TR::Compilation *comp = cg->comp();
    TR_J9VMBase *fej9 = (TR_J9VMBase *) (cg->fe());
 
-   TR::RegisterDependencyConditions *deps = new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(6, 6, cg->trMemory());
+   TR::RegisterDependencyConditions *deps = new (comp->trHeapMemory()) TR::RegisterDependencyConditions(6, 6, comp->trMemory());
 
    int32_t castClassDepth = -1;
    bool testEqualClass = instanceOfOrCheckCastNeedEqualityTest(node, cg);
@@ -329,7 +329,7 @@ TR::Register *OMR::ARM::TreeEvaluator::VMcheckcastEvaluator(TR::Node *node, TR::
 
 TR::Register *OMR::ARM::TreeEvaluator::VMifInstanceOfEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    {
-   TR::Compilation *comp = TR::comp();
+   TR::Compilation *comp = cg->comp();
    TR_J9VMBase *fej9 = (TR_J9VMBase *) (cg->fe());
    bool branchOn1            = false;
 
@@ -480,7 +480,7 @@ TR::Register *OMR::ARM::TreeEvaluator::VMifInstanceOfEvaluator(TR::Node *node, T
          }
       if (deps == NULL)
          {
-         conditions = new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(6, 6, cg->trMemory());
+         conditions = new (comp->trHeapMemory()) TR::RegisterDependencyConditions(6, 6, comp->trMemory());
          }
       else
          {
@@ -684,7 +684,7 @@ TR::Register *OMR::ARM::TreeEvaluator::VMifInstanceOfEvaluator(TR::Node *node, T
 
 TR::Register *OMR::ARM::TreeEvaluator::VMinstanceOfEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    {
-   TR::Compilation *comp = TR::comp();
+   TR::Compilation *comp = cg->comp();
    TR_J9VMBase *fej9 = (TR_J9VMBase *) (cg->fe());
    TR::Register   *objectReg, *castClassReg, *objClassReg;
    TR::Register   *resultReg, *scratch1Reg, *scratch2Reg;
@@ -748,7 +748,7 @@ TR::Register *OMR::ARM::TreeEvaluator::VMinstanceOfEvaluator(TR::Node *node, TR:
       bool   earlyEval = (castClassNode->getOpCodeValue() != TR::loadaddr ||
                           castClassNode->getReferenceCount() > 1)?true:false;
 
-      conditions = new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(6, 6, cg->trMemory());
+      conditions = new (comp->trHeapMemory()) TR::RegisterDependencyConditions(6, 6, comp->trMemory());
 
       resultReg = nonFixedDependency(cg, conditions, NULL, TR_GPR);
       objClassReg = nonFixedDependency(cg, conditions, NULL, TR_GPR);
@@ -857,7 +857,7 @@ TR::Register *OMR::ARM::TreeEvaluator::VMinstanceOfEvaluator(TR::Node *node, TR:
 
 TR::Register *OMR::ARM::TreeEvaluator::VMmonexitEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    {
-   TR::Compilation *comp = TR::comp();
+   TR::Compilation *comp = cg->comp();
    TR_J9VMBase *fej9 = (TR_J9VMBase *) (cg->fe());
    int32_t lwOffset = fej9->getByteOffsetToLockword(cg->getMonClass(node));
 
@@ -879,7 +879,7 @@ TR::Register *OMR::ARM::TreeEvaluator::VMmonexitEvaluator(TR::Node *node, TR::Co
    TR::Register *flagReg    = cg->allocateRegister();
    TR::Register *metaReg    = cg->getMethodMetaDataRegister();
 
-   TR::RegisterDependencyConditions *deps = new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(3, 3, cg->trMemory());
+   TR::RegisterDependencyConditions *deps = new (comp->trHeapMemory()) TR::RegisterDependencyConditions(3, 3, comp->trMemory());
    TR::addDependency(deps, objReg, TR::RealRegister::gr0, TR_GPR, cg);
    TR::addDependency(deps, monitorReg, TR::RealRegister::NoReg, TR_GPR, cg);
    TR::addDependency(deps, flagReg, TR::RealRegister::NoReg, TR_GPR, cg);
@@ -1208,7 +1208,7 @@ TR::Register *OMR::ARM::TreeEvaluator::VMnewEvaluator(TR::Node *node, TR::CodeGe
    TR::RegisterDependencyConditions *deps;
    TR::Instruction            *iCursor = NULL;
    bool                       isArray = false, isDoubleArray = false;
-   TR::Compilation *comp = TR::comp();
+   TR::Compilation *comp = cg->comp();
 
    // AOT does not support inline allocates - cannot currently guarantee totalInstanceSize
 
@@ -1233,7 +1233,7 @@ TR::Register *OMR::ARM::TreeEvaluator::VMnewEvaluator(TR::Node *node, TR::CodeGe
    int32_t      allocateSize = objectSize;
    callLabel = TR::LabelSymbol::create(cg->comp()->trHeapMemory(),cg);
    doneLabel = TR::LabelSymbol::create(cg->comp()->trHeapMemory(),cg);
-   deps = new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(10, 10, cg->trMemory());
+   deps = new (comp->trHeapMemory()) TR::RegisterDependencyConditions(10, 10, comp->trMemory());
 
    TR::Node *firstChild = node->getFirstChild();
    TR::Node *secondChild = NULL;
@@ -1434,7 +1434,7 @@ TR::Register *OMR::ARM::TreeEvaluator::VMnewEvaluator(TR::Node *node, TR::CodeGe
 TR::Register *
 OMR::ARM::TreeEvaluator::VMmonentEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    {
-   TR::Compilation *comp = TR::comp();
+   TR::Compilation *comp = cg->comp();
    TR_J9VMBase *fej9 = (TR_J9VMBase *) (cg->fe());
    int32_t lwOffset = fej9->getByteOffsetToLockword(cg->getMonClass(node));
 
@@ -1452,7 +1452,7 @@ OMR::ARM::TreeEvaluator::VMmonentEvaluator(TR::Node *node, TR::CodeGenerator *cg
 
    TR::Node *objNode = node->getFirstChild();
    TR::Register *objReg = cg->evaluate(objNode);
-   TR::RegisterDependencyConditions *deps = new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(4, 4, cg->trMemory());
+   TR::RegisterDependencyConditions *deps = new (comp->trHeapMemory()) TR::RegisterDependencyConditions(4, 4, comp->trMemory());
    TR::Register *metaReg, *dataReg, *addrReg;
    TR::LabelSymbol   *callLabel;
    TR::Instruction *iCursor;
@@ -1514,7 +1514,7 @@ TR::Register *OMR::Power::TreeEvaluator::VMarrayCheckEvaluator(TR::Node *node)
    obj1Reg = ppcCodeGen->evaluate(node->getFirstChild());
    obj2Reg = ppcCodeGen->evaluate(node->getSecondChild());
    doneLabel = TR::LabelSymbol::create(cg->comp()->trHeapMemory(),ppcCodeGen);
-   conditions = new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(5, 5, cg->trMemory());
+   conditions = new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(5, 5, cg->comp()->trMemory());
    depIndex = 0;
    nonFixedDependency(conditions, obj1Reg, &depIndex, TR_GPR, true);
    nonFixedDependency(conditions, obj2Reg, &depIndex, TR_GPR, true);
@@ -1658,7 +1658,7 @@ void OMR::Power::TreeEvaluator::VMarrayStoreCHKEvaluator(TR::Node *node, TR::Reg
 
 void OMR::ARM::TreeEvaluator::VMwrtbarEvaluator(TR::Node *node, TR::Register *srcReg, TR::Register *dstReg, TR::Register *flagReg, bool needDeps, TR::CodeGenerator *cg)
    {
-   TR::Compilation *comp = TR::comp();
+   TR::Compilation *comp = cg->comp();
    TR::LabelSymbol      *doneLabel = TR::LabelSymbol::create(cg->comp()->trHeapMemory(),cg);
    TR::SymbolReference *wbref = comp->getSymRefTab()->findOrCreateWriteBarrierStoreSymbolRef(comp->getMethodSymbol());
    auto gcMode = TR::Compiler->om.writeBarrierType();
@@ -1673,7 +1673,7 @@ void OMR::ARM::TreeEvaluator::VMwrtbarEvaluator(TR::Node *node, TR::Register *sr
 
    if (needDeps)
       {
-      deps = new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(3, 3, cg->trMemory());
+      deps = new (comp->trHeapMemory()) TR::RegisterDependencyConditions(3, 3, comp->trMemory());
       TR::addDependency(deps, srcReg,  TR::RealRegister::gr1, TR_GPR, cg);
       TR::addDependency(deps, dstReg,  TR::RealRegister::gr0, TR_GPR, cg);
       TR::addDependency(deps, tempReg, TR::RealRegister::gr2, TR_GPR, cg);
@@ -1695,7 +1695,7 @@ void OMR::ARM::TreeEvaluator::VMwrtbarEvaluator(TR::Node *node, TR::Register *sr
 
    TR::Instruction *cursor = generateImmSymInstruction(cg, ARMOp_bl,
                                         node, (uintptr_t)wbref->getMethodAddress(),
-                                        new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions((uint8_t)0, 0, cg->trMemory()),
+                                        new (comp->trHeapMemory()) TR::RegisterDependencyConditions((uint8_t)0, 0, comp->trMemory()),
                                         wbref, NULL);
 
    if (gcMode != gc_modron_wrtbar_always)

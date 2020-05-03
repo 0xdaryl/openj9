@@ -441,7 +441,7 @@ J9::Power::CodeGenerator::insertPrefetchIfNecessary(TR::Node *node, TR::Register
             generateConditionalBranchInstruction(self(), TR::InstOpCode::beql, node, endCtrlFlowLabel, condReg);
 
             TR::Register *tempReg = self()->allocateRegister();
-            TR::RegisterDependencyConditions *deps = new (comp->trHeapMemory()) TR::RegisterDependencyConditions(1, 2, self()->trMemory());
+            TR::RegisterDependencyConditions *deps = new (comp->trHeapMemory()) TR::RegisterDependencyConditions(1, 2, comp->trMemory());
             deps->addPostCondition(tempReg, TR::RealRegister::NoReg);
             TR::addDependency(deps, condReg, TR::RealRegister::NoReg, TR_CCR, self());
 
@@ -637,8 +637,8 @@ J9::Power::CodeGenerator::insertPrefetchIfNecessary(TR::Node *node, TR::Register
             if (!(firstChild &&
                 firstChild->getOpCodeValue() == TR::aiadd &&
                 firstChild->isInternalPointer() &&
-                (strstr(comp->fe()->sampleSignature(node->getOwningMethod(), 0, 0, self()->trMemory()),"java/util/TreeMap$UnboundedValueIterator.next()")
-                || strstr(comp->fe()->sampleSignature(node->getOwningMethod(), 0, 0, self()->trMemory()),"java/util/ArrayList$Itr.next()"))
+                (strstr(comp->fe()->sampleSignature(node->getOwningMethod(), 0, 0, comp->trMemory()),"java/util/TreeMap$UnboundedValueIterator.next()")
+                || strstr(comp->fe()->sampleSignature(node->getOwningMethod(), 0, 0, comp->trMemory()),"java/util/ArrayList$Itr.next()"))
                ))
                {
                optDisabled = true;
@@ -650,8 +650,8 @@ J9::Power::CodeGenerator::insertPrefetchIfNecessary(TR::Node *node, TR::Register
             if (!(firstChild &&
                 firstChild->getOpCodeValue() == TR::aladd &&
                 firstChild->isInternalPointer() &&
-                (strstr(comp->fe()->sampleSignature(node->getOwningMethod(), 0, 0, self()->trMemory()),"java/util/TreeMap$UnboundedValueIterator.next()")
-                || strstr(comp->fe()->sampleSignature(node->getOwningMethod(), 0, 0, self()->trMemory()),"java/util/ArrayList$Itr.next()"))
+                (strstr(comp->fe()->sampleSignature(node->getOwningMethod(), 0, 0, comp->trMemory()),"java/util/TreeMap$UnboundedValueIterator.next()")
+                || strstr(comp->fe()->sampleSignature(node->getOwningMethod(), 0, 0, comp->trMemory()),"java/util/ArrayList$Itr.next()"))
                ))
                {
                optDisabled = true;

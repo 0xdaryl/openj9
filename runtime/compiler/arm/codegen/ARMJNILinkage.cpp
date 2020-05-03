@@ -855,7 +855,7 @@ TR::Register *J9::ARM::JNILinkage::buildDirectDispatch(TR::Node *callNode)
    // Force spilling the volatile FPRs
    int32_t i;
    TR::LabelSymbol *spillLabel = generateLabelSymbol(codeGen);
-   TR::RegisterDependencyConditions *spillDeps = new (trHeapMemory()) TR::RegisterDependencyConditions(0, jniLinkageProperties.getNumFloatArgRegs()*2, codeGen->trMemory());
+   TR::RegisterDependencyConditions *spillDeps = new (trHeapMemory()) TR::RegisterDependencyConditions(0, jniLinkageProperties.getNumFloatArgRegs()*2, codeGen->comp()->trMemory());
    for (i = 0; i < jniLinkageProperties.getNumFloatArgRegs()*2; i++)
       {
       spillDeps->addPostCondition(codeGen->allocateRegister(TR_FPR), (TR::RealRegister::RegNum)((uint32_t)TR::RealRegister::fs0 + i));

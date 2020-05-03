@@ -196,7 +196,7 @@ uint8_t *TR::PPCReadMonitorSnippet::emitSnippetBody()
    cg()->setBinaryBufferCursor(buffer);
 
    // Defect 101811
-   TR_GCStackMap *exitMap = gcMap().getStackMap()->clone(cg()->trMemory());
+   TR_GCStackMap *exitMap = gcMap().getStackMap()->clone(comp->trMemory());
    exitMap->setByteCodeInfo(getNode()->getByteCodeInfo());
    if (isResultCollectable)
       exitMap->setRegisterBits(cg()->registerBitMask((int)deps->getPostConditions()->getRegisterDependency(3)->getRealRegister()));

@@ -117,7 +117,7 @@ static void wrtbarEvaluator(TR::Node *node, TR::Register *srcReg, TR::Register *
 
    if (needDeps)
       {
-      conditions = new (comp->trHeapMemory()) TR::RegisterDependencyConditions(2, 2, cg->trMemory());
+      conditions = new (comp->trHeapMemory()) TR::RegisterDependencyConditions(2, 2, comp->trMemory());
       TR::addDependency(conditions, dstReg,  TR::RealRegister::x0, TR_GPR, cg);
       TR::addDependency(conditions, srcReg,  TR::RealRegister::x1, TR_GPR, cg);
       }
@@ -129,7 +129,7 @@ static void wrtbarEvaluator(TR::Node *node, TR::Register *srcReg, TR::Register *
       generateCompareBranchInstruction(cg, TR::InstOpCode::cbzx, node, srcReg, doneLabel, NULL);
       }
    generateImmSymInstruction(cg, TR::InstOpCode::bl, node, (uintptr_t)wbRef->getMethodAddress(),
-                                        new (comp->trHeapMemory()) TR::RegisterDependencyConditions((uint8_t)0, 0, cg->trMemory()),
+                                        new (comp->trHeapMemory()) TR::RegisterDependencyConditions((uint8_t)0, 0, comp->trMemory()),
                                         wbRef, NULL);
 
    generateLabelInstruction(cg, TR::InstOpCode::label, node, doneLabel, conditions, NULL);
@@ -147,7 +147,7 @@ J9::ARM64::TreeEvaluator::conditionalHelperEvaluator(TR::Node *node, TR::CodeGen
    TR::Register *jumpReg = cg->evaluate(firstChild);
    TR::Register *valReg = NULL;
    int32_t i, numArgs = callNode->getNumChildren();
-   TR::RegisterDependencyConditions *conditions = new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(3, 3, cg->trMemory());
+   TR::RegisterDependencyConditions *conditions = new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(3, 3, cg->comp()->trMemory());
 
    TR_ASSERT(numArgs <= 2, "Unexpected number of arguments for helper.");
 
@@ -408,7 +408,7 @@ J9::ARM64::TreeEvaluator::monexitEvaluator(TR::Node *node, TR::CodeGenerator *cg
    TR::Register *tempReg = cg->allocateRegister();
    TR::Register *metaReg = cg->getMethodMetaDataRegister();
 
-   TR::RegisterDependencyConditions *deps = new (comp->trHeapMemory()) TR::RegisterDependencyConditions(4, 4, cg->trMemory());
+   TR::RegisterDependencyConditions *deps = new (comp->trHeapMemory()) TR::RegisterDependencyConditions(4, 4, comp->trMemory());
    TR::addDependency(deps, objReg, TR::RealRegister::x0, TR_GPR, cg);
    TR::addDependency(deps, dataReg, TR::RealRegister::NoReg, TR_GPR, cg);
    TR::addDependency(deps, addrReg, TR::RealRegister::NoReg, TR_GPR, cg);
@@ -611,7 +611,7 @@ J9::ARM64::TreeEvaluator::monentEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    TR::Register *tempReg = cg->allocateRegister();
    TR::Register *metaReg = cg->getMethodMetaDataRegister();
 
-   TR::RegisterDependencyConditions *deps = new (comp->trHeapMemory()) TR::RegisterDependencyConditions(4, 4, cg->trMemory());
+   TR::RegisterDependencyConditions *deps = new (comp->trHeapMemory()) TR::RegisterDependencyConditions(4, 4, comp->trMemory());
    TR::addDependency(deps, objReg, TR::RealRegister::x0, TR_GPR, cg);
    TR::addDependency(deps, dataReg, TR::RealRegister::NoReg, TR_GPR, cg);
    TR::addDependency(deps, addrReg, TR::RealRegister::NoReg, TR_GPR, cg);
@@ -769,7 +769,7 @@ static void VMoutlinedHelperArrayStoreCHKEvaluator(TR::Node *node, TR::Register 
    {
    TR::SymbolReference *arrayStoreChkHelper = node->getSymbolReference();
 
-   TR::RegisterDependencyConditions *deps = new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(2, 2, cg->trMemory());
+   TR::RegisterDependencyConditions *deps = new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(2, 2, cg->comp()->trMemory());
    TR::addDependency(deps, dstReg, TR::RealRegister::x0, TR_GPR, cg);
    TR::addDependency(deps, srcReg, TR::RealRegister::x1, TR_GPR, cg);
 
@@ -791,7 +791,7 @@ static void VMoutlinedHelperWrtbarEvaluator(TR::Node *node, TR::Register *srcReg
    TR::LabelSymbol *doneLabel = generateLabelSymbol(cg);
    TR::SymbolReference *wbref = comp->getSymRefTab()->findOrCreateWriteBarrierStoreSymbolRef(comp->getMethodSymbol());
 
-   TR::RegisterDependencyConditions *deps = new (comp->trHeapMemory()) TR::RegisterDependencyConditions(2, 2, cg->trMemory());
+   TR::RegisterDependencyConditions *deps = new (comp->trHeapMemory()) TR::RegisterDependencyConditions(2, 2, comp->trMemory());
    TR::addDependency(deps, dstReg, TR::RealRegister::x0, TR_GPR, cg);
    TR::addDependency(deps, srcReg, TR::RealRegister::x1, TR_GPR, cg);
 
@@ -799,7 +799,7 @@ static void VMoutlinedHelperWrtbarEvaluator(TR::Node *node, TR::Register *srcReg
 
    TR::Instruction *gcPoint = generateImmSymInstruction(cg, TR::InstOpCode::bl, node,
                                                         (uintptr_t)wbref->getMethodAddress(),
-                                                        new (comp->trHeapMemory()) TR::RegisterDependencyConditions((uint8_t)0, 0, cg->trMemory()),
+                                                        new (comp->trHeapMemory()) TR::RegisterDependencyConditions((uint8_t)0, 0, comp->trMemory()),
                                                         wbref, NULL);
    gcPoint->ARM64NeedsGCMap(cg, 0xFFFFFFFF);
 
@@ -958,7 +958,7 @@ VMinlineCompareAndSwap(TR::Node *node, TR::CodeGenerator *cg, bool isLong)
    if (caller)
       {
       TR_J9VMBase *fej9 = (TR_J9VMBase *) (cg->fe());
-      TR_ResolvedMethod *m = fej9->createResolvedMethod(cg->trMemory(), caller, node->getSymbolReference()->getOwningMethod(comp));
+      TR_ResolvedMethod *m = fej9->createResolvedMethod(comp->trMemory(), caller, node->getSymbolReference()->getOwningMethod(comp));
       if ((m->getRecognizedMethod() == TR::java_util_concurrent_atomic_AtomicInteger_weakCompareAndSet)
             || (m->getRecognizedMethod() == TR::java_util_concurrent_atomic_AtomicLong_weakCompareAndSet)
             || (m->getRecognizedMethod() == TR::java_util_concurrent_atomic_AtomicReference_weakCompareAndSet))
@@ -970,7 +970,7 @@ VMinlineCompareAndSwap(TR::Node *node, TR::CodeGenerator *cg, bool isLong)
    // Compare and swap:
    resultReg = genCAS(node, cg, objReg, offsetReg, oldVReg, newVReg, doneLabel, secondChild, oldValue, oldValueInReg, isLong, casWithoutSync);
 
-   conditions = new (comp->trHeapMemory()) TR::RegisterDependencyConditions(5, 5, cg->trMemory());
+   conditions = new (comp->trHeapMemory()) TR::RegisterDependencyConditions(5, 5, comp->trMemory());
    TR::addDependency(conditions, objReg, TR::RealRegister::NoReg, TR_GPR, cg);
    TR::addDependency(conditions, offsetReg, TR::RealRegister::NoReg, TR_GPR, cg);
    TR::addDependency(conditions, resultReg, TR::RealRegister::NoReg, TR_GPR, cg);
@@ -1152,7 +1152,7 @@ TR::Register *J9::ARM64::TreeEvaluator::fremHelper(TR::Node *node, TR::CodeGener
          }
       }
 
-   TR::RegisterDependencyConditions *dependencies = new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(nregs, nregs, cg->trMemory());
+   TR::RegisterDependencyConditions *dependencies = new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(nregs, nregs, cg->comp()->trMemory());
 
    // Then, add all volatile registers to dependencies except for v0 and v1.
    for (int32_t i = TR::RealRegister::FirstGPR; i <= TR::RealRegister::LastAssignableGPR; i++)

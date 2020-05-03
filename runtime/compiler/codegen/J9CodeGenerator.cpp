@@ -817,7 +817,7 @@ J9::CodeGenerator::lowerTreeIfNeeded(
    if (!self()->shouldBuildStructure() &&
       (self()->comp()->getMethodHotness() >= scorching) &&
       !tt->getEnclosingBlock()->isCold() &&
-      strstr(fej9->sampleSignature(node->getOwningMethod(), 0, 0, self()->trMemory()),"java/util/TreeMap$UnboundedValueIterator.next()"))
+      strstr(fej9->sampleSignature(node->getOwningMethod(), 0, 0, self()->comp()->trMemory()),"java/util/TreeMap$UnboundedValueIterator.next()"))
       {
       self()->setShouldBuildStructure();
       }
@@ -1114,7 +1114,7 @@ J9::CodeGenerator::lowerTreeIfNeeded(
       bool insertMethod = TR::Options::_debugCounterInsertMethod;
 
       const char *caller = self()->comp()->signature();
-      const char *callee = node->getSymbol()->castToMethodSymbol()->getMethod()->signature(self()->trMemory(), stackAlloc);
+      const char *callee = node->getSymbol()->castToMethodSymbol()->getMethod()->signature(self()->comp()->trMemory(), stackAlloc);
       TR_ByteCodeInfo &bcInfo = node->getByteCodeInfo();
       if (insertByteCode)
          {
@@ -1238,7 +1238,7 @@ J9::CodeGenerator::lowerTreeIfNeeded(
                      }
                   }
 
-               //printf ("Scorching method %s is calling warm (or called method) %s, in block_%d with frequency %d, is in loop %d\n", comp()->getMethodSymbol()->signature(), fej9->sampleSignature(method->getPersistentIdentifier(), 0, 0, trMemory()), getCurrentBlock()->getNumber(), getCurrentBlock()->getFrequency(), isInLoop);
+               //printf ("Scorching method %s is calling warm (or called method) %s, in block_%d with frequency %d, is in loop %d\n", comp()->getMethodSymbol()->signature(), fej9->sampleSignature(method->getPersistentIdentifier(), 0, 0, comp()->trMemory()), getCurrentBlock()->getNumber(), getCurrentBlock()->getFrequency(), isInLoop);
                if ((self()->getCurrentBlock()->getFrequency() > MAX_COLD_BLOCK_COUNT) || (isInLoop && self()->getCurrentBlock()->getFrequency()==0))
                   {
                   bodyInfo->setCounter(1);
@@ -1501,10 +1501,10 @@ J9::CodeGenerator::doInstructionSelection()
    self()->beginInstructionSelection();
 
    {
-   TR::StackMemoryRegion stackMemoryRegion(*self()->trMemory());
+   TR::StackMemoryRegion stackMemoryRegion(*comp->trMemory());
 
    TR_BitVector * liveLocals = self()->getLiveLocals();
-   TR_BitVector nodeChecklistBeforeDump(comp->getNodeCount(), self()->trMemory(), stackAlloc, growable);
+   TR_BitVector nodeChecklistBeforeDump(comp->getNodeCount(), comp->trMemory(), stackAlloc, growable);
 
    /*
      To enable instruction scheduling (both in the compiler and in out-of-order hardware),
@@ -1571,12 +1571,12 @@ J9::CodeGenerator::doInstructionSelection()
    TR_BitVector *unsharedSymsBitVector = NULL;
    int32_t maxLiveLocalIndex = -1;
    TR::list<TR::Block*> newBlocks(getTypedAllocator<TR::Block*>(comp->allocator()));
-   TR_ScratchList<TR::Node> fsdStores(self()->trMemory());
+   TR_ScratchList<TR::Node> fsdStores(comp->trMemory());
    if (comp->getOption(TR_MimicInterpreterFrameShape) || comp->getOption(TR_PoisonDeadSlots))
       {
       if (comp->areSlotsSharedByRefAndNonRef() || comp->getOption(TR_PoisonDeadSlots))
          {
-         TR_ScratchList<TR::SymbolReference> participatingLocals(self()->trMemory());
+         TR_ScratchList<TR::SymbolReference> participatingLocals(comp->trMemory());
 
          TR::SymbolReference *autoSymRef = NULL;
          int32_t symRefNumber;
@@ -1601,9 +1601,9 @@ J9::CodeGenerator::doInstructionSelection()
                 }
              }
 
-         liveLocalSyms = (TR::SymbolReference **)self()->trMemory()->allocateStackMemory((maxLiveLocalIndex+1)*sizeof(TR::SymbolReference *));
+         liveLocalSyms = (TR::SymbolReference **)comp->trMemory()->allocateStackMemory((maxLiveLocalIndex+1)*sizeof(TR::SymbolReference *));
          memset(liveLocalSyms, 0, (maxLiveLocalIndex+1)*sizeof(TR::SymbolReference *));
-         unsharedSymsBitVector = new (self()->trStackMemory()) TR_BitVector(maxLiveLocalIndex+1, self()->trMemory(), stackAlloc);
+         unsharedSymsBitVector = new (self()->trStackMemory()) TR_BitVector(maxLiveLocalIndex+1, comp->trMemory(), stackAlloc);
 
          ListIterator<TR::SymbolReference> participatingLocalsIt(&participatingLocals);
          for (autoSymRef = participatingLocalsIt.getFirst(); autoSymRef; autoSymRef = participatingLocalsIt.getNext())
@@ -1670,7 +1670,7 @@ J9::CodeGenerator::doInstructionSelection()
 
             if (liveMonitorStack)
                {
-               liveMonitors = new (comp->trHeapMemory()) TR_BitVector(numMonitorLocals, self()->trMemory());
+               liveMonitors = new (comp->trHeapMemory()) TR_BitVector(numMonitorLocals, comp->trMemory());
                if (traceLiveMon)
                   traceMsg(comp, "created liveMonitors bitvector at block_%d for stack  %p size %d\n",
                                                             block->getNumber(), liveMonitorStack,
@@ -2002,7 +2002,7 @@ J9::CodeGenerator::doInstructionSelection()
             if (liveMonitors)
                liveMonitors = new (comp->trHeapMemory()) TR_BitVector(*liveMonitors);
             else
-               liveMonitors = new (comp->trHeapMemory()) TR_BitVector(numMonitorLocals, self()->trMemory());
+               liveMonitors = new (comp->trHeapMemory()) TR_BitVector(numMonitorLocals, comp->trMemory());
 
             // add this monent to the block's stack
             //
@@ -2425,7 +2425,7 @@ J9::CodeGenerator::populateOSRBuffer()
          traceMsg(self()->comp(), "%s %s %s: written out bytes in OSR buffer\n",
                  osrMethodData->getInlinedSiteIndex() == -1 ? "Method," : "Inlined method,",
                  inlinesAnyMethod? "inlines another method,": "doesn't inline any method,",
-                 methSym->signature(self()->trMemory()));
+                 methSym->signature(self()->comp()->trMemory()));
          }
       int32_t totalNumOfSlots = osrMethodData->getTotalNumOfSlots();
       //The OSR helper call will print the contents of the OSR buffer (if trace option is on)
@@ -2919,7 +2919,7 @@ J9::CodeGenerator::compressedReferenceRematerialization()
       if (self()->comp()->getOption(TR_TraceCG))
          self()->comp()->dumpMethodTrees("Trees before this remat phase", self()->comp()->getMethodSymbol());
 
-      List<TR::Node> rematerializedNodes(self()->trMemory());
+      List<TR::Node> rematerializedNodes(self()->comp()->trMemory());
       vcount_t visitCount = self()->comp()->incVisitCount();
       TR::SymbolReference *autoSymRef = NULL;
       for (tt = self()->comp()->getStartTree(); tt; tt = tt->getNextTreeTop())
@@ -4056,7 +4056,7 @@ J9::CodeGenerator::allocateLinkageRegisters()
 
    TR_BitVector  globalRegsWithRegLoad(self()->getNumberOfGlobalRegisters(), self()->comp()->trMemory(), stackAlloc); // indexed by global register number
    TR_BitVector  killedParms(numParms, self()->comp()->trMemory(), stackAlloc); // indexed by parm->getOrdinal()
-   TR::Node     **regLoads = (TR::Node**)self()->trMemory()->allocateStackMemory(numParms*sizeof(regLoads[0])); // indexed by parm->getOrdinal() to give the RegLoad for a given parm
+   TR::Node     **regLoads = (TR::Node**)self()->comp()->trMemory()->allocateStackMemory(numParms*sizeof(regLoads[0])); // indexed by parm->getOrdinal() to give the RegLoad for a given parm
    memset(regLoads, 0, numParms*sizeof(regLoads[0]));
 
    // If the first block is in a loop, then it can be reached by parm stores in other blocks.

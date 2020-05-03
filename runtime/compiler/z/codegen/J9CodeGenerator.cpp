@@ -1508,7 +1508,7 @@ void
 J9::Z::CodeGenerator::addStorageReferenceHints(TR::Node *node)
    {
    TR::list<TR::Node*> leftMostNodesList(getTypedAllocator<TR::Node*>(self()->comp()->allocator()));
-   TR::StackMemoryRegion stackMemoryRegion(*self()->trMemory());
+   TR::StackMemoryRegion stackMemoryRegion(*self()->comp()->trMemory());
 
    self()->markStoreAsAnAccumulator(node);
 

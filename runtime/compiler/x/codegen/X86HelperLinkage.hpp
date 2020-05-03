@@ -57,14 +57,14 @@ class HelperCallSite
       _Node(callNode),
       _ReturnType(callNode->getDataType()),
       _SymRef(callNode->getSymbolReference()),
-      _Params(cg->trMemory())
+      _Params(cg->comp()->trMemory())
       {}
    HelperCallSite(TR::Node* callNode, TR::DataType callReturnType, TR::SymbolReference* callSymRef, TR::CodeGenerator* cg) :
       _cg(cg),
       _Node(callNode),
       _ReturnType(callReturnType),
       _SymRef(callSymRef),
-      _Params(cg->trMemory())
+      _Params(cg->comp()->trMemory())
       {}
    void AddParam(TR::Register* param)
       {

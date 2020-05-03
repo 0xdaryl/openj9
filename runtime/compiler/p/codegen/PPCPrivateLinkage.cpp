@@ -717,9 +717,9 @@ static TR::Instruction *unrollPrologueInitLoop(TR::CodeGenerator *cg, TR::Node *
    TR::RealRegister *gr11, TR::RealRegister *baseInitReg, TR::RealRegister *gr12, TR::RealRegister *cr0, TR::LabelSymbol *loopLabel,
    TR::Instruction *cursor)
    {
-   TR_HeapMemory trHeapMemory    = cg->trMemory();
-   int32_t wordsToUnroll         = num;
    TR::Compilation* comp = cg->comp();
+   TR_HeapMemory trHeapMemory    = comp->trMemory();
+   int32_t wordsToUnroll         = num;
 
    static bool disableVSXMemInit = (feGetEnv("TR_disableVSXMemInit") != NULL); //Disable toggle incase we break in production.
    bool use8Bytes                = ((cg->is64BitProcessor() && TR::Compiler->om.sizeofReferenceAddress() == 4) || TR::Compiler->om.sizeofReferenceAddress() == 8);
@@ -2074,7 +2074,7 @@ static TR::Instruction* buildStaticPICCall(TR::CodeGenerator *cg, TR::Node *call
    generateTrg1Src2Instruction(cg,TR::InstOpCode::Op_cmpl, callNode, condReg, vftReg, tempReg);
    generateConditionalBranchInstruction(cg, TR::InstOpCode::bne, callNode, missLabel, condReg);
    TR::Instruction *gcPoint = generateDepImmSymInstruction(cg, TR::InstOpCode::bl, callNode, (uintptr_t)profiledMethod->startAddressForJittedMethod(),
-                                                                                  new (comp->trHeapMemory()) TR::RegisterDependencyConditions(0,0, cg->trMemory()), profiledMethodSymRef);
+                                                                                  new (comp->trHeapMemory()) TR::RegisterDependencyConditions(0,0, comp->trMemory()), profiledMethodSymRef);
    gcPoint->PPCNeedsGCMap(regMapForGC);
    fej9->reserveTrampolineIfNecessary(comp, profiledMethodSymRef, false);
    return gcPoint;
@@ -2482,7 +2482,7 @@ void J9::Power::PrivateLinkage::buildVirtualDispatch(TR::Node                   
       static char     *maxInterfaceStaticPICsString = feGetEnv("TR_ppcMaxInterfaceStaticPICs");
       static uint32_t  maxInterfaceStaticPICs = maxInterfaceStaticPICsString ? atoi(maxInterfaceStaticPICsString) : 1;
 
-      TR_ScratchList<J9::PPCPICItem> values(cg()->trMemory());
+      TR_ScratchList<J9::PPCPICItem> values(cg()->comp()->trMemory());
       const uint32_t maxStaticPICs = methodSymbol->isInterface() ? maxInterfaceStaticPICs : maxVirtualStaticPICs;
 
       if (getProfiledCallSiteInfo(cg(), callNode, maxStaticPICs, values))
@@ -2581,7 +2581,7 @@ void inlineCharacterIsMethod(TR::Node *node, TR::MethodSymbol* methodSymbol, TR:
    TR::Register *returnRegister = cg->allocateRegister(TR_GPR);
    TR::Register *tmpReg = cg->allocateRegister(TR_GPR);
 
-   TR::RegisterDependencyConditions *dependencies = new (comp->trHeapMemory()) TR::RegisterDependencyConditions(6, 6, cg->trMemory());
+   TR::RegisterDependencyConditions *dependencies = new (comp->trHeapMemory()) TR::RegisterDependencyConditions(6, 6, comp->trMemory());
    TR::addDependency(dependencies, srcReg, TR::RealRegister::NoReg, TR_GPR, cg);
    TR::addDependency(dependencies, rangeReg, TR::RealRegister::NoReg, TR_GPR, cg);
    TR::addDependency(dependencies, returnRegister, TR::RealRegister::gr3, TR_GPR, cg);

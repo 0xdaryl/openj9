@@ -927,7 +927,7 @@ TR::Register *J9::X86::AMD64::TreeEvaluator::conditionalHelperEvaluator(TR::Node
       // TODO:AMD64: This would be a useful general facility to have.
       //
       TR::Machine *machine = cg->machine();
-      TR::RegisterDependencyConditions  *postConditions = new (comp->trHeapMemory()) TR::RegisterDependencyConditions((uint8_t)0, TR::RealRegister::NumRegisters, cg->trMemory());
+      TR::RegisterDependencyConditions  *postConditions = new (comp->trHeapMemory()) TR::RegisterDependencyConditions((uint8_t)0, TR::RealRegister::NumRegisters, comp->trMemory());
 
       if (thisReg)
          postConditions->addPostCondition(thisReg, TR::RealRegister::NoReg, cg);
@@ -11291,7 +11291,7 @@ J9::X86::TreeEvaluator::tstartEvaluator(TR::Node *node, TR::CodeGenerator *cg)
       {
       GRANode = fallThroughNode->getFirstChild();
       cg->evaluate(GRANode);
-      List<TR::Register> popRegisters(cg->trMemory());
+      List<TR::Register> popRegisters(comp->trMemory());
       fallThroughConditions = generateRegisterDependencyConditions(GRANode, cg, 0, &popRegisters);
       cg->decReferenceCount(GRANode);
       }
@@ -11300,7 +11300,7 @@ J9::X86::TreeEvaluator::tstartEvaluator(TR::Node *node, TR::CodeGenerator *cg)
       {
       GRANode = persistentFailureNode->getFirstChild();
       cg->evaluate(GRANode);
-      List<TR::Register> popRegisters(cg->trMemory());
+      List<TR::Register> popRegisters(comp->trMemory());
       persistentConditions = generateRegisterDependencyConditions(GRANode, cg, 0, &popRegisters);
       cg->decReferenceCount(GRANode);
       }
@@ -11309,7 +11309,7 @@ J9::X86::TreeEvaluator::tstartEvaluator(TR::Node *node, TR::CodeGenerator *cg)
       {
       GRANode = transientFailureNode->getFirstChild();
       cg->evaluate(GRANode);
-      List<TR::Register> popRegisters(cg->trMemory());
+      List<TR::Register> popRegisters(comp->trMemory());
       transientConditions = generateRegisterDependencyConditions(GRANode, cg, 0, &popRegisters);
       cg->decReferenceCount(GRANode);
       }

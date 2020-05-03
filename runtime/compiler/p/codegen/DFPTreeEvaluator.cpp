@@ -512,7 +512,7 @@ static TR::Register *inlineBigDecimalConstructor64(
       TR::Register * fp14Reg= cg->allocateRegister(TR_FPR);
       TR::Register * fp15Reg= cg->allocateRegister(TR_FPR);
       TR::RegisterDependencyConditions * dcffixqDeps =
-         new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(0, 2, cg->trMemory());
+         new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(0, 2, cg->comp()->trMemory());
       dcffixqDeps->addPostCondition(fp14Reg, TR::RealRegister::fp14);
       dcffixqDeps->addPostCondition(fp15Reg, TR::RealRegister::fp15);
 
@@ -575,7 +575,7 @@ static TR::Register *inlineBigDecimalConstructor64(
 
       // which registers do we need alive after branching sequence?
       TR::RegisterDependencyConditions * deps =
-         new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(0, 4, cg->trMemory());
+         new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(0, 4, cg->comp()->trMemory());
       deps->addPostCondition(retRegister, TR::RealRegister::NoReg);
       deps->addPostCondition(dfpRegister, TR::RealRegister::NoReg);
       deps->addPostCondition(crRegister, TR::RealRegister::cr0);
@@ -778,7 +778,7 @@ static TR::Register *inlineBigDecimalConstructor32(
       TR::Register * fp14Reg= cg->allocateRegister(TR_FPR);
       TR::Register * fp15Reg= cg->allocateRegister(TR_FPR);
       TR::RegisterDependencyConditions * dcffixqDeps =
-         new (comp->trHeapMemory()) TR::RegisterDependencyConditions(0, 2, cg->trMemory());
+         new (comp->trHeapMemory()) TR::RegisterDependencyConditions(0, 2, comp->trMemory());
       dcffixqDeps->addPostCondition(fp14Reg, TR::RealRegister::fp14);
       dcffixqDeps->addPostCondition(fp15Reg, TR::RealRegister::fp15);
 
@@ -841,7 +841,7 @@ static TR::Register *inlineBigDecimalConstructor32(
 
       // which registers do we need alive after branching sequence?
       TR::RegisterDependencyConditions * deps =
-         new (comp->trHeapMemory()) TR::RegisterDependencyConditions(0, 4, cg->trMemory());
+         new (comp->trHeapMemory()) TR::RegisterDependencyConditions(0, 4, comp->trMemory());
       deps->addPostCondition(retRegister, TR::RealRegister::NoReg);
       deps->addPostCondition(dfpRegister, TR::RealRegister::NoReg);
       deps->addPostCondition(crRegister, TR::RealRegister::cr0);
@@ -989,7 +989,7 @@ extern TR::Register *inlineBigDecimalBinaryOp(
       cg->decReferenceCount(node->getFirstChild());
 
       // which registers do we need alive after branching sequence?
-      deps = new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(0, 4, cg->trMemory());
+      deps = new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(0, 4, cg->comp()->trMemory());
       deps->addPostCondition(retRegister, TR::RealRegister::NoReg);
       deps->addPostCondition(resRegister, TR::RealRegister::NoReg);
       deps->addPostCondition(crRegister, TR::RealRegister::cr0);
@@ -1071,7 +1071,7 @@ extern TR::Register *inlineBigDecimalBinaryOp(
                   node->getSecondChild()->getSymbolReference(), resRegister);
 
       // which registers do we need alive after branching sequence?
-      deps = new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(0, 9, cg->trMemory());
+      deps = new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(0, 9, cg->comp()->trMemory());
       deps->addPostCondition(retRegister, TR::RealRegister::NoReg);
       deps->addPostCondition(resRegister, TR::RealRegister::NoReg);
       deps->addPostCondition(crRegister, TR::RealRegister::cr0);
@@ -1385,7 +1385,7 @@ extern TR::Register *inlineBigDecimalScaledDivide(
 
    // which registers do we need alive after branching sequence?
    TR::RegisterDependencyConditions * deps =
-      new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(0, 9, cg->trMemory());
+      new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(0, 9, cg->comp()->trMemory());
    deps->addPostCondition(retRegister, TR::RealRegister::NoReg);
    deps->addPostCondition(resRegister, TR::RealRegister::NoReg);
    deps->addPostCondition(crRegister, TR::RealRegister::cr0);
@@ -1539,7 +1539,7 @@ extern TR::Register *inlineBigDecimalDivide(
 
    // which registers do we need alive after branching sequence?
    TR::RegisterDependencyConditions * deps =
-      new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(0, 4, cg->trMemory());
+      new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(0, 4, cg->comp()->trMemory());
    deps->addPostCondition(retRegister, TR::RealRegister::NoReg);
    deps->addPostCondition(resRegister, TR::RealRegister::NoReg);
    deps->addPostCondition(crRegister, TR::RealRegister::cr0);
@@ -1674,7 +1674,7 @@ extern TR::Register *inlineBigDecimalRound(
 
    // which registers do we need alive after branching sequence?
    TR::RegisterDependencyConditions * deps =
-      new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(0, 4, cg->trMemory());
+      new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(0, 4, cg->comp()->trMemory());
    deps->addPostCondition(retRegister, TR::RealRegister::NoReg);
    deps->addPostCondition(resFPRegister, TR::RealRegister::NoReg);
    deps->addPostCondition(crRegister, TR::RealRegister::cr0);
@@ -1801,7 +1801,7 @@ extern TR::Register *inlineBigDecimalCompareTo(
    // compare both values
    TR::Register * crRegister = cg->allocateRegister(TR_CCR);
    TR::Instruction * cursor = NULL;
-   TR::RegisterDependencyConditions * deps = new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(1, 1, cg->trMemory());
+   TR::RegisterDependencyConditions * deps = new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(1, 1, cg->comp()->trMemory());
 
    cursor = generateTrg1Src2Instruction(cg, TR::InstOpCode::dcmpu, node, crRegister, lhsFPRegister, rhsFPRegister);
    cg->stopUsingRegister(lhsFPRegister);
@@ -1980,7 +1980,7 @@ extern TR::Register *inlineBigDecimalUnaryOp(
 
          // which registers do we need alive after branching sequence?
          TR::RegisterDependencyConditions * deps =
-             new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(0, 4, cg->trMemory());
+             new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(0, 4, cg->comp()->trMemory());
          deps->addPostCondition(tempRegister, TR::RealRegister::NoReg);
          deps->addPostCondition(highRegister, TR::RealRegister::NoReg);
          deps->addPostCondition(lowRegister, TR::RealRegister::NoReg);
@@ -2186,7 +2186,7 @@ extern TR::Register *inlineBigDecimalSetScale(
 
    // which registers do we need alive after branching sequence?
    TR::RegisterDependencyConditions * deps =
-      new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(0, 4, cg->trMemory());
+      new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(0, 4, cg->comp()->trMemory());
    deps->addPostCondition(retRegister, TR::RealRegister::NoReg);
    deps->addPostCondition(resRegister, TR::RealRegister::NoReg);
    deps->addPostCondition(crRegister, TR::RealRegister::cr0);

@@ -2634,7 +2634,7 @@ J9::CodeGenerator::printNVVMIR(
                    isLongMul ? "i64" : "i32");
       }
    else if (node->getOpCodeValue() == TR::bneg || node->getOpCodeValue() == TR::sneg ||
-            node->getOpCodeValue() == TR::ineg || node->getOpCodeValue() == TR::lneg || 
+            node->getOpCodeValue() == TR::ineg || node->getOpCodeValue() == TR::lneg ||
             node->getOpCodeValue() == TR::fneg || node->getOpCodeValue() == TR::dneg)
       {
       getNodeName(node->getChild(0), name0, self()->comp());
@@ -3433,7 +3433,7 @@ J9::CodeGenerator::generateGPU()
       TR::ResolvedMethodSymbol *method = self()->comp()->getJittedMethodSymbol();
 
       {
-      TR::StackMemoryRegion stackMemoryRegion(*self()->trMemory());
+      TR::StackMemoryRegion stackMemoryRegion(*self()->comp()->trMemory());
 
       result = self()->dumpNVVMIR(self()->comp()->getStartTree(), self()->comp()->findLastTree(),
                           NULL,

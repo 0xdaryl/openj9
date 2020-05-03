@@ -96,7 +96,7 @@ TR::Instruction *TR_PPCRecompilation::generatePrePrologue()
       {
       // gr0 must contain the saved LR; see Recompilation.s
       cursor = new (comp->trHeapMemory()) TR::PPCTrg1Instruction(TR::InstOpCode::mflr, firstNode, gr0, cursor, cg());
-      cursor = generateDepImmSymInstruction(cg(), TR::InstOpCode::bl, firstNode, (uintptr_t)recompileMethodSymRef->getMethodAddress(), new (comp->trHeapMemory()) TR::RegisterDependencyConditions(0,0, cg()->trMemory()), recompileMethodSymRef, NULL, cursor);
+      cursor = generateDepImmSymInstruction(cg(), TR::InstOpCode::bl, firstNode, (uintptr_t)recompileMethodSymRef->getMethodAddress(), new (comp->trHeapMemory()) TR::RegisterDependencyConditions(0,0, comp->trMemory()), recompileMethodSymRef, NULL, cursor);
       if (cg()->comp()->target().is64Bit())
          {
          int32_t highBits = (int32_t)((intptr_t)info>>32), lowBits = (int32_t)((intptr_t)info);

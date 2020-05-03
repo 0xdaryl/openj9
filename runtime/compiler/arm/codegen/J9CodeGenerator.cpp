@@ -109,7 +109,7 @@ J9::ARM::CodeGenerator::CodeGenerator() :
 
 static int32_t identifyFarConditionalBranches(int32_t estimate, TR::CodeGenerator *cg)
    {
-   TR_Array<TR::ARMConditionalBranchInstruction *> candidateBranches(cg->trMemory(), 256);
+   TR_Array<TR::ARMConditionalBranchInstruction *> candidateBranches(cg->comp()->trMemory(), 256);
    TR::Instruction *cursorInstruction = cg->getFirstInstruction();
 
    while (cursorInstruction)

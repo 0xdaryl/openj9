@@ -303,7 +303,7 @@ void J9::ARM::TreeEvaluator::genWrtbarForArrayCopy(TR::Node *node, TR::Register 
          temp2Reg = cg->allocateRegister();
          doneLabel = generateLabelSymbol(cg);
 
-         conditions = new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(3, 3, cg->trMemory());
+         conditions = new (comp->trHeapMemory()) TR::RegisterDependencyConditions(3, 3, comp->trMemory());
          TR::addDependency(conditions, temp1Reg, TR::RealRegister::NoReg, TR_GPR, cg);
          TR::addDependency(conditions, temp2Reg, TR::RealRegister::NoReg, TR_GPR, cg);
 
@@ -322,7 +322,7 @@ void J9::ARM::TreeEvaluator::genWrtbarForArrayCopy(TR::Node *node, TR::Register 
          }
       else
          {
-         conditions = new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(1, 1, cg->trMemory());
+         conditions = new (comp->trHeapMemory()) TR::RegisterDependencyConditions(1, 1, comp->trMemory());
          }
 
       TR::addDependency(conditions, dstObjReg, TR::RealRegister::gr0, TR_GPR, cg);
@@ -351,7 +351,7 @@ void J9::ARM::TreeEvaluator::genWrtbarForArrayCopy(TR::Node *node, TR::Register 
          TR::Register *temp1Reg = cg->allocateRegister();
          TR::Register *temp2Reg = cg->allocateRegister();
          TR::Register *temp3Reg = cg->allocateRegister();
-         TR::RegisterDependencyConditions *conditions = new (cg->comp()->trHeapMemory()) TR::RegisterDependencyConditions(4, 4, cg->trMemory());
+         TR::RegisterDependencyConditions *conditions = new (comp->trHeapMemory()) TR::RegisterDependencyConditions(4, 4, comp->trMemory());
 
          TR::addDependency(conditions, dstObjReg, TR::RealRegister::NoReg, TR_GPR, cg);
          TR::addDependency(conditions, temp1Reg, TR::RealRegister::NoReg, TR_GPR, cg);

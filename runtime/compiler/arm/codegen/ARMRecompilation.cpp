@@ -88,7 +88,7 @@ TR::Instruction *TR_ARMRecompilation::generatePrePrologue()
       if(useSampling())
          {
          cursor = new (cg()->comp()->trHeapMemory()) TR::ARMTrg1Src1Instruction(cursor, ARMOp_mov, firstNode, gr4, lr, cg());
-         cursor = generateImmSymInstruction(cg(), ARMOp_bl, firstNode, (uintptr_t)recompileMethodSymRef->getMethodAddress(), new (cg()->comp()->trHeapMemory()) TR::RegisterDependencyConditions((uint8_t)0, 0, cg()->trMemory()), recompileMethodSymRef, NULL, cursor);
+         cursor = generateImmSymInstruction(cg(), ARMOp_bl, firstNode, (uintptr_t)recompileMethodSymRef->getMethodAddress(), new (cg()->comp()->trHeapMemory()) TR::RegisterDependencyConditions((uint8_t)0, 0, cg()->comp()->trMemory()), recompileMethodSymRef, NULL, cursor);
          }
       cursor = new (cg()->comp()->trHeapMemory()) TR::ARMImmInstruction(cursor, ARMOp_dd, firstNode, (int32_t)(intptr_t)info, cg());
       cursor->setNeedsAOTRelocation();

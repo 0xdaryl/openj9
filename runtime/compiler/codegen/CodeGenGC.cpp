@@ -73,7 +73,7 @@ J9::CodeGenerator::createStackAtlas()
 
    // From hereon, any stack memory allocations will expire / die when the function returns
    //
-   TR::StackMemoryRegion stackMemoryRegion(*self()->trMemory());
+   TR::StackMemoryRegion stackMemoryRegion(*comp->trMemory());
 
    // --------------------------------------------------------------------------------
    // First map the parameters - the mapping of parameters is constrained by
@@ -273,7 +273,7 @@ J9::CodeGenerator::createStackAtlas()
 
    if (doLocalsCompaction)
       {
-      colourToGCIndexMap = (int32_t *) self()->trMemory()->allocateStackMemory(self()->getLocalsIG()->getNumberOfColoursUsedToColour() * sizeof(int32_t));
+      colourToGCIndexMap = (int32_t *) comp->trMemory()->allocateStackMemory(self()->getLocalsIG()->getNumberOfColoursUsedToColour() * sizeof(int32_t));
       TR_ASSERT(colourToGCIndexMap, "Failed to allocate colourToGCIndexMap on stack");
 
       for (int32_t i=0; i<self()->getLocalsIG()->getNumberOfColoursUsedToColour(); ++i)
@@ -492,7 +492,7 @@ J9::CodeGenerator::createStackAtlas()
    // --------------------------------------------------------------------------
    // Now create the stack atlas
    //
-   TR::GCStackAtlas * atlas = new (comp->trHeapMemory()) TR::GCStackAtlas(numParmSlots, totalSlotsInMap, self()->trMemory());
+   TR::GCStackAtlas * atlas = new (comp->trHeapMemory()) TR::GCStackAtlas(numParmSlots, totalSlotsInMap, comp->trMemory());
    atlas->setParmBaseOffset(firstMappedParmOffsetInBytes);
    atlas->setParameterMap(parameterMap);
    atlas->setLocalMap(localMap);
