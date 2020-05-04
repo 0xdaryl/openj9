@@ -48,7 +48,7 @@
 J9::ARM::AheadOfTimeCompile::AheadOfTimeCompile(TR::CodeGenerator *cg)
    : J9::AheadOfTimeCompile(_relocationTargetTypeToHeaderSizeMap, cg->comp()),
      _cg(cg),
-     _relocationList(self()->trMemory())
+     _relocationList(cg->comp()->trMemory())
    {
    }
 
