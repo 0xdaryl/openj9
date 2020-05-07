@@ -316,7 +316,7 @@ TR::Register *J9::X86::I386::JNILinkage::buildJNIDispatch(TR::Node *callNode)
       instr->setNeedsGCMap((argSize<<14) | 0xFF00FFFF);
 
    // memoize the call instruction, in order that we can register an assumption for this later on
-   cg()->getJNICallSites().push_front(new (trHeapMemory()) TR_Pair<TR_ResolvedMethod,TR::Instruction>(resolvedMethodSymbol->getResolvedMethod(), instr));
+   cg()->getJNICallSites().push_front(new (comp()->trHeapMemory()) TR_Pair<TR_ResolvedMethod,TR::Instruction>(resolvedMethodSymbol->getResolvedMethod(), instr));
 
    // To Do:: will need an aot relocation for this one at some point.
 
@@ -502,7 +502,7 @@ TR::Register *J9::X86::I386::JNILinkage::buildJNIDispatch(TR::Node *callNode)
       instr = generateLabelInstruction(JNE4, callNode, snippetLabel, cg());
       instr->setNeedsGCMap((argSize<<14) | 0xFF00FFFF);
 
-      TR::Snippet *snippet = new (trHeapMemory()) TR::X86CheckFailureSnippet(
+      TR::Snippet *snippet = new (comp()->trHeapMemory()) TR::X86CheckFailureSnippet(
             cg(),
             cg()->symRefTab()->findOrCreateRuntimeHelper(TR_throwCurrentException, false, false, false),
             snippetLabel,

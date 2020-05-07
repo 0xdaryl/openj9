@@ -551,7 +551,7 @@ void J9::X86::AMD64::JNILinkage::buildJNICallOutFrame(
       callNode,
       scratchReg,
       0,
-      new (trHeapMemory()) TR::SymbolReference(comp()->getSymRefTab(), returnAddrLabel),
+      new (comp()->trHeapMemory()) TR::SymbolReference(comp()->getSymRefTab(), returnAddrLabel),
       cg());
 
    returnAddressInstr->setReloKind(TR_AbsoluteMethodAddress);
@@ -798,7 +798,7 @@ J9::X86::AMD64::JNILinkage::generateMethodDispatch(
       _JNIDispatchInfo.dispatchTrampolineRegister,
       _JNIDispatchInfo.callPostDeps,
       cg());
-   cg()->getJNICallSites().push_front(new (trHeapMemory()) TR_Pair<TR_ResolvedMethod, TR::Instruction>(callSymbol->getResolvedMethod(), patchedInstr));
+   cg()->getJNICallSites().push_front(new (comp()->trHeapMemory()) TR_Pair<TR_ResolvedMethod, TR::Instruction>(callSymbol->getResolvedMethod(), patchedInstr));
 
    if (isJNIGCPoint)
       instr->setNeedsGCMap(_systemLinkage->getProperties().getPreservedRegisterMapForGC());
@@ -1181,7 +1181,7 @@ void J9::X86::AMD64::JNILinkage::checkForJNIExceptions(TR::Node *callNode)
    instr->setNeedsGCMap(gcMap);
 
    TR::Snippet *snippet =
-      new (trHeapMemory()) TR::X86CheckFailureSnippet(cg(),
+      new (comp()->trHeapMemory()) TR::X86CheckFailureSnippet(cg(),
                                      cg()->symRefTab()->findOrCreateRuntimeHelper(TR_throwCurrentException, false, false, false),
                                      snippetLabel,
                                      instr,

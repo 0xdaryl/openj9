@@ -168,7 +168,7 @@ printf("JNI: offset %d\n", offset); fflush(stdout);
    const TR::ARMLinkageProperties &jniLinkageProperties = getProperties();
    int32_t                spOffset = offset + jniLinkageProperties.getOffsetToFirstParm();
    TR::RealRegister    *sp       = cg()->machine()->getRealRegister(jniLinkageProperties.getStackPointerRegister());
-   TR::MemoryReference *result   = new (trHeapMemory()) TR::MemoryReference(sp, spOffset, cg());
+   TR::MemoryReference *result   = new (comp()->trHeapMemory()) TR::MemoryReference(sp, spOffset, cg());
    memArg.argRegister = argReg;
    memArg.argMemory   = result;
    memArg.opCode      = opCode;
@@ -352,11 +352,11 @@ int32_t J9::ARM::JNILinkage::buildJNIArgs(TR::Node *callNode,
 
    int32_t numStackParmSlots = 0;
    // From here, down, all stack memory allocations will expire / die when the function returns.
-   TR::StackMemoryRegion stackMemoryRegion(*trMemory());
+   TR::StackMemoryRegion stackMemoryRegion(*comp->trMemory());
    if (numMemArgs > 0)
       {
 
-      pushToMemory = new(trStackMemory()) TR::ARMMemoryArgument[numMemArgs];
+      pushToMemory = new(comp->trStackMemory()) TR::ARMMemoryArgument[numMemArgs];
 
       // For direct-to-JNI calls, instead of pushing
       // arguments, buy the necessary stack slots up front.
@@ -711,8 +711,8 @@ TR::Register *J9::ARM::JNILinkage::buildDirectDispatch(TR::Node *callNode)
    const TR::ARMLinkageProperties &privateLinkageProperties = privateLinkage->getProperties();
 
    TR::RegisterDependencyConditions *deps =
-      new (trHeapMemory()) TR::RegisterDependencyConditions(jniLinkageProperties.getNumberOfDependencyGPRegisters() + jniLinkageProperties.getNumFloatArgRegs()*2,
-                                             jniLinkageProperties.getNumberOfDependencyGPRegisters() + jniLinkageProperties.getNumFloatArgRegs()*2, trMemory());
+      new (comp()->trHeapMemory()) TR::RegisterDependencyConditions(jniLinkageProperties.getNumberOfDependencyGPRegisters() + jniLinkageProperties.getNumFloatArgRegs()*2,
+                                             jniLinkageProperties.getNumberOfDependencyGPRegisters() + jniLinkageProperties.getNumFloatArgRegs()*2, comp()->trMemory());
 
    TR::SymbolReference      *callSymRef     = callNode->getSymbolReference();
    TR::ResolvedMethodSymbol *calleeSym      = callSymRef->getSymbol()->castToResolvedMethodSymbol();
@@ -855,7 +855,7 @@ TR::Register *J9::ARM::JNILinkage::buildDirectDispatch(TR::Node *callNode)
    // Force spilling the volatile FPRs
    int32_t i;
    TR::LabelSymbol *spillLabel = generateLabelSymbol(codeGen);
-   TR::RegisterDependencyConditions *spillDeps = new (trHeapMemory()) TR::RegisterDependencyConditions(0, jniLinkageProperties.getNumFloatArgRegs()*2, codeGen->comp()->trMemory());
+   TR::RegisterDependencyConditions *spillDeps = new (comp()->trHeapMemory()) TR::RegisterDependencyConditions(0, jniLinkageProperties.getNumFloatArgRegs()*2, codeGen->comp()->trMemory());
    for (i = 0; i < jniLinkageProperties.getNumFloatArgRegs()*2; i++)
       {
       spillDeps->addPostCondition(codeGen->allocateRegister(TR_FPR), (TR::RealRegister::RegNum)((uint32_t)TR::RealRegister::fs0 + i));
@@ -865,7 +865,7 @@ TR::Register *J9::ARM::JNILinkage::buildDirectDispatch(TR::Node *callNode)
    TR_J9VMBase *fej9 = (TR_J9VMBase *)(fe());
    // mask out the magic bit that indicates JIT frames below
    generateTrg1ImmInstruction(codeGen, ARMOp_mov, callNode, gr5Reg, 0, 0);
-   tempMR = new (trHeapMemory()) TR::MemoryReference(metaReg, fej9->thisThreadGetJavaFrameFlagsOffset(), codeGen);
+   tempMR = new (comp()->trHeapMemory()) TR::MemoryReference(metaReg, fej9->thisThreadGetJavaFrameFlagsOffset(), codeGen);
    generateMemSrc1Instruction(codeGen, ARMOp_str, callNode, tempMR, gr5Reg);
 
    // push tag bits (savedA0 slot)
@@ -876,7 +876,7 @@ TR::Register *J9::ARM::JNILinkage::buildDirectDispatch(TR::Node *callNode)
       tagBits |= fej9->constJNICallOutFrameInvisibleTag();
       }
    armLoadConstant(callNode, tagBits, gr4Reg, codeGen);
-   tempMR = new (trHeapMemory()) TR::MemoryReference(stackPtr, -((int)sizeof(uintptr_t)), codeGen);
+   tempMR = new (comp()->trHeapMemory()) TR::MemoryReference(stackPtr, -((int)sizeof(uintptr_t)), codeGen);
    tempMR->setImmediatePreIndexed();
    generateMemSrc1Instruction(codeGen, ARMOp_str, callNode, tempMR, gr4Reg);
 
@@ -884,41 +884,41 @@ TR::Register *J9::ARM::JNILinkage::buildDirectDispatch(TR::Node *callNode)
    //
    TR::LabelSymbol *returnAddrLabel               = generateLabelSymbol(codeGen);
    generateLabelInstruction(codeGen, ARMOp_add, callNode, returnAddrLabel, NULL, gr4Reg, instrPtr);
-   tempMR = new (trHeapMemory()) TR::MemoryReference(stackPtr, -2 * ((int)sizeof(uintptr_t)), codeGen);
+   tempMR = new (comp()->trHeapMemory()) TR::MemoryReference(stackPtr, -2 * ((int)sizeof(uintptr_t)), codeGen);
    tempMR->setImmediatePreIndexed();
    generateMemSrc1Instruction(codeGen, ARMOp_str, callNode, tempMR, gr4Reg);
 
    // push frame flags
    intParts flags((int32_t)fej9->constJNICallOutFrameFlags());
    TR_ASSERT((flags.getValue() & ~0x7FFF0000) == 0, "JNI call-out frame flags have more than 15 bits");
-   generateTrg1Src1Instruction(codeGen, ARMOp_mov, callNode, gr4Reg, new (trHeapMemory()) TR_ARMOperand2(flags.getByte3(), 24));
-   generateTrg1Src2Instruction(codeGen, ARMOp_add, callNode, gr4Reg, gr4Reg, new (trHeapMemory()) TR_ARMOperand2(flags.getByte2(), 16));
-   tempMR = new (trHeapMemory()) TR::MemoryReference(stackPtr, -((int)TR::Compiler->om.sizeofReferenceAddress()), codeGen);
+   generateTrg1Src1Instruction(codeGen, ARMOp_mov, callNode, gr4Reg, new (comp()->trHeapMemory()) TR_ARMOperand2(flags.getByte3(), 24));
+   generateTrg1Src2Instruction(codeGen, ARMOp_add, callNode, gr4Reg, gr4Reg, new (comp()->trHeapMemory()) TR_ARMOperand2(flags.getByte2(), 16));
+   tempMR = new (comp()->trHeapMemory()) TR::MemoryReference(stackPtr, -((int)TR::Compiler->om.sizeofReferenceAddress()), codeGen);
    tempMR->setImmediatePreIndexed();
    generateMemSrc1Instruction(codeGen, ARMOp_str, callNode, tempMR, gr4Reg);
 
    // push the RAM method for the native
    intParts ramMethod((int32_t)resolvedMethod->resolvedMethodAddress());
-   generateTrg1Src1Instruction(codeGen, ARMOp_mov, callNode, gr4Reg, new (trHeapMemory()) TR_ARMOperand2(ramMethod.getByte3(), 24));
-   generateTrg1Src2Instruction(codeGen, ARMOp_add, callNode, gr4Reg, gr4Reg, new (trHeapMemory()) TR_ARMOperand2(ramMethod.getByte2(), 16));
-   generateTrg1Src2Instruction(codeGen, ARMOp_add, callNode, gr4Reg, gr4Reg, new (trHeapMemory()) TR_ARMOperand2(ramMethod.getByte1(), 8));
-   generateTrg1Src2Instruction(codeGen, ARMOp_add, callNode, gr4Reg, gr4Reg, new (trHeapMemory()) TR_ARMOperand2(ramMethod.getByte0(), 0));
-   tempMR = new (trHeapMemory()) TR::MemoryReference(stackPtr, -((int)TR::Compiler->om.sizeofReferenceAddress()), codeGen);
+   generateTrg1Src1Instruction(codeGen, ARMOp_mov, callNode, gr4Reg, new (comp()->trHeapMemory()) TR_ARMOperand2(ramMethod.getByte3(), 24));
+   generateTrg1Src2Instruction(codeGen, ARMOp_add, callNode, gr4Reg, gr4Reg, new (comp()->trHeapMemory()) TR_ARMOperand2(ramMethod.getByte2(), 16));
+   generateTrg1Src2Instruction(codeGen, ARMOp_add, callNode, gr4Reg, gr4Reg, new (comp()->trHeapMemory()) TR_ARMOperand2(ramMethod.getByte1(), 8));
+   generateTrg1Src2Instruction(codeGen, ARMOp_add, callNode, gr4Reg, gr4Reg, new (comp()->trHeapMemory()) TR_ARMOperand2(ramMethod.getByte0(), 0));
+   tempMR = new (comp()->trHeapMemory()) TR::MemoryReference(stackPtr, -((int)TR::Compiler->om.sizeofReferenceAddress()), codeGen);
    tempMR->setImmediatePreIndexed();
    generateMemSrc1Instruction(codeGen, ARMOp_str, callNode, tempMR, gr4Reg);
 
    // store the Java SP
-   tempMR = new (trHeapMemory()) TR::MemoryReference(metaReg, fej9->thisThreadGetJavaSPOffset(), codeGen);
+   tempMR = new (comp()->trHeapMemory()) TR::MemoryReference(metaReg, fej9->thisThreadGetJavaSPOffset(), codeGen);
    generateMemSrc1Instruction(codeGen, ARMOp_str, callNode, tempMR, stackPtr);
 
    // store the PC and literals values indicating the call-out frame
    intParts frameType((int32_t)fej9->constJNICallOutFrameType());
    TR_ASSERT((frameType.getValue() & ~0xFFFF) == 0, "JNI call-out frame type has more than 16 bits");
-   generateTrg1Src1Instruction(codeGen, ARMOp_mov, callNode, gr4Reg, new (trHeapMemory()) TR_ARMOperand2(frameType.getByte1(), 8));
-   generateTrg1Src2Instruction(codeGen, ARMOp_add, callNode, gr4Reg, gr4Reg, new (trHeapMemory()) TR_ARMOperand2(frameType.getByte0(), 0));
-   tempMR = new (trHeapMemory()) TR::MemoryReference(metaReg, fej9->thisThreadGetJavaPCOffset(), codeGen);
+   generateTrg1Src1Instruction(codeGen, ARMOp_mov, callNode, gr4Reg, new (comp()->trHeapMemory()) TR_ARMOperand2(frameType.getByte1(), 8));
+   generateTrg1Src2Instruction(codeGen, ARMOp_add, callNode, gr4Reg, gr4Reg, new (comp()->trHeapMemory()) TR_ARMOperand2(frameType.getByte0(), 0));
+   tempMR = new (comp()->trHeapMemory()) TR::MemoryReference(metaReg, fej9->thisThreadGetJavaPCOffset(), codeGen);
    generateMemSrc1Instruction(codeGen, ARMOp_str, callNode, tempMR, gr4Reg);
-   tempMR = new (trHeapMemory()) TR::MemoryReference(metaReg, fej9->thisThreadGetJavaLiteralsOffset(), codeGen);
+   tempMR = new (comp()->trHeapMemory()) TR::MemoryReference(metaReg, fej9->thisThreadGetJavaLiteralsOffset(), codeGen);
    generateMemSrc1Instruction(codeGen, ARMOp_str, callNode, tempMR, gr5Reg);
 
    // the Java arguments for the native method are all in place already; now
@@ -931,25 +931,25 @@ TR::Register *J9::ARM::JNILinkage::buildDirectDispatch(TR::Node *callNode)
    TR::SymbolReference      *helperSymRef = symRefTab->findOrCreateReleaseVMAccessSymbolRef(callerSym);
 
    TR::ARMMultipleMoveInstruction *instr;
-   instr = new (trHeapMemory()) TR::ARMMultipleMoveInstruction(ARMOp_stmdb, callNode, gr13Reg, 0x0f, codeGen);
+   instr = new (comp()->trHeapMemory()) TR::ARMMultipleMoveInstruction(ARMOp_stmdb, callNode, gr13Reg, 0x0f, codeGen);
    instr->setWriteBack();
 
    //AOT relocation is handled in TR::ARMImmSymInstruction::generateBinaryEncoding()
    TR::Instruction *gcPoint = generateImmSymInstruction(codeGen, ARMOp_bl, callNode, (uint32_t)helperSymRef->getMethodAddress(), NULL, helperSymRef);
    gcPoint->ARMNeedsGCMap(~(jniLinkageProperties.getPreservedRegisterMapForGC()));
-   instr = new (trHeapMemory()) TR::ARMMultipleMoveInstruction(ARMOp_ldmia, callNode, gr13Reg, 0x0f, codeGen);
+   instr = new (comp()->trHeapMemory()) TR::ARMMultipleMoveInstruction(ARMOp_ldmia, callNode, gr13Reg, 0x0f, codeGen);
    instr->setWriteBack();
 
    // split dependencies to prevent register assigner from inserting code. Any generated
    // spills/loads would be incorrect as the stack pointer has not been fixed up yet.
    TR::RegisterDependencyConditions *postDeps = deps->clone(cg());
-   deps->setNumPostConditions(0, trMemory());
-   postDeps->setNumPreConditions(0, trMemory());
+   deps->setNumPostConditions(0, comp()->trMemory());
+   postDeps->setNumPreConditions(0, comp()->trMemory());
    // get the target method address and dispatch JNI method directly
    uintptr_t methodAddress = (uintptr_t)resolvedMethod->startAddressForJNIMethod(comp());
    //AOT relocation is handled in TR::ARMImmSymInstruction::generateBinaryEncoding()
    gcPoint = generateImmSymInstruction(codeGen, ARMOp_bl, callNode, methodAddress, deps, callSymRef);
-   codeGen->getJNICallSites().push_front(new (trHeapMemory()) TR_Pair<TR_ResolvedMethod, TR::Instruction>(calleeSym->getResolvedMethod(), gcPoint));
+   codeGen->getJNICallSites().push_front(new (comp()->trHeapMemory()) TR_Pair<TR_ResolvedMethod, TR::Instruction>(calleeSym->getResolvedMethod(), gcPoint));
    gcPoint->ARMNeedsGCMap(jniLinkageProperties.getPreservedRegisterMapForGC());
 
    generateLabelInstruction(codeGen, ARMOp_label, callNode, returnAddrLabel);
@@ -972,7 +972,7 @@ TR::Register *J9::ARM::JNILinkage::buildDirectDispatch(TR::Node *callNode)
             {
             generateTrg1ImmInstruction(codeGen, ARMOp_mvn, callNode, gr4Reg, 0xFF, 0);
             generateTrg1Src2Instruction(codeGen, ARMOp_and, callNode, returnRegister, returnRegister,
-                                        new (trHeapMemory()) TR_ARMOperand2(ARMOp2RegLSRImmed, gr4Reg, 16));
+                                        new (comp()->trHeapMemory()) TR_ARMOperand2(ARMOp2RegLSRImmed, gr4Reg, 16));
             }
          else
             {
@@ -992,7 +992,7 @@ TR::Register *J9::ARM::JNILinkage::buildDirectDispatch(TR::Node *callNode)
             {
             TR::RealRegister *fpReg   = machine->getRealRegister(jniLinkageProperties.getFloatReturnRegister());
             fpReg->setAssignedRegister(fpReg);
-            tempMR = new (trHeapMemory()) TR::MemoryReference(metaReg, fej9->thisThreadGetFloatTemp1Offset(), codeGen);
+            tempMR = new (comp()->trHeapMemory()) TR::MemoryReference(metaReg, fej9->thisThreadGetFloatTemp1Offset(), codeGen);
             generateMemSrc1Instruction(codeGen, ARMOp_fsts, callNode, tempMR, fpReg);
             generateTrg1MemInstruction(codeGen, ARMOp_ldr, callNode, returnRegister, tempMR);
             break;
@@ -1002,11 +1002,11 @@ TR::Register *J9::ARM::JNILinkage::buildDirectDispatch(TR::Node *callNode)
             TR::RealRegister *fdReg   = machine->getRealRegister(jniLinkageProperties.getDoubleReturnRegister());
             fdReg->setAssignedRegister(fdReg);
             TR_ASSERT(fej9->thisThreadGetFloatTemp2Offset() - fej9->thisThreadGetFloatTemp1Offset() == 4,"floatTemp1 and floatTemp2 not contiguous");
-            tempMR = new (trHeapMemory()) TR::MemoryReference(metaReg, fej9->thisThreadGetFloatTemp1Offset(), codeGen);
+            tempMR = new (comp()->trHeapMemory()) TR::MemoryReference(metaReg, fej9->thisThreadGetFloatTemp1Offset(), codeGen);
             generateMemSrc1Instruction(codeGen, ARMOp_fstd, callNode, tempMR, fdReg);
             bool bigEndian = codeGen->comp()->target().cpu.isBigEndian();
             generateTrg1MemInstruction(codeGen, ARMOp_ldr, callNode, bigEndian ? returnRegister->getHighOrder() : returnRegister->getLowOrder(), tempMR);
-            tempMR = new (trHeapMemory()) TR::MemoryReference(metaReg, fej9->thisThreadGetFloatTemp2Offset(), codeGen);
+            tempMR = new (comp()->trHeapMemory()) TR::MemoryReference(metaReg, fej9->thisThreadGetFloatTemp2Offset(), codeGen);
             generateTrg1MemInstruction(codeGen, ARMOp_ldr, callNode, bigEndian ? returnRegister->getLowOrder() : returnRegister->getHighOrder(), tempMR);
             break;
             }
@@ -1042,22 +1042,22 @@ TR::Register *J9::ARM::JNILinkage::buildDirectDispatch(TR::Node *callNode)
    // object is not moved by gc.
    if (resolvedMethod->returnType() == TR::Address)
       {
-      tempMR = new (trHeapMemory()) TR::MemoryReference(returnRegister, 0, codeGen);
+      tempMR = new (comp()->trHeapMemory()) TR::MemoryReference(returnRegister, 0, codeGen);
       generateSrc1ImmInstruction(codeGen, ARMOp_cmp, callNode, returnRegister, 0, 0);
       gcPoint = generateTrg1MemInstruction(codeGen, ARMOp_ldr, callNode, returnRegister, tempMR);
       gcPoint->setConditionCode(ARMConditionCodeNE);
       }
 
    // restore stack pointer and deal with possibly grown stack
-   tempMR = new (trHeapMemory()) TR::MemoryReference(metaReg, fej9->thisThreadGetJavaLiteralsOffset(), codeGen);
+   tempMR = new (comp()->trHeapMemory()) TR::MemoryReference(metaReg, fej9->thisThreadGetJavaLiteralsOffset(), codeGen);
    generateTrg1MemInstruction(codeGen, ARMOp_ldr, callNode, gr4Reg, tempMR);
-   tempMR = new (trHeapMemory()) TR::MemoryReference(metaReg, fej9->thisThreadGetJavaSPOffset(), codeGen);
+   tempMR = new (comp()->trHeapMemory()) TR::MemoryReference(metaReg, fej9->thisThreadGetJavaSPOffset(), codeGen);
    generateTrg1MemInstruction(codeGen, ARMOp_ldr, callNode, stackPtr, tempMR);
    generateTrg1Src2Instruction(codeGen, ARMOp_add, callNode, stackPtr, stackPtr, gr4Reg);
 
    // see if the reference pool was used and, if used, clean it up; otherwise we can
    // leave a bunch of pinned garbage behind that screws up the GC quality forever
-   tempMR = new (trHeapMemory()) TR::MemoryReference(stackPtr, fej9->constJNICallOutFrameFlagsOffset(), codeGen);
+   tempMR = new (comp()->trHeapMemory()) TR::MemoryReference(stackPtr, fej9->constJNICallOutFrameFlagsOffset(), codeGen);
    generateTrg1MemInstruction(codeGen, ARMOp_ldr, callNode, gr4Reg, tempMR);
 
    uint32_t flagValue = fej9->constJNIReferenceFrameAllocatedFlags();
@@ -1080,7 +1080,7 @@ TR::Register *J9::ARM::JNILinkage::buildDirectDispatch(TR::Node *callNode)
    generateTrg1Src1ImmInstruction(codeGen, ARMOp_add, callNode, stackPtr, stackPtr, 20, 0);
 
    // check exceptions
-   tempMR = new (trHeapMemory()) TR::MemoryReference(metaReg, fej9->thisThreadGetCurrentExceptionOffset(), codeGen);
+   tempMR = new (comp()->trHeapMemory()) TR::MemoryReference(metaReg, fej9->thisThreadGetCurrentExceptionOffset(), codeGen);
    generateTrg1MemInstruction(codeGen, ARMOp_ldr, callNode, gr4Reg, tempMR);
    generateSrc1ImmInstruction(codeGen, ARMOp_cmp, callNode, gr4Reg, 0, 0);
    helperSymRef = symRefTab->findOrCreateThrowCurrentExceptionSymbolRef(callerSym);

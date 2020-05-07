@@ -594,9 +594,9 @@ void J9::X86::PrivateLinkage::createPrologue(TR::Instruction *cursor)
          {
          // We don't want the breakpoint to get patched, so generate a sacrificial no-op
          //
-         cursor = new (trHeapMemory()) TR::X86PaddingInstruction(cursor, minInstructionSize, TR_AtomicNoOpPadding, cg());
+         cursor = new (comp()->trHeapMemory()) TR::X86PaddingInstruction(cursor, minInstructionSize, TR_AtomicNoOpPadding, cg());
          }
-      cursor = new (trHeapMemory()) TR::Instruction(BADIA32Op, cursor, cg());
+      cursor = new (comp()->trHeapMemory()) TR::Instruction(BADIA32Op, cursor, cg());
       }
 
    // Compute the nature of the preserved regs
@@ -677,7 +677,7 @@ void J9::X86::PrivateLinkage::createPrologue(TR::Instruction *cursor)
       paramCursor = paramIterator.getNext()
       ){
       TR::RealRegister::RegNum ai = (TR::RealRegister::RegNum)paramCursor->getAssignedGlobalRegisterIndex();
-      debugFrameSlotInfo = new (trHeapMemory()) TR_DebugFrameSegmentInfo(comp(),
+      debugFrameSlotInfo = new (comp()->trHeapMemory()) TR_DebugFrameSegmentInfo(comp(),
          paramCursor->getOffset(), paramCursor->getSize(), "Parameter",
          debugFrameSlotInfo,
          (ai==NOT_ASSIGNED)? NULL : machine()->getRealRegister(ai)
@@ -691,13 +691,13 @@ void J9::X86::PrivateLinkage::createPrologue(TR::Instruction *cursor)
       autoCursor != NULL;
       autoCursor = autoIterator.getNext()
       ){
-      debugFrameSlotInfo = new (trHeapMemory()) TR_DebugFrameSegmentInfo(comp(),
+      debugFrameSlotInfo = new (comp()->trHeapMemory()) TR_DebugFrameSegmentInfo(comp(),
          autoCursor->getOffset(), autoCursor->getSize(), "Local",
          debugFrameSlotInfo
          );
       }
 
-   debugFrameSlotInfo = new (trHeapMemory()) TR_DebugFrameSegmentInfo(comp(),
+   debugFrameSlotInfo = new (comp()->trHeapMemory()) TR_DebugFrameSegmentInfo(comp(),
       0, getProperties().getPointerSize(), "Return address",
       debugFrameSlotInfo
       );
@@ -741,7 +741,7 @@ void J9::X86::PrivateLinkage::createPrologue(TR::Instruction *cursor)
          TR_ASSERT(allocSize >= 1, "When allocSize >= 1, the frame should be small or large, but never medium");
 
          const TR_X86OpCodes subOp = (allocSize <= 127 && getMinimumFirstInstructionSize() <= 3)? SUBRegImms() : SUBRegImm4();
-         cursor = new (trHeapMemory()) TR::X86RegImmInstruction(cursor, subOp, espReal, allocSize, cg());
+         cursor = new (comp()->trHeapMemory()) TR::X86RegImmInstruction(cursor, subOp, espReal, allocSize, cg());
 
          minInstructionSize = 0; // The SUB satisfies the constraint
          }
@@ -791,7 +791,7 @@ void J9::X86::PrivateLinkage::createPrologue(TR::Instruction *cursor)
             }
          else
             {
-            map = new (trHeapMemory(), numberOfParmSlots) TR_GCStackMap(numberOfParmSlots);
+            map = new (comp()->trHeapMemory(), numberOfParmSlots) TR_GCStackMap(numberOfParmSlots);
             map->copy(atlas->getParameterMap());
 
             // Before this point, the parameter stack considers all parms to be on the stack.
@@ -839,7 +839,7 @@ void J9::X86::PrivateLinkage::createPrologue(TR::Instruction *cursor)
       {
       TR_ASSERT(minInstructionSize <= 5, "Can't guarantee SUB instruction will be at least %d bytes", minInstructionSize);
       const TR_X86OpCodes subOp = (allocSize <= 127 && getMinimumFirstInstructionSize() <= 3)? SUBRegImms() : SUBRegImm4();
-      cursor = new (trHeapMemory()) TR::X86RegImmInstruction(cursor, subOp, espReal, allocSize, cg());
+      cursor = new (comp()->trHeapMemory()) TR::X86RegImmInstruction(cursor, subOp, espReal, allocSize, cg());
       }
 
    //Support to paint allocated frame slots.
@@ -883,20 +883,20 @@ void J9::X86::PrivateLinkage::createPrologue(TR::Instruction *cursor)
       //Load the 64 bit paint value into a paint reg.
 #ifdef TR_TARGET_64BIT
        paintReg = machine()->getRealRegister(TR::RealRegister::r8);
-       cursor = new (trHeapMemory()) TR::AMD64RegImm64Instruction(cursor, MOV8RegImm64, paintReg, paintValue64, cg());
+       cursor = new (comp()->trHeapMemory()) TR::AMD64RegImm64Instruction(cursor, MOV8RegImm64, paintReg, paintValue64, cg());
 #endif
 
       //Perform the paint.
       //
-      cursor = new (trHeapMemory()) TR::X86RegImmInstruction(cursor, MOVRegImm4(), frameSlotIndexReg, paintSize, cg());
-      cursor = new (trHeapMemory()) TR::X86LabelInstruction(cursor, LABEL, startLabel, cg());
+      cursor = new (comp()->trHeapMemory()) TR::X86RegImmInstruction(cursor, MOVRegImm4(), frameSlotIndexReg, paintSize, cg());
+      cursor = new (comp()->trHeapMemory()) TR::X86LabelInstruction(cursor, LABEL, startLabel, cg());
       if (cg()->comp()->target().is64Bit())
-         cursor = new (trHeapMemory()) TR::X86MemRegInstruction(cursor, S8MemReg, generateX86MemoryReference(espReal, frameSlotIndexReg, 0,(uint8_t) paintSlotsOffset, cg()), paintReg, cg());
+         cursor = new (comp()->trHeapMemory()) TR::X86MemRegInstruction(cursor, S8MemReg, generateX86MemoryReference(espReal, frameSlotIndexReg, 0,(uint8_t) paintSlotsOffset, cg()), paintReg, cg());
       else
-         cursor = new (trHeapMemory()) TR::X86MemImmInstruction(cursor, SMemImm4(), generateX86MemoryReference(espReal, frameSlotIndexReg, 0,(uint8_t) paintSlotsOffset, cg()), paintValue32, cg());
-      cursor = new (trHeapMemory()) TR::X86RegImmInstruction(cursor, SUBRegImms(), frameSlotIndexReg, sizeof(intptr_t),cg());
-      cursor = new (trHeapMemory()) TR::X86RegImmInstruction(cursor, CMPRegImm4(), frameSlotIndexReg, paintBound, cg());
-      cursor = new (trHeapMemory()) TR::X86LabelInstruction(cursor, JGE4, startLabel,cg());
+         cursor = new (comp()->trHeapMemory()) TR::X86MemImmInstruction(cursor, SMemImm4(), generateX86MemoryReference(espReal, frameSlotIndexReg, 0,(uint8_t) paintSlotsOffset, cg()), paintValue32, cg());
+      cursor = new (comp()->trHeapMemory()) TR::X86RegImmInstruction(cursor, SUBRegImms(), frameSlotIndexReg, sizeof(intptr_t),cg());
+      cursor = new (comp()->trHeapMemory()) TR::X86RegImmInstruction(cursor, CMPRegImm4(), frameSlotIndexReg, paintBound, cg());
+      cursor = new (comp()->trHeapMemory()) TR::X86LabelInstruction(cursor, JGE4, startLabel,cg());
       }
 
    // Save preserved regs
@@ -927,7 +927,7 @@ void J9::X86::PrivateLinkage::createPrologue(TR::Instruction *cursor)
 
       if (numReferenceLocalSlotsToInitialize > 0 || numInternalPointerSlotsToInitialize > 0)
          {
-         cursor = new (trHeapMemory()) TR::X86RegRegInstruction(cursor, XORRegReg(), scratchReg, scratchReg, cg());
+         cursor = new (comp()->trHeapMemory()) TR::X86RegRegInstruction(cursor, XORRegReg(), scratchReg, scratchReg, cg());
 
          // Initialize locals that are live on entry
          //
@@ -942,7 +942,7 @@ void J9::X86::PrivateLinkage::createPrologue(TR::Instruction *cursor)
                cg());
 
 #if defined(DEBUG)
-            debugFrameSlotInfo = new (trHeapMemory()) TR_DebugFrameSegmentInfo(comp(),
+            debugFrameSlotInfo = new (comp()->trHeapMemory()) TR_DebugFrameSegmentInfo(comp(),
                atlas->getLocalBaseOffset(),
                numReferenceLocalSlotsToInitialize * properties.getPointerSize(), "Initialized live vars",
                debugFrameSlotInfo);
@@ -962,7 +962,7 @@ void J9::X86::PrivateLinkage::createPrologue(TR::Instruction *cursor)
                cg());
 
 #if defined(DEBUG)
-            debugFrameSlotInfo = new (trHeapMemory()) TR_DebugFrameSegmentInfo(comp(),
+            debugFrameSlotInfo = new (comp()->trHeapMemory()) TR_DebugFrameSegmentInfo(comp(),
                atlas->getOffsetOfFirstInternalPointer(),
                numInternalPointerSlotsToInitialize * properties.getPointerSize(),
                "Initialized internal pointers",
@@ -973,7 +973,7 @@ void J9::X86::PrivateLinkage::createPrologue(TR::Instruction *cursor)
       }
 
 #if defined(DEBUG)
-   debugFrameSlotInfo = new (trHeapMemory()) TR_DebugFrameSegmentInfo(comp(),
+   debugFrameSlotInfo = new (comp()->trHeapMemory()) TR_DebugFrameSegmentInfo(comp(),
       -localSize - preservedRegsSize - outgoingArgSize,
       outgoingArgSize, "Outgoing args",
       debugFrameSlotInfo
@@ -1949,11 +1949,11 @@ void J9::X86::PrivateLinkage::buildDirectCall(TR::SymbolReference *methodSymRef,
       {
       TR::LabelSymbol *label   = generateLabelSymbol(cg());
 
-      TR::Snippet *snippet = (TR::Snippet*)new (trHeapMemory()) TR::X86CallSnippet(cg(), callNode, label, false);
+      TR::Snippet *snippet = (TR::Snippet*)new (comp()->trHeapMemory()) TR::X86CallSnippet(cg(), callNode, label, false);
       cg()->addSnippet(snippet);
       snippet->gcMap().setGCRegisterMask(site.getPreservedRegisterMask());
 
-      callInstr = generateImmSymInstruction(CALLImm4, callNode, 0, new (trHeapMemory()) TR::SymbolReference(comp()->getSymRefTab(), label), cg());
+      callInstr = generateImmSymInstruction(CALLImm4, callNode, 0, new (comp()->trHeapMemory()) TR::SymbolReference(comp()->getSymRefTab(), label), cg());
       generateBoundaryAvoidanceInstruction(TR::X86BoundaryAvoidanceInstruction::unresolvedAtomicRegions, 8, 8, callInstr, cg());
 
       // Nop is necessary due to confusion when resolving shared slots at a transition
@@ -2000,7 +2000,7 @@ void J9::X86::PrivateLinkage::buildRevirtualizedCall(TR::X86CallSite &site, TR::
    if (cg()->comp()->target().is64Bit())
       {
 #ifdef TR_TARGET_64BIT
-      snippet = new (trHeapMemory()) TR::AMD64GuardedDevirtualSnippet(
+      snippet = new (comp()->trHeapMemory()) TR::AMD64GuardedDevirtualSnippet(
          cg(),
          site.getCallNode(),
          site.getDevirtualizedMethodSymRef(),
@@ -2015,7 +2015,7 @@ void J9::X86::PrivateLinkage::buildRevirtualizedCall(TR::X86CallSite &site, TR::
       }
    else
       {
-      snippet = new (trHeapMemory()) TR::X86GuardedDevirtualSnippet(
+      snippet = new (comp()->trHeapMemory()) TR::X86GuardedDevirtualSnippet(
          cg(),
          site.getCallNode(),
          doneLabel,
@@ -2442,7 +2442,7 @@ void J9::X86::PrivateLinkage::buildVPIC(TR::X86CallSite &site, TR::LabelSymbol *
 
    TR::Instruction *startOfPicInstruction = site.getFirstPICSlotInstruction();
 
-   TR::X86PicDataSnippet *snippet = new (trHeapMemory()) TR::X86PicDataSnippet(
+   TR::X86PicDataSnippet *snippet = new (comp()->trHeapMemory()) TR::X86PicDataSnippet(
       VPicParameters.defaultNumberOfSlots,
       startOfPicInstruction,
       snippetLabel,

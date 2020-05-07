@@ -742,7 +742,7 @@ void J9::ARM64::PrivateLinkage::createEpilogue(TR::Instruction *cursor)
       TR::RealRegister *rr = machine->getRealRegister(r);
       if (rr->getHasBeenAssignedInMethod())
          {
-         TR::MemoryReference *preservedRegMR = new (trHeapMemory()) TR::MemoryReference(javaSP, preservedRegisterOffsetFromJavaSP, cg());
+         TR::MemoryReference *preservedRegMR = new (comp()->trHeapMemory()) TR::MemoryReference(javaSP, preservedRegisterOffsetFromJavaSP, cg());
          cursor = generateTrg1MemInstruction(cg(), TR::InstOpCode::ldrimmx, lastNode, rr, preservedRegMR, cursor);
          preservedRegisterOffsetFromJavaSP += 8;
          }
@@ -780,7 +780,7 @@ void J9::ARM64::PrivateLinkage::pushOutgoingMemArgument(TR::Register *argReg, in
    const TR::ARM64LinkageProperties& properties = self()->getProperties();
    TR::RealRegister *javaSP = cg()->machine()->getRealRegister(properties.getStackPointerRegister()); // x20
 
-   TR::MemoryReference *result = new (self()->trHeapMemory()) TR::MemoryReference(javaSP, offset, cg());
+   TR::MemoryReference *result = new (comp()->trHeapMemory()) TR::MemoryReference(javaSP, offset, cg());
    memArg.argRegister = argReg;
    memArg.argMemory = result;
    memArg.opCode = opCode;
@@ -909,11 +909,11 @@ int32_t J9::ARM64::PrivateLinkage::buildPrivateLinkageArgs(TR::Node *callNode,
       }
 
    // From here, down, any new stack allocations will expire / die when the function returns
-   TR::StackMemoryRegion stackMemoryRegion(*trMemory());
+   TR::StackMemoryRegion stackMemoryRegion(*comp()->trMemory());
 
    if (numMemArgs > 0)
       {
-      pushToMemory = new (trStackMemory()) TR::ARM64MemoryArgument[numMemArgs];
+      pushToMemory = new (comp()->trStackMemory()) TR::ARM64MemoryArgument[numMemArgs];
       }
 
    if (specialArgReg)
@@ -1141,18 +1141,18 @@ void J9::ARM64::PrivateLinkage::buildDirectCall(TR::Node *callNode,
 
       if (callSymRef->isUnresolved() || comp()->compileRelocatableCode())
          {
-         snippet = new (trHeapMemory()) TR::ARM64UnresolvedCallSnippet(cg(), callNode, label, argSize);
+         snippet = new (comp()->trHeapMemory()) TR::ARM64UnresolvedCallSnippet(cg(), callNode, label, argSize);
          }
       else
          {
-         snippet = new (trHeapMemory()) TR::ARM64CallSnippet(cg(), callNode, label, argSize);
+         snippet = new (comp()->trHeapMemory()) TR::ARM64CallSnippet(cg(), callNode, label, argSize);
          snippet->gcMap().setGCRegisterMask(pp.getPreservedRegisterMapForGC());
          }
 
       cg()->addSnippet(snippet);
       gcPoint = generateImmSymInstruction(cg(), TR::InstOpCode::bl, callNode,
          0, dependencies,
-         new (trHeapMemory()) TR::SymbolReference(comp()->getSymRefTab(), label),
+         new (comp()->trHeapMemory()) TR::SymbolReference(comp()->getSymRefTab(), label),
          snippet);
 
       // Nop is necessary due to confusion when resolving shared slots at a transition
@@ -1169,9 +1169,9 @@ TR::Register *J9::ARM64::PrivateLinkage::buildDirectDispatch(TR::Node *callNode)
    TR::SymbolReference *callSymRef = callNode->getSymbolReference();
    const TR::ARM64LinkageProperties &pp = getProperties();
    TR::RegisterDependencyConditions *dependencies =
-      new (trHeapMemory()) TR::RegisterDependencyConditions(
+      new (comp()->trHeapMemory()) TR::RegisterDependencyConditions(
          pp.getNumberOfDependencyGPRegisters(),
-         pp.getNumberOfDependencyGPRegisters(), trMemory());
+         pp.getNumberOfDependencyGPRegisters(), comp()->trMemory());
 
    int32_t argSize = buildArgs(callNode, dependencies);
 
@@ -1293,7 +1293,7 @@ void J9::ARM64::PrivateLinkage::buildVirtualDispatch(TR::Node *callNode,
 
          TR::LabelSymbol *vcSnippetLabel = generateLabelSymbol(cg());
          TR::ARM64VirtualUnresolvedSnippet *vcSnippet =
-            new (trHeapMemory())
+            new (comp()->trHeapMemory())
             TR::ARM64VirtualUnresolvedSnippet(cg(), callNode, vcSnippetLabel, argSize, doneLabel, (uint8_t *)thunk);
          cg()->addSnippet(vcSnippet);
 
@@ -1305,7 +1305,7 @@ void J9::ARM64::PrivateLinkage::buildVirtualDispatch(TR::Node *callNode,
          generateLabelInstruction(cg(), TR::InstOpCode::b, callNode, vcSnippetLabel);
          generateTrg1ImmInstruction(cg(), TR::InstOpCode::movkx, callNode, x9, TR::MOV_LSL16);
          generateTrg1Src1ImmInstruction(cg(), TR::InstOpCode::sbfmx, callNode, x9, x9, 0x1F); // sxtw x9, w9
-         tempMR = new (trHeapMemory()) TR::MemoryReference(vftReg, x9, cg());
+         tempMR = new (comp()->trHeapMemory()) TR::MemoryReference(vftReg, x9, cg());
          generateTrg1MemInstruction(cg(), TR::InstOpCode::ldroffx, callNode, x9, tempMR);
          gcPoint = generateRegBranchInstruction(cg(), TR::InstOpCode::blr, callNode, x9);
          }
@@ -1326,7 +1326,7 @@ void J9::ARM64::PrivateLinkage::buildVirtualDispatch(TR::Node *callNode,
                                        (((offset >> 16) & 0xFFFF) | TR::MOV_LSL16));
             generateTrg1Src1ImmInstruction(cg(), TR::InstOpCode::sbfmx, callNode, x9, x9, 0x1F); // sxtw x9, w9
             }
-         tempMR = new (trHeapMemory()) TR::MemoryReference(vftReg, x9, cg());
+         tempMR = new (comp()->trHeapMemory()) TR::MemoryReference(vftReg, x9, cg());
          generateTrg1MemInstruction(cg(), TR::InstOpCode::ldroffx, callNode, x9, tempMR);
          gcPoint = generateRegBranchInstruction(cg(), TR::InstOpCode::blr, callNode, x9, dependencies);
          }
@@ -1345,7 +1345,7 @@ void J9::ARM64::PrivateLinkage::buildVirtualDispatch(TR::Node *callNode,
 
       TR::LabelSymbol *ifcSnippetLabel = generateLabelSymbol(cg());
       TR::ARM64InterfaceCallSnippet *ifcSnippet =
-         new (trHeapMemory())
+         new (comp()->trHeapMemory())
          TR::ARM64InterfaceCallSnippet(cg(), callNode, ifcSnippetLabel, argSize, doneLabel, (uint8_t *)thunk);
       cg()->addSnippet(ifcSnippet);
 
@@ -1366,9 +1366,9 @@ TR::Register *J9::ARM64::PrivateLinkage::buildIndirectDispatch(TR::Node *callNod
    TR::RealRegister *sp = cg()->machine()->getRealRegister(pp.getStackPointerRegister());
 
    TR::RegisterDependencyConditions *dependencies =
-      new (trHeapMemory()) TR::RegisterDependencyConditions(
+      new (comp()->trHeapMemory()) TR::RegisterDependencyConditions(
          pp.getNumberOfDependencyGPRegisters(),
-         pp.getNumberOfDependencyGPRegisters(), trMemory());
+         pp.getNumberOfDependencyGPRegisters(), comp()->trMemory());
 
    int32_t argSize = buildArgs(callNode, dependencies);
 

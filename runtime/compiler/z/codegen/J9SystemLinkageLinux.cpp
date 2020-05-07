@@ -79,7 +79,7 @@ J9::Z::zLinuxSystemLinkage::generateInstructionsForCall(TR::Node * callNode,
    TR::Register * parm5 = deps->searchPreConditionRegister(getIntegerArgumentRegister(4));
 
    TR::RegisterDependencyConditions * postDeps =
-		   new (trHeapMemory()) TR::RegisterDependencyConditions(NULL,
+		   new (comp()->trHeapMemory()) TR::RegisterDependencyConditions(NULL,
 				   deps->getPostConditions(), 0, deps->getAddCursorForPost(), cg());
 
    TR::Register * systemReturnAddressRegister =
@@ -220,7 +220,7 @@ J9::Z::zLinuxSystemLinkage::performCallNativeFunctionForLinkage(TR::Node * callN
 
    // restore java stack pointer
    generateRXInstruction(codeGen, TR::InstOpCode::getLoadOpCode(), callNode, javaStackPointerRealRegister,
-                         new (trHeapMemory()) TR::MemoryReference(methodMetaDataVirtualRegister, (int32_t)fej9->thisThreadGetJavaSPOffset(), codeGen));
+                         new (comp()->trHeapMemory()) TR::MemoryReference(methodMetaDataVirtualRegister, (int32_t)fej9->thisThreadGetJavaSPOffset(), codeGen));
    }
 
 void

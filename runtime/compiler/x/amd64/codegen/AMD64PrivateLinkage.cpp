@@ -1339,7 +1339,7 @@ void J9::X86::AMD64::PrivateLinkage::buildIPIC(TR::X86CallSite &site, TR::LabelS
       }
 
    TR::Instruction *startOfPicInstruction = site.getFirstPICSlotInstruction();
-   TR::X86PicDataSnippet *snippet = new (trHeapMemory()) TR::X86PicDataSnippet(
+   TR::X86PicDataSnippet *snippet = new (comp()->trHeapMemory()) TR::X86PicDataSnippet(
       numIPicSlots,
       startOfPicInstruction,
       lookupDispatchSnippetLabel,

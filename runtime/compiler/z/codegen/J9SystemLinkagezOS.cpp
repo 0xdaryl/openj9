@@ -193,8 +193,8 @@ J9::Z::zOSSystemLinkage::generateInstructionsForCall(TR::Node * callNode, TR::Re
     * The BASR and NOP padding must stick together and can't have reverse spills in the middle.
     * Hence, splitting the dependencies to avoid spill instructions.
     */
-   TR::RegisterDependencyConditions* callPreDeps = new (self()->trHeapMemory()) TR::RegisterDependencyConditions(deps->getPreConditions(), NULL, deps->getAddCursorForPre(), 0, codeGen);
-   TR::RegisterDependencyConditions* callPostDeps = new (self()->trHeapMemory()) TR::RegisterDependencyConditions(NULL, deps->getPostConditions(), 0, deps->getAddCursorForPost(), codeGen);
+   TR::RegisterDependencyConditions* callPreDeps = new (comp->trHeapMemory()) TR::RegisterDependencyConditions(deps->getPreConditions(), NULL, deps->getAddCursorForPre(), 0, codeGen);
+   TR::RegisterDependencyConditions* callPostDeps = new (comp->trHeapMemory()) TR::RegisterDependencyConditions(NULL, deps->getPostConditions(), 0, deps->getAddCursorForPost(), codeGen);
 
    gcPoint = generateRRInstruction(codeGen, TR::InstOpCode::BASR, callNode, systemReturnAddressRegister, systemEntryPointRegister, callPreDeps);
    if (isJNIGCPoint)
@@ -208,7 +208,7 @@ J9::Z::zOSSystemLinkage::generateInstructionsForCall(TR::Node * callNode, TR::Re
    if (cg()->supportsJITFreeSystemStackPointer())
       {
       generateRXInstruction(codeGen, TR::InstOpCode::getStoreOpCode(), callNode, systemStackRegister,
-         new (trHeapMemory()) TR::MemoryReference(methodMetaDataVirtualRegister, (int32_t)fej9->thisThreadGetSystemSPOffset(), codeGen));
+         new (comp->trHeapMemory()) TR::MemoryReference(methodMetaDataVirtualRegister, (int32_t)fej9->thisThreadGetSystemSPOffset(), codeGen));
       if (getStackPointerRealRegister()->getState() != TR::RealRegister::Locked)
          codeGen->stopUsingRegister(systemStackRegister);
       }
@@ -253,7 +253,7 @@ J9::Z::zOSSystemLinkage::performCallNativeFunctionForLinkage(TR::Node * callNode
 
    // restore java stack pointer
    generateRXInstruction(codeGen, TR::InstOpCode::getLoadOpCode(), callNode, javaStackPointerRealRegister,
-                         new (trHeapMemory()) TR::MemoryReference(methodMetaDataVirtualRegister, (int32_t)fej9->thisThreadGetJavaSPOffset(), codeGen));
+                         new (comp()->trHeapMemory()) TR::MemoryReference(methodMetaDataVirtualRegister, (int32_t)fej9->thisThreadGetJavaSPOffset(), codeGen));
    }
 
 void

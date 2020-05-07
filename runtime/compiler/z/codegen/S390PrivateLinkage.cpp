@@ -273,13 +273,13 @@ J9::Z::PrivateLinkage::mapCompactedStack(TR::ResolvedMethodSymbol * method)
 #endif
 
    {
-   TR::StackMemoryRegion stackMemoryRegion(*trMemory());
+   TR::StackMemoryRegion stackMemoryRegion(*comp()->trMemory());
 
    int32_t *colourToOffsetMap =
-      (int32_t *) trMemory()->allocateStackMemory(cg()->getLocalsIG()->getNumberOfColoursUsedToColour() * sizeof(int32_t));
+      (int32_t *) comp()->trMemory()->allocateStackMemory(cg()->getLocalsIG()->getNumberOfColoursUsedToColour() * sizeof(int32_t));
 
    uint32_t *colourToSizeMap =
-      (uint32_t *) trMemory()->allocateStackMemory(cg()->getLocalsIG()->getNumberOfColoursUsedToColour() * sizeof(uint32_t));
+      (uint32_t *) comp()->trMemory()->allocateStackMemory(cg()->getLocalsIG()->getNumberOfColoursUsedToColour() * sizeof(uint32_t));
 
    for (i=0; i<cg()->getLocalsIG()->getNumberOfColoursUsedToColour(); i++)
       {
@@ -1280,7 +1280,7 @@ J9::Z::PrivateLinkage::createPrologue(TR::Instruction * cursor)
       TR::SymbolReference * stackOverflowRef = comp()->getSymRefTab()->findOrCreateStackOverflowSymbolRef(comp()->getJittedMethodSymbol());
 
       TR::Snippet * snippet =
-         new (trHeapMemory()) TR::S390StackCheckFailureSnippet(cg(), firstNode, reStartLabel, stackOverflowSnippetLabel, stackOverflowRef, size - cg()->machine()->getGPRSize());
+         new (comp()->trHeapMemory()) TR::S390StackCheckFailureSnippet(cg(), firstNode, reStartLabel, stackOverflowSnippetLabel, stackOverflowRef, size - cg()->machine()->getGPRSize());
 
       cg()->addSnippet(snippet);
 
@@ -1405,7 +1405,7 @@ J9::Z::PrivateLinkage::createPrologue(TR::Instruction * cursor)
    firstSnippet = cg()->getFirstSnippet();
    if (setupLiteralPoolRegister(firstSnippet) > 0)
       {
-      cursor = new (trHeapMemory()) TR::S390RILInstruction(TR::InstOpCode::LARL, firstNode, lpReg, firstSnippet, cursor, cg());
+      cursor = new (comp()->trHeapMemory()) TR::S390RILInstruction(TR::InstOpCode::LARL, firstNode, lpReg, firstSnippet, cursor, cg());
       }
 
       ListIterator<TR::AutomaticSymbol> variableSizeSymIterator(&bodySymbol->getVariableSizeSymbolList());
@@ -1693,7 +1693,7 @@ J9::Z::PrivateLinkage::buildVirtualDispatch(TR::Node * callNode, TR::RegisterDep
       // We split dependencies to make sure the RA doesn't insert any register motion code in the fixed
       // block sequence.
       //
-      TR::RegisterDependencyConditions * preDeps = new (trHeapMemory())
+      TR::RegisterDependencyConditions * preDeps = new (comp()->trHeapMemory())
                           TR::RegisterDependencyConditions(dependencies->getPreConditions(), NULL,
                           dependencies->getAddCursorForPre(), 0, cg());
 
@@ -1701,10 +1701,10 @@ J9::Z::PrivateLinkage::buildVirtualDispatch(TR::Node * callNode, TR::RegisterDep
       //  and the VTABLE.  This sequence is assumed to be fixed length.
       //  Added one more slot for the post dep that might be added in buildDirectCall
       //
-      TR::RegisterDependencyConditions * postDepsTemp = new (trHeapMemory())
+      TR::RegisterDependencyConditions * postDepsTemp = new (comp()->trHeapMemory())
                           TR::RegisterDependencyConditions(NULL, dependencies->getPostConditions(), 0,
                           dependencies->getAddCursorForPost(), cg());
-      TR::RegisterDependencyConditions * postDeps = new (trHeapMemory())
+      TR::RegisterDependencyConditions * postDeps = new (comp()->trHeapMemory())
                           TR::RegisterDependencyConditions(postDepsTemp,0,4, cg());
 
       // Search ARG Deps for vregs used for RA/EP and this
@@ -1731,7 +1731,7 @@ J9::Z::PrivateLinkage::buildVirtualDispatch(TR::Node * callNode, TR::RegisterDep
          // Emit the resolve snippet and BRASL to call it
          //
          TR::LabelSymbol * snippetLabel = generateLabelSymbol(cg());
-         unresolvedSnippet = new (trHeapMemory()) TR::S390VirtualUnresolvedSnippet(cg(), callNode, snippetLabel, sizeOfArguments, virtualThunk);
+         unresolvedSnippet = new (comp()->trHeapMemory()) TR::S390VirtualUnresolvedSnippet(cg(), callNode, snippetLabel, sizeOfArguments, virtualThunk);
          cg()->addSnippet(unresolvedSnippet);
          //generateSnippetCall extracts preDeps from dependencies and puts them on BRASL
          TR::Instruction * gcPoint =
@@ -1765,7 +1765,7 @@ J9::Z::PrivateLinkage::buildVirtualDispatch(TR::Node * callNode, TR::RegisterDep
                                                       comp(), callNode);
                   if (comp()->getOption(TR_TraceCG))
                      {
-                     traceMsg(comp(), "Emit new Non-Overridden guard for call %s (%x) in %s\n", resolvedMethod->signature(trMemory()), callNode,
+                     traceMsg(comp(), "Emit new Non-Overridden guard for call %s (%x) in %s\n", resolvedMethod->signature(comp()->trMemory()), callNode,
                            comp()->signature());
                      }
                   }
@@ -1804,7 +1804,7 @@ J9::Z::PrivateLinkage::buildVirtualDispatch(TR::Node * callNode, TR::RegisterDep
                                                             comp(), callNode);
                         if (comp()->getOption(TR_TraceCG))
                            {
-                           traceMsg(comp(), "Emit new ABSTRACT guard for call %s (%x) in %s\n", resolvedMethod->signature(trMemory()), callNode,
+                           traceMsg(comp(), "Emit new ABSTRACT guard for call %s (%x) in %s\n", resolvedMethod->signature(comp()->trMemory()), callNode,
                                  comp()->signature());
                            }
                         }
@@ -1828,7 +1828,7 @@ J9::Z::PrivateLinkage::buildVirtualDispatch(TR::Node * callNode, TR::RegisterDep
 
                            if (comp()->getOption(TR_TraceCG))
                               {
-                              traceMsg(comp(), "Emit new HierarchyGuardguard for call %s (%x) in %s\n", resolvedMethod->signature(trMemory()), callNode,
+                              traceMsg(comp(), "Emit new HierarchyGuardguard for call %s (%x) in %s\n", resolvedMethod->signature(comp()->trMemory()), callNode,
                                  comp()->signature());
                               }
                            }
@@ -2006,7 +2006,7 @@ J9::Z::PrivateLinkage::buildVirtualDispatch(TR::Node * callNode, TR::RegisterDep
             }
          }
 
-      gcPoint = new (trHeapMemory()) TR::S390RRInstruction(TR::InstOpCode::BASR, callNode, RegRA, RegRA, cg());
+      gcPoint = new (comp()->trHeapMemory()) TR::S390RRInstruction(TR::InstOpCode::BASR, callNode, RegRA, RegRA, cg());
       gcPoint->setDependencyConditions(preDeps);
 
       if (unresolvedSnippet != NULL)
@@ -2073,7 +2073,7 @@ J9::Z::PrivateLinkage::buildVirtualDispatch(TR::Node * callNode, TR::RegisterDep
            uint32_t maxStaticPICs = comp()->getOptions()->getNumInterfaceCallStaticSlots();
 
            TR_ExtraAddressInfo *profiledInfo;
-           profiledClassesList = new (trHeapMemory()) TR::list<TR_OpaqueClassBlock*>(getTypedAllocator<TR_OpaqueClassBlock*>(comp()->allocator()));
+           profiledClassesList = new (comp()->trHeapMemory()) TR::list<TR_OpaqueClassBlock*>(getTypedAllocator<TR_OpaqueClassBlock*>(comp()->allocator()));
            for (profiledInfo = valuesIt.getFirst();  numStaticPICs < maxStaticPICs && profiledInfo != NULL; profiledInfo = valuesIt.getNext())
               {
 
@@ -2107,7 +2107,7 @@ J9::Z::PrivateLinkage::buildVirtualDispatch(TR::Node * callNode, TR::RegisterDep
            }
 
       TR::LabelSymbol * snippetLabel = generateLabelSymbol(cg());
-      TR::S390InterfaceCallSnippet * ifcSnippet = new (trHeapMemory()) TR::S390InterfaceCallSnippet(cg(), callNode,
+      TR::S390InterfaceCallSnippet * ifcSnippet = new (comp()->trHeapMemory()) TR::S390InterfaceCallSnippet(cg(), callNode,
            snippetLabel, sizeOfArguments, numInterfaceCallCacheSlots, virtualThunk, false);
       cg()->addSnippet(ifcSnippet);
 
@@ -2121,16 +2121,16 @@ J9::Z::PrivateLinkage::buildVirtualDispatch(TR::Node * callNode, TR::RegisterDep
          TR::LabelSymbol * snippetLabel = generateLabelSymbol(cg());
 
          // Make a copy of input deps, but add on 3 new slots.
-         TR::RegisterDependencyConditions * postDeps = new (trHeapMemory()) TR::RegisterDependencyConditions(dependencies, 0, 3, cg());
+         TR::RegisterDependencyConditions * postDeps = new (comp()->trHeapMemory()) TR::RegisterDependencyConditions(dependencies, 0, 3, cg());
          postDeps->setAddCursorForPre(0);        // Ignore all pre-deps that were copied.
-         postDeps->setNumPreConditions(0, trMemory());        // Ignore all pre-deps that were copied.
+         postDeps->setNumPreConditions(0, comp()->trMemory());        // Ignore all pre-deps that were copied.
 
          gcPoint = generateSnippetCall(cg(), callNode, ifcSnippet, dependencies,methodSymRef);
 
          // NOP is necessary so that the VM doesn't confuse Virtual Dispatch (expected to always use BASR
          // with interface dispatch (which must guarantee that RA-2 != 0x0D ie. BASR)
          //
-         TR::Instruction * cursor = new (trHeapMemory()) TR::S390NOPInstruction(TR::InstOpCode::NOP, 2, callNode, cg());
+         TR::Instruction * cursor = new (comp()->trHeapMemory()) TR::S390NOPInstruction(TR::InstOpCode::NOP, 2, callNode, cg());
 
          // Fool the snippet into setting up the return address to be after the NOP
          //
@@ -2153,13 +2153,13 @@ J9::Z::PrivateLinkage::buildVirtualDispatch(TR::Node * callNode, TR::RegisterDep
 
          // We split dependencies to make sure the RA doesn't insert any register motion code in the fixed
          // block sequence and to only enforce parameter setup on head of block.
-         TR::RegisterDependencyConditions * preDeps = new (trHeapMemory()) TR::RegisterDependencyConditions(
+         TR::RegisterDependencyConditions * preDeps = new (comp()->trHeapMemory()) TR::RegisterDependencyConditions(
             dependencies->getPreConditions(), NULL, dependencies->getAddCursorForPre(), 0, cg());
 
          // Make a copy of input deps, but add on 3 new slots.
-         TR::RegisterDependencyConditions * postDeps = new (trHeapMemory()) TR::RegisterDependencyConditions(dependencies, 0, 5, cg());
+         TR::RegisterDependencyConditions * postDeps = new (comp()->trHeapMemory()) TR::RegisterDependencyConditions(dependencies, 0, 5, cg());
          postDeps->setAddCursorForPre(0);        // Ignore all pre-deps that were copied.
-         postDeps->setNumPreConditions(0, trMemory());        // Ignore all pre-deps that were copied.
+         postDeps->setNumPreConditions(0, comp()->trMemory());        // Ignore all pre-deps that were copied.
 
          // Check the thisChild to see if anyone uses this object after the call (if not, we won't add it to post Deps)
          if (callNode->getChild(callNode->getFirstArgumentIndex())->getReferenceCount() > 0)
@@ -2172,7 +2172,7 @@ J9::Z::PrivateLinkage::buildVirtualDispatch(TR::Node * callNode, TR::RegisterDep
 
          if (comp()->getOption(TR_enableInterfaceCallCachingSingleDynamicSlot))
             {
-            cursor = new (trHeapMemory()) TR::S390RILInstruction(TR::InstOpCode::LARL, callNode, snippetReg, ifcSnippet->getDataConstantSnippet(), cg());
+            cursor = new (comp()->trHeapMemory()) TR::S390RILInstruction(TR::InstOpCode::LARL, callNode, snippetReg, ifcSnippet->getDataConstantSnippet(), cg());
 
             // Single dynamic slot case
             // we cache one class-method pair and atomically load it using LM/LPQ
@@ -2185,7 +2185,7 @@ J9::Z::PrivateLinkage::buildVirtualDispatch(TR::Node * callNode, TR::RegisterDep
             postDeps->addPostCondition(methodRegister, TR::RealRegister::LegalOddOfPair);
 
             //Load return address in RegRA
-            cursor = new (trHeapMemory()) TR::S390RILInstruction(TR::InstOpCode::LARL, callNode, RegRA, returnLocationLabel, cursor, cg());
+            cursor = new (comp()->trHeapMemory()) TR::S390RILInstruction(TR::InstOpCode::LARL, callNode, RegRA, returnLocationLabel, cursor, cg());
 
             if (cg()->comp()->target().is64Bit())
                cursor = generateRXInstruction(cg(), TR::InstOpCode::LPQ, callNode, classMethodEPPairRegister,
@@ -2205,14 +2205,14 @@ J9::Z::PrivateLinkage::buildVirtualDispatch(TR::Node * callNode, TR::RegisterDep
             cursor = generateS390RegInstruction(cg(), TR::InstOpCode::BCR, callNode, methodRegister, cursor);
             ((TR::S390RegInstruction *)cursor)->setBranchCondition(TR::InstOpCode::COND_BER);
 
-            cursor = new (trHeapMemory()) TR::S390RILInstruction(TR::InstOpCode::LARL, callNode, snippetReg, ifcSnippet,cursor, cg());
+            cursor = new (comp()->trHeapMemory()) TR::S390RILInstruction(TR::InstOpCode::LARL, callNode, snippetReg, ifcSnippet,cursor, cg());
 
             // Cache miss... Too bad.. go to the slow path through the interface call snippet
             cursor = generateS390RegInstruction(cg(), TR::InstOpCode::BCR, callNode, snippetReg, cursor);
             ((TR::S390RegInstruction *)cursor)->setBranchCondition(TR::InstOpCode::COND_BCR);
 
             // Added NOP so that the pattern matching code in jit2itrg icallVMprJavaSendPatchupVirtual
-            cursor = new (trHeapMemory()) TR::S390NOPInstruction(TR::InstOpCode::NOP, 2, callNode, cg());
+            cursor = new (comp()->trHeapMemory()) TR::S390NOPInstruction(TR::InstOpCode::NOP, 2, callNode, cg());
             }
          else
             {
@@ -2223,7 +2223,7 @@ J9::Z::PrivateLinkage::buildVirtualDispatch(TR::Node * callNode, TR::RegisterDep
             // Load the interface call data snippet pointer to register is required for non-CLFI / BRCL sequence.
             if (!useCLFIandBRCL)
                {
-               cursor = new (trHeapMemory()) TR::S390RILInstruction(TR::InstOpCode::LARL, callNode, snippetReg, ifcSnippet->getDataConstantSnippet(), cg());
+               cursor = new (comp()->trHeapMemory()) TR::S390RILInstruction(TR::InstOpCode::LARL, callNode, snippetReg, ifcSnippet->getDataConstantSnippet(), cg());
                methodRegister = cg()->allocateRegister();
                }
             else
@@ -2296,7 +2296,7 @@ J9::Z::PrivateLinkage::buildVirtualDispatch(TR::Node * callNode, TR::RegisterDep
                   }
                }
 
-            cursor = new (trHeapMemory()) TR::S390RILInstruction(TR::InstOpCode::LARL, callNode, snippetReg, ifcSnippet,cursor, cg());
+            cursor = new (comp()->trHeapMemory()) TR::S390RILInstruction(TR::InstOpCode::LARL, callNode, snippetReg, ifcSnippet,cursor, cg());
 
             // Cache miss... Too bad.. go to the slow path through the interface call snippet
             cursor = generateS390RegInstruction(cg(), TR::InstOpCode::BCR, callNode, snippetReg, cursor);
@@ -2306,7 +2306,7 @@ J9::Z::PrivateLinkage::buildVirtualDispatch(TR::Node * callNode, TR::RegisterDep
                ifcSnippet->getDataConstantSnippet()->getSnippetLabel());
 
             // Added NOP so that the pattern matching code in jit2itrg icallVMprJavaSendPatchupVirtual
-            cursor = new (trHeapMemory()) TR::S390NOPInstruction(TR::InstOpCode::NOP, 2, callNode, cg());
+            cursor = new (comp()->trHeapMemory()) TR::S390NOPInstruction(TR::InstOpCode::NOP, 2, callNode, cg());
 
             if (!useCLFIandBRCL)
               postDeps->addPostCondition(methodRegister, TR::RealRegister::AssignAny);
@@ -2387,7 +2387,7 @@ J9::Z::PrivateLinkage::buildDirectCall(TR::Node * callNode, TR::SymbolReference 
       TR::LabelSymbol * reStartLabel = generateLabelSymbol(cg());
 
       gcPoint = generateS390BranchInstruction(cg(), TR::InstOpCode::BRC, TR::InstOpCode::COND_BRC, callNode, snippetLabel, dependencies);
-      TR::Snippet * snippet = new (trHeapMemory()) TR::S390HelperCallSnippet(cg(), callNode, snippetLabel,
+      TR::Snippet * snippet = new (comp()->trHeapMemory()) TR::S390HelperCallSnippet(cg(), callNode, snippetLabel,
                                                           callSymRef?callSymRef:callNode->getSymbolReference(), reStartLabel, argSize);
       cg()->addSnippet(snippet);
 
@@ -2427,11 +2427,11 @@ J9::Z::PrivateLinkage::buildDirectCall(TR::Node * callNode, TR::SymbolReference 
 
       if (callSymRef->isUnresolved() || (comp()->compileRelocatableCode() && !comp()->getOption(TR_UseSymbolValidationManager)))
          {
-         snippet = new (trHeapMemory()) TR::S390UnresolvedCallSnippet(cg(), callNode, label, argSize);
+         snippet = new (comp()->trHeapMemory()) TR::S390UnresolvedCallSnippet(cg(), callNode, label, argSize);
          }
       else
          {
-         snippet = new (trHeapMemory()) TR::S390J9CallSnippet(cg(), callNode, label, callSymRef, argSize);
+         snippet = new (comp()->trHeapMemory()) TR::S390J9CallSnippet(cg(), callNode, label, callSymRef, argSize);
          }
 
       cg()->addSnippet(snippet);
@@ -2463,7 +2463,7 @@ J9::Z::PrivateLinkage::callPreJNICallOffloadCheck(TR::Node * callNode)
       codeGen, TR::InstOpCode::BRC, TR::InstOpCode::COND_BRC, callNode, offloadOffSnippetLabel);
    gcPoint->setNeedsGCMap(0);
 
-   codeGen->addSnippet(new (trHeapMemory()) TR::S390HelperCallSnippet(codeGen, callNode,
+   codeGen->addSnippet(new (comp()->trHeapMemory()) TR::S390HelperCallSnippet(codeGen, callNode,
       offloadOffSnippetLabel, offloadOffSymRef, offloadOffRestartLabel));
    generateS390LabelInstruction(codeGen, TR::InstOpCode::LABEL, callNode, offloadOffRestartLabel);
    }
@@ -2479,7 +2479,7 @@ J9::Z::PrivateLinkage::callPostJNICallOffloadCheck(TR::Node * callNode)
       codeGen, TR::InstOpCode::BRC, TR::InstOpCode::COND_BRC, callNode, offloadOnSnippetLabel);
    gcPoint->setNeedsGCMap(0);
    TR::SymbolReference * offloadOnSymRef = codeGen->symRefTab()->findOrCreateRuntimeHelper(TR_S390jitPostJNICallOffloadCheck, false, false, false);
-   codeGen->addSnippet(new (trHeapMemory()) TR::S390HelperCallSnippet(codeGen, callNode,
+   codeGen->addSnippet(new (comp()->trHeapMemory()) TR::S390HelperCallSnippet(codeGen, callNode,
       offloadOnSnippetLabel, offloadOnSymRef, offloadOnRestartLabel));
    generateS390LabelInstruction(codeGen, TR::InstOpCode::LABEL, callNode, offloadOnRestartLabel);
    }
@@ -2500,13 +2500,13 @@ void J9::Z::PrivateLinkage::collapseJNIReferenceFrame(TR::Node * callNode,
    genLoadAddressConstant(codeGen, callNode, flagValue, tempReg, NULL, NULL, javaLitPoolVirtualRegister);
 
    generateRXInstruction(codeGen, TR::InstOpCode::getAndOpCode(), callNode, tempReg,
-      new (trHeapMemory()) TR::MemoryReference(javaStackPointerRealRegister, (int32_t)fej9->constJNICallOutFrameFlagsOffset(), codeGen));
+      new (comp()->trHeapMemory()) TR::MemoryReference(javaStackPointerRealRegister, (int32_t)fej9->constJNICallOutFrameFlagsOffset(), codeGen));
    TR::Instruction *gcPoint =
       generateS390BranchInstruction(codeGen, TR::InstOpCode::BRC, TR::InstOpCode::COND_BNE, callNode, refPoolSnippetLabel);
    gcPoint->setNeedsGCMap(0);
 
    TR::SymbolReference * collapseSymRef = cg()->symRefTab()->findOrCreateRuntimeHelper(TR_S390collapseJNIReferenceFrame, false, false, false);
-   codeGen->addSnippet(new (trHeapMemory()) TR::S390HelperCallSnippet(codeGen, callNode,
+   codeGen->addSnippet(new (comp()->trHeapMemory()) TR::S390HelperCallSnippet(codeGen, callNode,
       refPoolSnippetLabel, collapseSymRef, refPoolRestartLabel));
    generateS390LabelInstruction(cg(), TR::InstOpCode::LABEL, callNode, refPoolRestartLabel);
    }
@@ -2564,12 +2564,12 @@ J9::Z::PrivateLinkage::setupJNICallOutFrame(TR::Node * callNode,
    jniCallDataSnippet->setJitStackFrameFlags(0);
 
    generateSS1Instruction(cg(), TR::InstOpCode::MVC, callNode, 3*(TR::Compiler->om.sizeofReferenceAddress()) - 1,
-         new (trHeapMemory()) TR::MemoryReference(methodMetaDataVirtualRegister, fej9->thisThreadGetJavaPCOffset(), codeGen),
-         new (trHeapMemory()) TR::MemoryReference(jniCallDataSnippet->getBaseRegister(), jniCallDataSnippet->getPCOffset(), codeGen));
+         new (comp()->trHeapMemory()) TR::MemoryReference(methodMetaDataVirtualRegister, fej9->thisThreadGetJavaPCOffset(), codeGen),
+         new (comp()->trHeapMemory()) TR::MemoryReference(jniCallDataSnippet->getBaseRegister(), jniCallDataSnippet->getPCOffset(), codeGen));
 
    // store out jsp
    generateRXInstruction(codeGen, TR::InstOpCode::getStoreOpCode(), callNode, javaStackPointerRealRegister,
-     new (trHeapMemory()) TR::MemoryReference(methodMetaDataVirtualRegister,
+     new (comp()->trHeapMemory()) TR::MemoryReference(methodMetaDataVirtualRegister,
        fej9->thisThreadGetJavaSPOffset(), codeGen));
 
    // JNI Callout Frame setup
@@ -2598,8 +2598,8 @@ J9::Z::PrivateLinkage::setupJNICallOutFrame(TR::Node * callNode,
    jniCallDataSnippet->setTagBits(tagBits);
 
    generateSS1Instruction(cg(), TR::InstOpCode::MVC, callNode, -stackAdjust - 1,
-         new (trHeapMemory()) TR::MemoryReference(javaStackPointerRealRegister, 0, codeGen),
-         new (trHeapMemory()) TR::MemoryReference(jniCallDataSnippet->getBaseRegister(), jniCallDataSnippet->getJNICallOutFrameDataOffset(), codeGen));
+         new (comp()->trHeapMemory()) TR::MemoryReference(javaStackPointerRealRegister, 0, codeGen),
+         new (comp()->trHeapMemory()) TR::MemoryReference(jniCallDataSnippet->getBaseRegister(), jniCallDataSnippet->getJNICallOutFrameDataOffset(), codeGen));
 
    }
 
@@ -2653,7 +2653,7 @@ void J9::Z::JNILinkage::releaseVMAccessMask(TR::Node * callNode,
 
 
    //get existing post conditions on the registers parameters and create a new post cond for the internal control flow
-   TR::RegisterDependencyConditions * postDeps = new (self()->trHeapMemory()) TR::RegisterDependencyConditions(0, 3, self()->cg());
+   TR::RegisterDependencyConditions * postDeps = new (comp()->trHeapMemory()) TR::RegisterDependencyConditions(0, 3, self()->cg());
    TR::RealRegister::RegNum realReg;
    int32_t regPos = deps->searchPostConditionRegisterPos(methodMetaDataVirtualRegister);
    if (regPos >= 0)
@@ -2689,7 +2689,7 @@ void J9::Z::JNILinkage::releaseVMAccessMask(TR::Node * callNode,
    cFlowRegionEnd->setEndInternalControlFlow();
 
 
-   self()->cg()->addSnippet(new (self()->trHeapMemory()) TR::S390HelperCallSnippet(self()->cg(), callNode, longReleaseSnippetLabel,
+   self()->cg()->addSnippet(new (comp()->trHeapMemory()) TR::S390HelperCallSnippet(self()->cg(), callNode, longReleaseSnippetLabel,
                               self()->comp()->getSymRefTab()->findOrCreateReleaseVMAccessSymbolRef(self()->comp()->getJittedMethodSymbol()), cFlowRegionEnd));
    // end of release vm access (spin lock)
    }
@@ -2733,7 +2733,7 @@ void J9::Z::JNILinkage::acquireVMAccessMask(TR::Node * callNode, TR::Register * 
    TR::Instruction *gcPoint = (TR::Instruction *) generateS390BranchInstruction(self()->cg(), TR::InstOpCode::BRC, TR::InstOpCode::COND_BNE, callNode, longAcquireSnippetLabel);
    gcPoint->setNeedsGCMap(0);
 
-   self()->cg()->addSnippet(new (self()->trHeapMemory()) TR::S390HelperCallSnippet(self()->cg(), callNode, longAcquireSnippetLabel,
+   self()->cg()->addSnippet(new (comp()->trHeapMemory()) TR::S390HelperCallSnippet(self()->cg(), callNode, longAcquireSnippetLabel,
                               self()->comp()->getSymRefTab()->findOrCreateAcquireVMAccessSymbolRef(self()->comp()->getJittedMethodSymbol()), acquireDoneLabel));
    generateS390LabelInstruction(self()->cg(), TR::InstOpCode::LABEL, callNode, acquireDoneLabel);
    // end of acquire vm accessa
@@ -2805,10 +2805,10 @@ J9::Z::JNILinkage::releaseVMAccessMaskAtomicFree(TR::Node * callNode,
 
    generateS390CompareAndBranchInstruction(cg, TR::InstOpCode::getCmpOpCode(), callNode, tempReg1, J9_PUBLIC_FLAGS_VM_ACCESS, TR::InstOpCode::COND_BNE, longReleaseSnippetLabel, false);
 
-   cg->addSnippet(new (self()->trHeapMemory()) TR::S390HelperCallSnippet(cg,
-                                                                         callNode, longReleaseSnippetLabel,
-                                                                         comp->getSymRefTab()->findOrCreateReleaseVMAccessSymbolRef(comp->getJittedMethodSymbol()),
-                                                                         longReleaseRestartLabel));
+   cg->addSnippet(new (comp->trHeapMemory()) TR::S390HelperCallSnippet(cg,
+                                                                       callNode, longReleaseSnippetLabel,
+                                                                       comp->getSymRefTab()->findOrCreateReleaseVMAccessSymbolRef(comp->getJittedMethodSymbol()),
+                                                                       longReleaseRestartLabel));
 
    generateS390LabelInstruction(cg, TR::InstOpCode::LABEL, callNode, longReleaseRestartLabel);
    }
@@ -2847,10 +2847,10 @@ J9::Z::JNILinkage::acquireVMAccessMaskAtomicFree(TR::Node * callNode,
 
    generateS390CompareAndBranchInstruction(cg, TR::InstOpCode::getCmpOpCode(), callNode, tempReg1, J9_PUBLIC_FLAGS_VM_ACCESS, TR::InstOpCode::COND_BNE, longAcquireSnippetLabel, false);
 
-   cg->addSnippet(new (self()->trHeapMemory()) TR::S390HelperCallSnippet(cg,
-                                                                         callNode, longAcquireSnippetLabel,
-                                                                         comp->getSymRefTab()->findOrCreateAcquireVMAccessSymbolRef(comp->getJittedMethodSymbol()),
-                                                                         longAcquireRestartLabel));
+   cg->addSnippet(new (comp->trHeapMemory()) TR::S390HelperCallSnippet(cg,
+                                                                       callNode, longAcquireSnippetLabel,
+                                                                       comp->getSymRefTab()->findOrCreateAcquireVMAccessSymbolRef(comp->getJittedMethodSymbol()),
+                                                                       longAcquireRestartLabel));
 
    generateS390LabelInstruction(cg, TR::InstOpCode::LABEL, callNode, longAcquireRestartLabel);
    }
@@ -2865,13 +2865,13 @@ void J9::Z::JNILinkage::checkException(TR::Node * callNode,
    TR::LabelSymbol * exceptionRestartLabel = generateLabelSymbol(self()->cg());
    TR::LabelSymbol * exceptionSnippetLabel = generateLabelSymbol(self()->cg());
    generateRXInstruction(self()->cg(), TR::InstOpCode::getLoadOpCode(), callNode, tempReg,
-               new (self()->trHeapMemory()) TR::MemoryReference(methodMetaDataVirtualRegister, fej9->thisThreadGetCurrentExceptionOffset(), self()->cg()));
+               new (comp()->trHeapMemory()) TR::MemoryReference(methodMetaDataVirtualRegister, fej9->thisThreadGetCurrentExceptionOffset(), self()->cg()));
 
    TR::Instruction *gcPoint = generateS390CompareAndBranchInstruction(self()->cg(),
       TR::InstOpCode::getCmpOpCode(), callNode, tempReg, 0, TR::InstOpCode::COND_BNE, exceptionSnippetLabel, false, true);
    gcPoint->setNeedsGCMap(0);
 
-   self()->cg()->addSnippet(new (self()->trHeapMemory()) TR::S390HelperCallSnippet(self()->cg(), callNode, exceptionSnippetLabel,
+   self()->cg()->addSnippet(new (comp()->trHeapMemory()) TR::S390HelperCallSnippet(self()->cg(), callNode, exceptionSnippetLabel,
       self()->comp()->getSymRefTab()->findOrCreateThrowCurrentExceptionSymbolRef(self()->comp()->getJittedMethodSymbol()), exceptionRestartLabel));
    generateS390LabelInstruction(self()->cg(), TR::InstOpCode::LABEL, callNode, exceptionRestartLabel);
    }
@@ -3047,10 +3047,10 @@ TR::Register * J9::Z::JNILinkage::buildDirectDispatch(TR::Node * callNode)
      {
      TR::Register * JNISnippetBaseReg = NULL;
      killMask = killAndAssignRegister(killMask, deps, &JNISnippetBaseReg, TR::RealRegister::GPR12, codeGen, true);
-     jniCallDataSnippet = new (trHeapMemory()) TR::S390JNICallDataSnippet(cg(), callNode);
+     jniCallDataSnippet = new (comp()->trHeapMemory()) TR::S390JNICallDataSnippet(cg(), callNode);
      cg()->addSnippet(jniCallDataSnippet);
      jniCallDataSnippet->setBaseRegister(JNISnippetBaseReg);
-     new (trHeapMemory()) TR::S390RILInstruction(TR::InstOpCode::LARL, callNode,
+     new (comp()->trHeapMemory()) TR::S390RILInstruction(TR::InstOpCode::LARL, callNode,
                                      jniCallDataSnippet->getBaseRegister(), jniCallDataSnippet, codeGen);
      jniCallDataSnippet->setTargetAddress(targetAddress);
      }
@@ -3065,10 +3065,10 @@ TR::Register * J9::Z::JNILinkage::buildDirectDispatch(TR::Node * callNode)
      {
      // store java stack pointer
      generateRXInstruction(codeGen, TR::InstOpCode::getStoreOpCode(), callNode, javaStackPointerRealRegister,
-                     new (trHeapMemory()) TR::MemoryReference(methodMetaDataVirtualRegister, (int32_t)fej9->thisThreadGetJavaSPOffset(), codeGen));
+                     new (comp()->trHeapMemory()) TR::MemoryReference(methodMetaDataVirtualRegister, (int32_t)fej9->thisThreadGetJavaSPOffset(), codeGen));
 
 
-     auto* literalOffsetMemoryReference = new (trHeapMemory()) TR::MemoryReference(methodMetaDataVirtualRegister, (int32_t)fej9->thisThreadGetJavaLiteralsOffset(), codeGen);
+     auto* literalOffsetMemoryReference = new (comp()->trHeapMemory()) TR::MemoryReference(methodMetaDataVirtualRegister, (int32_t)fej9->thisThreadGetJavaLiteralsOffset(), codeGen);
 
      // Set up literal offset slot to zero
      if (cg()->comp()->target().cpu.getSupportsArch(TR::CPU::z10))
@@ -3105,7 +3105,7 @@ TR::Register * J9::Z::JNILinkage::buildDirectDispatch(TR::Node * callNode)
 
      // restore java stack pointer
      generateRXInstruction(codeGen, TR::InstOpCode::getLoadOpCode(), callNode, javaStackPointerRealRegister,
-                     new (trHeapMemory()) TR::MemoryReference(methodMetaDataVirtualRegister, (int32_t)fej9->thisThreadGetJavaSPOffset(), codeGen));
+                     new (comp()->trHeapMemory()) TR::MemoryReference(methodMetaDataVirtualRegister, (int32_t)fej9->thisThreadGetJavaSPOffset(), codeGen));
 
    //Turn on Java Offload
    if (isJavaOffLoadCheck)
@@ -3124,7 +3124,7 @@ TR::Register * J9::Z::JNILinkage::buildDirectDispatch(TR::Node * callNode)
 
 
    generateRXInstruction(codeGen, TR::InstOpCode::getAddOpCode(), callNode, javaStackPointerRealRegister,
-            new (trHeapMemory()) TR::MemoryReference(methodMetaDataVirtualRegister, (int32_t)fej9->thisThreadGetJavaLiteralsOffset(), codeGen));
+            new (comp()->trHeapMemory()) TR::MemoryReference(methodMetaDataVirtualRegister, (int32_t)fej9->thisThreadGetJavaLiteralsOffset(), codeGen));
 
    processJNIReturnValue(callNode, codeGen, javaReturnRegister);
 
@@ -3521,7 +3521,7 @@ J9::Z::PrivateLinkage::setupBuildArgForLinkage(TR::Node * callNode, TR_DispatchT
 
    // store java stack pointer
    generateRXInstruction(codeGen, TR::InstOpCode::getStoreOpCode(), callNode, javaStackPointerRealRegister,
-        new (trHeapMemory()) TR::MemoryReference(methodMetaDataVirtualRegister, (int32_t)fej9->thisThreadGetJavaSPOffset(), codeGen));
+        new (comp()->trHeapMemory()) TR::MemoryReference(methodMetaDataVirtualRegister, (int32_t)fej9->thisThreadGetJavaSPOffset(), codeGen));
 
    }
 
@@ -3590,7 +3590,7 @@ J9::Z::PrivateLinkage::setupRegisterDepForLinkage(TR::Node * callNode, TR_Dispat
       {
       TR_J9VMBase *fej9 = (TR_J9VMBase *)(fe());
       generateRXInstruction(codeGen, TR::InstOpCode::getLoadOpCode(), callNode, systemStackVirtualRegister,
-         new (trHeapMemory()) TR::MemoryReference(methodMetaDataVirtualRegister, (int32_t)fej9->thisThreadGetSystemSPOffset(), codeGen));
+         new (comp()->trHeapMemory()) TR::MemoryReference(methodMetaDataVirtualRegister, (int32_t)fej9->thisThreadGetSystemSPOffset(), codeGen));
       }
 
    }

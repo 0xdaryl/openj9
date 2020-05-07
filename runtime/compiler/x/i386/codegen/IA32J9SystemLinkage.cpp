@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2019 IBM Corp. and others
+ * Copyright (c) 2000, 2020 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -85,7 +85,7 @@ TR::IA32J9SystemLinkage::buildDirectDispatch(TR::Node *callNode, bool spillFPReg
    uint8_t numXmmRegs = 0;
 
    if (!methodSymbol->isHelper())
-      diagnostic("Building call site for %s\n", methodSymbol->getMethod()->signature(trMemory()));
+      diagnostic("Building call site for %s\n", methodSymbol->getMethod()->signature(comp()->trMemory()));
 
    int32_t argSize = buildParametersOnCStack(callNode, 0);
 
@@ -156,7 +156,7 @@ TR::IA32J9SystemLinkage::buildDirectDispatch(TR::Node *callNode, bool spillFPReg
 int32_t TR::IA32J9SystemLinkage::buildParametersOnCStack(TR::Node *callNode, int firstParamIndex, bool passVMThread, bool wrapAddress)
    {
    TR_J9VMBase *fej9 = (TR_J9VMBase *)(fe());
-   TR_Stack<TR::MemoryReference*> paramsSlotsOnStack(trMemory(), callNode->getNumChildren()*2, false, stackAlloc);
+   TR_Stack<TR::MemoryReference*> paramsSlotsOnStack(comp()->trMemory(), callNode->getNumChildren()*2, false, stackAlloc);
    // Evaluate children that are not part of parameters
    for (size_t i = 0; i < firstParamIndex; i++)
       {

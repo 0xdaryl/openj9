@@ -672,7 +672,7 @@ void J9::X86::I386::PrivateLinkage::buildIPIC(
       startOfPicInstruction = startOfPicInstruction->getNext();
       }
 
-   TR::X86PicDataSnippet *snippet = new (trHeapMemory()) TR::X86PicDataSnippet(
+   TR::X86PicDataSnippet *snippet = new (comp()->trHeapMemory()) TR::X86PicDataSnippet(
       IPicParameters.defaultNumberOfSlots,
       startOfPicInstruction,
       lookupDispatchSnippetLabel,
