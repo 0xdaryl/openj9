@@ -79,16 +79,17 @@ TR_PersistentMethodInfo *TR_X86Recompilation::getExistingMethodInfo(TR_ResolvedM
 
 TR::Instruction *TR_X86Recompilation::generatePrePrologue()
    {
-   TR_J9VMBase *fej9 = (TR_J9VMBase *)(_compilation->fe());
+   TR::Compilation *comp = cg()->comp();
+   TR_J9VMBase *fej9 = (TR_J9VMBase *)(comp->fe());
 
    if (!couldBeCompiledAgain())
       return NULL;
 
-   TR::Node * startNode = _compilation->getStartTree()->getNode();
+   TR::Node * startNode = comp->getStartTree()->getNode();
    TR::Instruction *prev = 0;
 
    uint8_t alignmentMargin = useSampling()? SAMPLING_CALL_SIZE /* allow for the helper call */ : 0;
-   if (cg()->comp()->target().is64Bit())
+   if (comp->target().is64Bit())
       alignmentMargin += SAVE_AREA_SIZE +JITTED_BODY_INFO_SIZE + LINKAGE_INFO_SIZE; // save area for the first two bytes of the method + jitted body info pointer + linkageinfo
    else
       alignmentMargin += JITTED_BODY_INFO_SIZE + LINKAGE_INFO_SIZE; // jitted body info pointer + linkageinfo
@@ -110,11 +111,11 @@ TR::Instruction *TR_X86Recompilation::generatePrePrologue()
       prev = generateAlignmentInstruction(prev, alignmentBoundary, alignmentMargin, cg());
       }
 
-   if (cg()->comp()->target().is64Bit())
+   if (comp->target().is64Bit())
       {
       // A copy of the first two bytes of the method, in case we need to un-patch them
       //
-      prev = new (trHeapMemory()) TR::X86ImmInstruction(prev, DWImm2, 0xcccc, cg());
+      prev = new (comp->trHeapMemory()) TR::X86ImmInstruction(prev, DWImm2, 0xcccc, cg());
       }
 
    if (useSampling())
@@ -131,18 +132,18 @@ TR::Instruction *TR_X86Recompilation::generatePrePrologue()
    // information. If the method is not to be compiled again a null value is
    // inserted.
    //
-   if (cg()->comp()->target().is64Bit())
+   if (comp->target().is64Bit())
       {
       // TODO:AMD64: This ought to be a relative address, but that requires
       // binary-encoding-time support.  If you change this, be sure to adjust
       // the alignmentMargin above.
       //
-      prev = new (trHeapMemory()) TR::AMD64Imm64Instruction(prev, DQImm64, (uintptr_t)getJittedBodyInfo(), cg());
+      prev = new (comp->trHeapMemory()) TR::AMD64Imm64Instruction(prev, DQImm64, (uintptr_t)getJittedBodyInfo(), cg());
       prev->setNeedsAOTRelocation();
       }
    else
       {
-      prev = new (trHeapMemory()) TR::X86ImmInstruction(prev, DDImm4, (uint32_t)(uintptr_t)getJittedBodyInfo(), cg());
+      prev = new (comp->trHeapMemory()) TR::X86ImmInstruction(prev, DDImm4, (uint32_t)(uintptr_t)getJittedBodyInfo(), cg());
       prev->setNeedsAOTRelocation();
       }
 
@@ -156,6 +157,7 @@ TR::Instruction *TR_X86Recompilation::generatePrePrologue()
 
 TR::Instruction *TR_X86Recompilation::generatePrologue(TR::Instruction *cursor)
    {
+   TR::Compilation *comp = cg()->comp();
    TR::Machine *machine = cg()->machine();
    TR::Linkage *linkage = cg()->getLinkage();
    if (couldBeCompiledAgain())
@@ -166,11 +168,11 @@ TR::Instruction *TR_X86Recompilation::generatePrologue(TR::Instruction *cursor)
          //
       TR::MemoryReference *mRef;
 
-         if (cg()->comp()->target().is64Bit())
+         if (comp->target().is64Bit())
             {
             TR_ASSERT(linkage->getMinimumFirstInstructionSize() <= 10, "Can't satisfy first instruction size constraint");
             TR::RealRegister *scratchReg = machine->getRealRegister(TR::RealRegister::edi);
-            cursor = new (trHeapMemory()) TR::AMD64RegImm64Instruction(cursor, MOV8RegImm64, scratchReg, (uintptr_t)getCounterAddress(), cg());
+            cursor = new (comp->trHeapMemory()) TR::AMD64RegImm64Instruction(cursor, MOV8RegImm64, scratchReg, (uintptr_t)getCounterAddress(), cg());
             mRef = generateX86MemoryReference(scratchReg, 0, cg());
             }
          else
@@ -180,21 +182,21 @@ TR::Instruction *TR_X86Recompilation::generatePrologue(TR::Instruction *cursor)
             }
 
          if (!isProfilingCompilation())
-            cursor = new (trHeapMemory()) TR::X86MemImmInstruction(cursor, SUB4MemImms, mRef, 1, cg());
+            cursor = new (comp->trHeapMemory()) TR::X86MemImmInstruction(cursor, SUB4MemImms, mRef, 1, cg());
          else
             {
             // This only applies to JitProfiling, as JProfiling uses sampling
-            TR_ASSERT(_compilation->getProfilingMode() == JitProfiling, "JProfiling should not use counting mechanism to trigger recompilation");
-            cursor = new (trHeapMemory()) TR::X86MemImmInstruction(cursor, CMP4MemImms, mRef, 0, cg());
+            TR_ASSERT(comp->getProfilingMode() == JitProfiling, "JProfiling should not use counting mechanism to trigger recompilation");
+            cursor = new (comp->trHeapMemory()) TR::X86MemImmInstruction(cursor, CMP4MemImms, mRef, 0, cg());
             }
 
          TR::Instruction *counterInstruction = cursor;
          TR::LabelSymbol *snippetLabel = generateLabelSymbol(cg());
 
-         cursor = new (trHeapMemory()) TR::X86LabelInstruction(cursor, JL4, snippetLabel, cg());
+         cursor = new (comp->trHeapMemory()) TR::X86LabelInstruction(cursor, JL4, snippetLabel, cg());
          ((TR::X86LabelInstruction*)cursor)->prohibitShortening();
          TR::Snippet *snippet =
-            new (trHeapMemory()) TR::X86RecompilationSnippet(snippetLabel, counterInstruction->getNode(), cg());
+            new (comp->trHeapMemory()) TR::X86RecompilationSnippet(snippetLabel, counterInstruction->getNode(), cg());
          cg()->addSnippet(snippet);
          }
       }
