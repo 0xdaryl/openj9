@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2019 IBM Corp. and others
+ * Copyright (c) 2000, 2020 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -149,7 +149,7 @@ J9::SetMonitorStateOnBlockEntry::addSuccessors(
 
             if (succBlock->getVisitCount() != _visitCount)
                {
-               TR_Stack<TR::SymbolReference *> *newMonitorStack = new (trHeapMemory()) TR_Stack<TR::SymbolReference *>(*monitorStack);
+               TR_Stack<TR::SymbolReference *> *newMonitorStack = new (comp()->trHeapMemory()) TR_Stack<TR::SymbolReference *>(*monitorStack);
 
                if (traceIt)
                   traceMsg(comp(), "\tIn SMSOnBE::addSuccesors  created newMonitorStack %p and monitorStack %p\n", newMonitorStack,monitorStack);
@@ -488,13 +488,13 @@ void J9::SetMonitorStateOnBlockEntry::set(bool& lmmdFailed, bool traceIt)
             callerIndex = node->getByteCodeInfo().getCallerIndex();
             if (monitorStack)
                {
-               monitorStack = new (trHeapMemory()) TR_Stack<TR::SymbolReference *>(*monitorStack);
+               monitorStack = new (comp()->trHeapMemory()) TR_Stack<TR::SymbolReference *>(*monitorStack);
                if (traceIt)
                   traceMsg(comp(), "adding monitor to stack symbol=%p symRef=%d (size=%d) (node %p)\n", node->getSymbol(), node->getSymbolReference()->getReferenceNumber(), monitorStack->size()+1,node);
                }
             else
                {
-               monitorStack = new (trHeapMemory()) TR_Stack<TR::SymbolReference *>(trMemory());
+               monitorStack = new (comp()->trHeapMemory()) TR_Stack<TR::SymbolReference *>(comp()->trMemory());
                if (traceIt)
                   traceMsg(comp(), "adding monitor to fresh stack symbol=%p symRef=%d (size=%d) (node %p)\n", node->getSymbol(), node->getSymbolReference()->getReferenceNumber(), monitorStack->size()+1,node);
                }
@@ -545,7 +545,7 @@ void J9::SetMonitorStateOnBlockEntry::set(bool& lmmdFailed, bool traceIt)
             // monexit
             if (monitorStack->topIndex() == 0)
                {
-               monitorStack = new (trHeapMemory()) TR_Stack<TR::SymbolReference *>(*monitorStack);
+               monitorStack = new (comp()->trHeapMemory()) TR_Stack<TR::SymbolReference *>(*monitorStack);
                if (traceIt)
                   traceMsg(comp(), "popping monitor off stack symRef=%d, BEFORE pop size=%d, ", monitorStack->top()->getReferenceNumber(), monitorStack->size());
                monitorStack->pop();
@@ -555,7 +555,7 @@ void J9::SetMonitorStateOnBlockEntry::set(bool& lmmdFailed, bool traceIt)
 
             else
                {
-               monitorStack = new (trHeapMemory()) TR_Stack<TR::SymbolReference *>(*monitorStack);
+               monitorStack = new (comp()->trHeapMemory()) TR_Stack<TR::SymbolReference *>(*monitorStack);
                if (traceIt)
                   traceMsg(comp(), "popping monitor off stack symRef=%d, BEFORE pop size=%d, ", monitorStack->top()->getReferenceNumber(), monitorStack->size());
                monitorStack->pop();

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2017 IBM Corp. and others
+ * Copyright (c) 2000, 2020 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -64,9 +64,6 @@ public:
 private:
    int32_t addSuccessors(TR::CFGNode * cfgNode, TR_Stack<TR::SymbolReference *> *, bool traceIt, bool dontPropagateMonitor = false, MonitorInBlock monitorType = NoMonitor, int32_t callerIndex = -1, bool walkOnlyExceptionSuccs = false);
    bool isMonitorStateConsistentForBlock(TR::Block *block, TR_Stack<TR::SymbolReference *> *newMonitorStack, bool popMonitor);
-
-   TR_Memory *trMemory() { return comp()->trMemory(); }
-   TR_HeapMemory trHeapMemory() { return trMemory(); }
 
    TR::Compilation *comp() { return _comp; }
 
