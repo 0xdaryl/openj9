@@ -4649,24 +4649,26 @@ J9::CodeGenerator::generateCatchBlockBBStartPrologue(
 void
 J9::CodeGenerator::registerAssumptions()
    {
+   TR::Compilation *comp = self()->comp();
+
    for(auto it = self()->getJNICallSites().begin();
 		it != self()->getJNICallSites().end(); ++it)
       {
       TR_OpaqueMethodBlock *method = (*it)->getKey()->getPersistentIdentifier();
       TR::Instruction *i = (*it)->getValue();
 #ifdef J9VM_OPT_JITSERVER
-      if (self()->comp()->isOutOfProcessCompilation())
+      if (comp->isOutOfProcessCompilation())
          {
          // For JITServer we need to build a list of assumptions that will be sent to client at end of compilation
          intptr_t offset = i->getBinaryEncoding() - self()->getBinaryBufferStart();
          SerializedRuntimeAssumption* sar =
-            new (self()->comp()->trHeapMemory()) SerializedRuntimeAssumption(RuntimeAssumptionOnRegisterNative, (uintptr_t)method, offset);
-         self()->comp()->getSerializedRuntimeAssumptions().push_front(sar);
+            new (comp->trHeapMemory()) SerializedRuntimeAssumption(RuntimeAssumptionOnRegisterNative, (uintptr_t)method, offset);
+         comp->getSerializedRuntimeAssumptions().push_front(sar);
          }
       else
 #endif // J9VM_OPT_JITSERVER
          {
-         TR_PatchJNICallSite::make(self()->fe(), self()->trPersistentMemory(), (uintptr_t) method, i->getBinaryEncoding(), self()->comp()->getMetadataAssumptionList());
+         TR_PatchJNICallSite::make(self()->fe(), comp->trPersistentMemory(), (uintptr_t) method, i->getBinaryEncoding(), comp->getMetadataAssumptionList());
          }
       }
    }
