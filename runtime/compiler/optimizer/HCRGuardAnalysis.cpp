@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2019 IBM Corp. and others
+ * Copyright (c) 2000, 2020 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -55,7 +55,7 @@ bool TR_HCRGuardAnalysis::supportsGenAndKillSets() { return true; }
 
 TR_DataFlowAnalysis::Kind TR_HCRGuardAnalysis::getKind() { return HCRGuardAnalysis; }
 
-void TR_HCRGuardAnalysis::analyzeNode(TR::Node *node, vcount_t visitCount, TR_BlockStructure *block, TR_SingleBitContainer *bv) 
+void TR_HCRGuardAnalysis::analyzeNode(TR::Node *node, vcount_t visitCount, TR_BlockStructure *block, TR_SingleBitContainer *bv)
    {
    }
 
@@ -74,9 +74,9 @@ TR_HCRGuardAnalysis::TR_HCRGuardAnalysis(TR::Compilation *comp, TR::Optimizer *o
    // the caller
    //
    initializeBlockInfo();
-   
+
    {
-   TR::StackMemoryRegion stackMemoryRegion(*trMemory());
+   TR::StackMemoryRegion stackMemoryRegion(*comp->trMemory());
    performAnalysis(rootStructure, false);
    }
 
@@ -92,10 +92,10 @@ void TR_HCRGuardAnalysis::initializeGenAndKillSetInfo()
    int32_t numBits = getNumberOfBits();
    for (int32_t i = 0; i < comp()->getFlowGraph()->getNextNodeNumber(); ++i)
       {
-      _regularGenSetInfo[i] = new (trStackMemory()) TR_SingleBitContainer(numBits,trMemory(), stackAlloc);
-      _exceptionGenSetInfo[i] = new (trStackMemory()) TR_SingleBitContainer(numBits,trMemory(), stackAlloc);
-      _regularKillSetInfo[i] = new (trStackMemory()) TR_SingleBitContainer(numBits,trMemory(), stackAlloc);
-      _exceptionKillSetInfo[i] = new (trStackMemory()) TR_SingleBitContainer(numBits,trMemory(), stackAlloc);
+      _regularGenSetInfo[i] = new (comp()->trStackMemory()) TR_SingleBitContainer(numBits, comp()->trMemory(), stackAlloc);
+      _exceptionGenSetInfo[i] = new (comp()->trStackMemory()) TR_SingleBitContainer(numBits, comp()->trMemory(), stackAlloc);
+      _regularKillSetInfo[i] = new (comp()->trStackMemory()) TR_SingleBitContainer(numBits, comp()->trMemory(), stackAlloc);
+      _exceptionKillSetInfo[i] = new (comp()->trStackMemory()) TR_SingleBitContainer(numBits, comp()->trMemory(), stackAlloc);
       }
 
    TR::Block *currentBlock = NULL;

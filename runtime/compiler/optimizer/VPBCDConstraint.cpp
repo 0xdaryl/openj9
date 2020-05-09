@@ -143,7 +143,7 @@ TR::VP_BCDSign *TR::VP_BCDSign::create(OMR::ValuePropagation *vp, TR_BCDSignCons
       return constraint;
       }
 
-   constraint = new (vp->trStackMemory()) TR::VP_BCDSign(type, dt, vp);
+   constraint = new (vp->comp()->trStackMemory()) TR::VP_BCDSign(type, dt, vp);
 
    bcdSignConstraints[type] = constraint;
 

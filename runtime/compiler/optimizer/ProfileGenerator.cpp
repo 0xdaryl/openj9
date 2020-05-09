@@ -218,7 +218,7 @@ int32_t TR_ProfileGenerator::perform()
       }
 
    {
-   TR::StackMemoryRegion stackMemoryRegion(*trMemory());
+   TR::StackMemoryRegion stackMemoryRegion(*comp()->trMemory());
 
    // Prepare the original blocks by moving async checks to the start of their
    // extended block and splitting the block at the async check
@@ -350,7 +350,7 @@ int32_t TR_ProfileGenerator::prepareBlocks()
          //
          block = processedBlock->split(treeTop->getNextTreeTop(), _cfg);
          if (processedBlock->getLiveLocals())
-            block->setLiveLocals(new (trHeapMemory()) TR_BitVector(*processedBlock->getLiveLocals()));
+            block->setLiveLocals(new (comp()->trHeapMemory()) TR_BitVector(*processedBlock->getLiveLocals()));
          node = processedBlock->getEntry()->getNode();
          if (node->getNumChildren() > 0)
             {
@@ -665,8 +665,8 @@ void TR_ProfileGenerator::createProfiledMethod()
 
             if (blockO1->getLiveLocals())
                {
-               blockO1b->setLiveLocals(new (trHeapMemory()) TR_BitVector(*blockO1->getLiveLocals()));
-               blockO1c->setLiveLocals(new (trHeapMemory()) TR_BitVector(*blockO1->getLiveLocals()));
+               blockO1b->setLiveLocals(new (comp()->trHeapMemory()) TR_BitVector(*blockO1->getLiveLocals()));
+               blockO1c->setLiveLocals(new (comp()->trHeapMemory()) TR_BitVector(*blockO1->getLiveLocals()));
                }
 
             // make freqPtr = &freqArray[tempRC] and cntrPtr = &cntrArray[tempRC]
@@ -710,7 +710,7 @@ void TR_ProfileGenerator::createProfiledMethod()
 
          TR::Block *blockO1Cont = blockO1->splitEdge(blockO1, blockO1a, comp(), NULL, false);
          if (blockO1->getLiveLocals())
-            blockO1Cont->setLiveLocals(new (trHeapMemory()) TR_BitVector(*blockO1->getLiveLocals()));
+            blockO1Cont->setLiveLocals(new (comp()->trHeapMemory()) TR_BitVector(*blockO1->getLiveLocals()));
 
          treeTop = TR::TreeTop::create(comp(), treeTop, TR::Node::create(TR::treetop, 1, freqNode));
          newNode = TR::Node::createif(TR::ificmpeq,
@@ -817,7 +817,7 @@ void TR_ProfileGenerator::createProfiledMethod()
             newNode->setFirst(copyRegDeps(regDeps, true));
             }
          if (blockO1->getLiveLocals())
-            blockC1c->setLiveLocals(new (trHeapMemory()) TR_BitVector(*blockO1->getLiveLocals()));
+            blockC1c->setLiveLocals(new (comp()->trHeapMemory()) TR_BitVector(*blockO1->getLiveLocals()));
          _cfg->insertBefore(blockC1c, blockC1a);
 
          // Set up block C1b
@@ -866,7 +866,7 @@ void TR_ProfileGenerator::createProfiledMethod()
             newNode->setFirst(copyRegDeps(regDeps, true));
             }
          if (blockO1->getLiveLocals())
-            blockC1b->setLiveLocals(new (trHeapMemory()) TR_BitVector(*blockO1->getLiveLocals()));
+            blockC1b->setLiveLocals(new (comp()->trHeapMemory()) TR_BitVector(*blockO1->getLiveLocals()));
          _cfg->insertBefore(blockC1b, blockC1c);
          blockC1->getExit()->join(blockC1b->getEntry());
 

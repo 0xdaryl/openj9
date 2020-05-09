@@ -235,7 +235,7 @@ int32_t TR_OSRGuardInsertion::perform()
       comp()->getFlowGraph()->setStructure(structure);
 
       TR_HCRGuardAnalysis *guardAnalysis = requiresAnalysis ? new (comp()->allocator()) TR_HCRGuardAnalysis(comp(), optimizer(), structure) : NULL;
-      TR_BitVector fearGeneratingNodes(comp()->getNodeCount(), trMemory(), stackAlloc);
+      TR_BitVector fearGeneratingNodes(comp()->getNodeCount(), comp()->trMemory(), stackAlloc);
 
       if (hasPotentialOSRPointWithoutSupport)
          {
@@ -443,7 +443,7 @@ int32_t TR_OSRGuardInsertion::insertOSRGuards(TR_BitVector &fearGeneratingNodes)
    TR::TreeTop * cfgEnd = comp()->getFlowGraph()->findLastTreeTop();
 
    TR::Block *block = NULL;
-   TR_SingleBitContainer fear(1, trMemory(), stackAlloc);
+   TR_SingleBitContainer fear(1, comp()->trMemory(), stackAlloc);
    int32_t initialNodeCount = comp()->getNodeCount();
    TR::TreeTop *firstTree = comp()->getStartTree();
    for (TR::TreeTop *cursor = comp()->findLastTree(); cursor; cursor = cursor->getPrevTreeTop())
@@ -591,11 +591,11 @@ int32_t TR_OSRGuardInsertion::insertOSRGuards(TR_BitVector &fearGeneratingNodes)
                TR::DebugCounter::prependDebugCounter(comp(), TR::DebugCounter::debugCounterName(comp(), "osrGuardSummary/patch/%s/%s/=%d", label, comp()->getHotnessName(comp()->getMethodHotness()), block->getFrequency()), inductionPoint);
                TR::DebugCounter::prependDebugCounter(comp(), TR::DebugCounter::debugCounterName(comp(), "osrGuardPatchLocation/%s/(%s)/block_%d@%d", comp()->getHotnessName(comp()->getMethodHotness()), comp()->signature(), block->getNumber(), block->getFrequency()), inductionPoint);
                if (cursor->getNode()->getOpCodeValue() == TR::asynccheck)
-                  TR::DebugCounter::prependDebugCounter(comp(), TR::DebugCounter::debugCounterName(comp(), "osrAsynccheckPatch/%s/(%s)/(%s)/block_%d@%d", comp()->getHotnessName(comp()->getMethodHotness()), nodeBCI.getCallerIndex() > -1 ? comp()->getInlinedResolvedMethod(nodeBCI.getCallerIndex())->signature(trMemory()): comp()->signature(), comp()->signature(), block->getNumber(), block->getFrequency()), inductionPoint);
+                  TR::DebugCounter::prependDebugCounter(comp(), TR::DebugCounter::debugCounterName(comp(), "osrAsynccheckPatch/%s/(%s)/(%s)/block_%d@%d", comp()->getHotnessName(comp()->getMethodHotness()), nodeBCI.getCallerIndex() > -1 ? comp()->getInlinedResolvedMethod(nodeBCI.getCallerIndex())->signature(comp()->trMemory()): comp()->signature(), comp()->signature(), block->getNumber(), block->getFrequency()), inductionPoint);
                else if (cursor->getNode()->getOpCodeValue() == TR::monent)
-                  TR::DebugCounter::prependDebugCounter(comp(), TR::DebugCounter::debugCounterName(comp(), "osrMonentPatch/%s/(%s)/(%s)/block_%d@%d", comp()->getHotnessName(comp()->getMethodHotness()), nodeBCI.getCallerIndex() > -1 ? comp()->getInlinedResolvedMethod(nodeBCI.getCallerIndex())->signature(trMemory()): comp()->signature(), comp()->signature(), block->getNumber(), block->getFrequency()), inductionPoint);
+                  TR::DebugCounter::prependDebugCounter(comp(), TR::DebugCounter::debugCounterName(comp(), "osrMonentPatch/%s/(%s)/(%s)/block_%d@%d", comp()->getHotnessName(comp()->getMethodHotness()), nodeBCI.getCallerIndex() > -1 ? comp()->getInlinedResolvedMethod(nodeBCI.getCallerIndex())->signature(comp()->trMemory()): comp()->signature(), comp()->signature(), block->getNumber(), block->getFrequency()), inductionPoint);
                else if (!cursor->getNode()->getFirstChild()->isTheVirtualCallNodeForAGuardedInlinedCall())
-                  TR::DebugCounter::prependDebugCounter(comp(), TR::DebugCounter::debugCounterName(comp(), "osrCallPatch/%s/(%s)/(%s)/block_%d@%d", comp()->getHotnessName(comp()->getMethodHotness()), nodeBCI.getCallerIndex() > -1 ? comp()->getInlinedResolvedMethod(nodeBCI.getCallerIndex())->signature(trMemory()): comp()->signature(), comp()->signature(), block->getNumber(), block->getFrequency()), inductionPoint);
+                  TR::DebugCounter::prependDebugCounter(comp(), TR::DebugCounter::debugCounterName(comp(), "osrCallPatch/%s/(%s)/(%s)/block_%d@%d", comp()->getHotnessName(comp()->getMethodHotness()), nodeBCI.getCallerIndex() > -1 ? comp()->getInlinedResolvedMethod(nodeBCI.getCallerIndex())->signature(comp()->trMemory()): comp()->signature(), comp()->signature(), block->getNumber(), block->getFrequency()), inductionPoint);
                TR::TreeTop *guard = TR::TreeTop::create(comp(),TR_VirtualGuard::createOSRGuard(comp(), NULL));
 
                // Modify the bytecode info for the guard's children to match the
@@ -686,8 +686,8 @@ void TR_OSRGuardInsertion::performRemat(TR::TreeTop *osrPoint, TR::TreeTop *osrG
 
    // Specify the extended block
    TR::TreeTop *start;
-   TR_BitVector *blocksToVisit = new (trStackMemory()) TR_BitVector(
-      comp()->getFlowGraph()->getNextNodeNumber(), trMemory(), stackAlloc);
+   TR_BitVector *blocksToVisit = new (comp()->trStackMemory()) TR_BitVector(
+      comp()->getFlowGraph()->getNextNodeNumber(), comp()->trMemory(), stackAlloc);
    blocksToVisit->set(osrBlock->getNumber());
 
    TR::SparseBitVector scanTargets(comp()->allocator());

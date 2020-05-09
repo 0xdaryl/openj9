@@ -259,7 +259,7 @@ bool TR_NewInitialization::doAnalysisOnce(int32_t iteration)
    if (trace())
       traceMsg(comp(), "\nStarting iteration %d\n", iteration);
 
-   TR::StackMemoryRegion stackMemoryRegion(*trMemory());
+   TR::StackMemoryRegion stackMemoryRegion(*comp()->trMemory());
 
    // Get block frequencies if available
    //
@@ -599,7 +599,7 @@ bool TR_NewInitialization::findAllocationNode(TR::TreeTop *treeTop, TR::Node *no
 
    // An allocation node has been found. Create a new candidate entry.
    //
-   Candidate *candidate   = new (trStackMemory()) Candidate;
+   Candidate *candidate   = new (comp()->trStackMemory()) Candidate;
    memset(candidate, 0, sizeof(Candidate));
    candidate->treeTop     = treeTop;
    candidate->node        = node;
@@ -627,8 +627,8 @@ bool TR_NewInitialization::findAllocationNode(TR::TreeTop *treeTop, TR::Node *no
       }
    if (size)
       {
-      candidate->initializedBytes = new (trStackMemory()) TR_BitVector(size, trMemory(), stackAlloc);
-      candidate->uninitializedBytes = new (trStackMemory()) TR_BitVector(size, trMemory(), stackAlloc);
+      candidate->initializedBytes = new (comp()->trStackMemory()) TR_BitVector(size, comp()->trMemory(), stackAlloc);
+      candidate->uninitializedBytes = new (comp()->trStackMemory()) TR_BitVector(size, comp()->trMemory(), stackAlloc);
       }
    candidate->isDoubleSizeArray = doubleSizeArray;
    _candidates.append(candidate);
@@ -651,7 +651,7 @@ bool TR_NewInitialization::sniffCall(TR::TreeTop *callTree)
    if (trace())
       traceMsg(comp(), "Sniffing into call at [%p]\n", callNode);
 
-   TR_Array<TR::Node*> *newParms =  new (trStackMemory()) TR_Array<TR::Node*>(trMemory(), callNode->getNumChildren(), false, stackAlloc);
+   TR_Array<TR::Node*> *newParms =  new (comp()->trStackMemory()) TR_Array<TR::Node*>(comp()->trMemory(), callNode->getNumChildren(), false, stackAlloc);
    for (int32_t i = 0; i < callNode->getNumChildren(); ++i)
       newParms->add(resolveNode(callNode->getChild(i)));
 
@@ -731,11 +731,11 @@ TR::ResolvedMethodSymbol *TR_NewInitialization::findInlinableMethod(TR::TreeTop 
    TR::MethodSymbol *calleeMethodSymbol = symRef->getSymbol()->castToMethodSymbol();
    TR::Node * parent = callTree->getNode();
 
-   //TR_CallSite *callsite = TR_CallSite::create(callTree, parent, callNode, thisClass, symRef,  0, comp(), trStackMemory());
+   //TR_CallSite *callsite = TR_CallSite::create(callTree, parent, callNode, thisClass, symRef,  0, comp(), comp()->trStackMemory());
 
    TR_CallSite *callsite = TR_CallSite::create(callTree, parent, callNode, thisClass, symRef,  0, comp(), comp()->trMemory(), stackAlloc);
 
-	//TR_CallSite *callsite = new (trStackMemory()) TR_CallSite (symRef->getOwningMethod(comp()),callTree,parent,callNode,calleeMethodSymbol->getMethod(),thisClass,(int32_t)symRef->getOffset(),symRef->getCPIndex(),0,calleeMethodSymbol->getResolvedMethodSymbol(),callNode->getOpCode().isCallIndirect(),calleeMethodSymbol->isInterface(),callNode->getByteCodeInfo(),comp());
+	//TR_CallSite *callsite = new (comp()->trStackMemory()) TR_CallSite (symRef->getOwningMethod(comp()),callTree,parent,callNode,calleeMethodSymbol->getMethod(),thisClass,(int32_t)symRef->getOffset(),symRef->getCPIndex(),0,calleeMethodSymbol->getResolvedMethodSymbol(),callNode->getOpCode().isCallIndirect(),calleeMethodSymbol->isInterface(),callNode->getByteCodeInfo(),comp());
 
    newInlineCall.getSymbolAndFindInlineTargets(NULL,callsite);
    bool canSniff = callsite->numTargets() ? true : false;
@@ -746,13 +746,13 @@ TR::ResolvedMethodSymbol *TR_NewInitialization::findInlinableMethod(TR::TreeTop 
    if (!canSniff)
       {
       if (trace())
-         traceMsg(comp(), "\nCall at [%p] to %s is NOT inlineable\n", callTree->getNode()->getFirstChild(), calleeSymbol->getResolvedMethod()->signature(trMemory()));
+         traceMsg(comp(), "\nCall at [%p] to %s is NOT inlineable\n", callTree->getNode()->getFirstChild(), calleeSymbol->getResolvedMethod()->signature(comp()->trMemory()));
       return NULL;
       }
 
    if (trace())
       {
-      traceMsg(comp(), "\nGenerating trees for call at [%p] to %s\n", callTree->getNode()->getFirstChild(), calleeSymbol->getResolvedMethod()->signature(trMemory()));
+      traceMsg(comp(), "\nGenerating trees for call at [%p] to %s\n", callTree->getNode()->getFirstChild(), calleeSymbol->getResolvedMethod()->signature(comp()->trMemory()));
       }
 
    dumpOptDetails(comp(), "O^O NEW INITIALIZATION: Peeking into the IL to check for inlineable calls \n");
@@ -876,7 +876,7 @@ bool TR_NewInitialization::matchLocalLoad(TR::Node *node, Candidate *c)
           offset == entry->node->getSymbolReference()->getOffset() &&
           getValueNumber(node) == getValueNumber(entry->node))
          {
-         entry = new (trStackMemory()) NodeEntry;
+         entry = new (comp()->trStackMemory()) NodeEntry;
          entry->node = node;
          c->localLoads.add(entry);
          return true;
@@ -1152,7 +1152,7 @@ bool TR_NewInitialization::visitNode(TR::Node *node)
                {
                // Object reference is stored into a local - keep track of it
                //
-               NodeEntry *entry = new (trStackMemory()) NodeEntry;
+               NodeEntry *entry = new (comp()->trStackMemory()) NodeEntry;
                entry->node = node;
                c->localStores.add(entry);
                }
@@ -1174,7 +1174,7 @@ void TR_NewInitialization::setAffectedCandidate(Candidate *c)
    //
    if (_outermostCallSite)
       {
-      TreeTopEntry *callEntry = new (trStackMemory()) TreeTopEntry;
+      TreeTopEntry *callEntry = new (comp()->trStackMemory()) TreeTopEntry;
       callEntry->treeTop = _outermostCallSite;
       c->inlinedCalls.add(callEntry);
       }
@@ -1299,7 +1299,7 @@ void TR_NewInitialization::escapeViaArrayCopyOrArraySet(TR::Node *arrayCopyNode)
    // For each candidate that can escape to the called method via argument,
    // completely initialize it.
    //
-   TR_ScratchList<TR::Node> seenNodes(trMemory());
+   TR_ScratchList<TR::Node> seenNodes(comp()->trMemory());
    Candidate *c = findCandidateReferenceInSubTree(arrayCopyNode->getFirstChild(), &seenNodes);
    if (c)
       escapeToUserCode(c, arrayCopyNode);
@@ -1340,7 +1340,7 @@ void TR_NewInitialization::findUninitializedWords()
          {
          c->numUninitializedWords = 0;
          int32_t numWords = (c->size+3)/4;
-         c->uninitializedWords = new (trStackMemory()) TR_BitVector(numWords, trMemory(), stackAlloc);
+         c->uninitializedWords = new (comp()->trStackMemory()) TR_BitVector(numWords, comp()->trMemory(), stackAlloc);
          for (int32_t j = 0; j < numWords; j++)
             {
             for (int32_t k = 0; k < 4; ++k)
@@ -1435,8 +1435,8 @@ void TR_NewInitialization::inlineCalls()
       TR_ResolvedMethod     *method    = methodSym->getResolvedMethod();
       if (trace())
          {
-         traceMsg(comp(), "\nInlining method %s into treetop at [%p], total inlined size = %d\n", method->signature(trMemory()), treeTop->getNode(), _totalInlinedBytecodeSize+method->maxBytecodeIndex());
-         /////printf("secs Inlining method %s in %s\n", method->signature(trMemory()), comp()->signature());
+         traceMsg(comp(), "\nInlining method %s into treetop at [%p], total inlined size = %d\n", method->signature(comp()->trMemory()), treeTop->getNode(), _totalInlinedBytecodeSize+method->maxBytecodeIndex());
+         /////printf("secs Inlining method %s in %s\n", method->signature(comp()->trMemory()), comp()->signature());
          }
 
       // Now inline the call
@@ -1509,11 +1509,11 @@ void TR_NewInitialization::modifyTrees(Candidate *candidate)
       // allocation that are to be initialized and put it into the symbol
       // reference associated with the mergenew node.
       //
-      extraInfo = new (trHeapMemory()) TR_ExtraInfoForNew;
+      extraInfo = new (comp()->trHeapMemory()) TR_ExtraInfoForNew;
       extraInfo->numZeroInitSlots = 0;
-      extraInfo->zeroInitSlots = new (trHeapMemory()) TR_BitVector(allocationSize/4, trMemory());
+      extraInfo->zeroInitSlots = new (comp()->trHeapMemory()) TR_BitVector(allocationSize/4, comp()->trMemory());
 
-      symRef = new (trHeapMemory()) TR::SymbolReference(comp()->getSymRefTab(), *candidate->node->getSymbolReference(), 0);
+      symRef = new (comp()->trHeapMemory()) TR::SymbolReference(comp()->getSymRefTab(), *candidate->node->getSymbolReference(), 0);
       symRef->setReferenceNumber(candidate->node->getSymbolReference()->getReferenceNumber());
       symRef->setExtraInfo(extraInfo);
 
@@ -1583,7 +1583,7 @@ void TR_NewInitialization::modifyTrees(Candidate *candidate)
       // Change the symbol reference on the allocation node so that it can hold
       // the zero-initialization information.
       //
-      extraInfo = new (trHeapMemory()) TR_ExtraInfoForNew;
+      extraInfo = new (comp()->trHeapMemory()) TR_ExtraInfoForNew;
       if (candidate->node->canSkipZeroInitialization())
          {
          extraInfo->numZeroInitSlots = 0;
@@ -1594,13 +1594,13 @@ void TR_NewInitialization::modifyTrees(Candidate *candidate)
       if (candidate->uninitializedWords &&
           !candidate->node->canSkipZeroInitialization())
          {
-         extraInfo->zeroInitSlots = new (trHeapMemory()) TR_BitVector(allocationSize, trMemory());
+         extraInfo->zeroInitSlots = new (comp()->trHeapMemory()) TR_BitVector(allocationSize, comp()->trMemory());
          *extraInfo->zeroInitSlots = *candidate->uninitializedWords;
          }
       else
          extraInfo->zeroInitSlots = NULL;
 
-      symRef = new (trHeapMemory()) TR::SymbolReference(comp()->getSymRefTab(), *candidate->node->getSymbolReference(), 0);
+      symRef = new (comp()->trHeapMemory()) TR::SymbolReference(comp()->getSymRefTab(), *candidate->node->getSymbolReference(), 0);
       symRef->setReferenceNumber(candidate->node->getSymbolReference()->getReferenceNumber());
       symRef->setExtraInfo(extraInfo);
       candidate->node->setSymbolReference(symRef);

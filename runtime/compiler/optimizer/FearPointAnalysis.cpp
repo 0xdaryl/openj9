@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2019 IBM Corp. and others
+ * Copyright (c) 2000, 2020 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -48,7 +48,7 @@ TR_DataFlowAnalysis::Kind TR_FearPointAnalysis::getKind() { return FearPointAnal
 
 TR_FearPointAnalysis *TR_FearPointAnalysis::asFearPointAnalysis() { return this; }
 
-void TR_FearPointAnalysis::analyzeNode(TR::Node *node, vcount_t visitCount, TR_BlockStructure *block, TR_SingleBitContainer *bv) 
+void TR_FearPointAnalysis::analyzeNode(TR::Node *node, vcount_t visitCount, TR_BlockStructure *block, TR_SingleBitContainer *bv)
    {
    }
 
@@ -57,9 +57,9 @@ void TR_FearPointAnalysis::analyzeTreeTopsInBlockStructure(TR_BlockStructure *bl
    }
 
 /**
- * Conduct fear analysis for an set of fear generating nodes, provided 
+ * Conduct fear analysis for an set of fear generating nodes, provided
  * as a bit vector of their global indices.
- * 
+ *
  * The default behaviour will initially search trees for children nodes generating
  * fear and then propagate this upwards. When topLevelFearOnly is enabled, this phase
  * is skipped and it is assumed that the set of fear generating nodes are all treetop nodes.
@@ -73,7 +73,7 @@ TR_FearPointAnalysis::TR_FearPointAnalysis(
       bool trace) :
    TR_BackwardUnionSingleBitContainerAnalysis(comp, comp->getFlowGraph(), optimizer, trace),
    _fearGeneratingNodes(fearGeneratingNodes),
-   _EMPTY(comp->getNodeCount(), trMemory(), stackAlloc),
+   _EMPTY(comp->getNodeCount(), comp->trMemory(), stackAlloc),
    _topLevelFearOnly(topLevelFearOnly),
    _trace(trace)
    {
@@ -85,7 +85,7 @@ TR_FearPointAnalysis::TR_FearPointAnalysis(
    // Allocate the map from node to BitVector of fear generating nodes that reach it
    // Must be before the stack mark since it will be used by the caller
    //
-   _fearfulNodes = (TR_SingleBitContainer**) trMemory()->allocateStackMemory(comp->getNodeCount() * sizeof(TR_SingleBitContainer *));
+   _fearfulNodes = (TR_SingleBitContainer**) comp->trMemory()->allocateStackMemory(comp->getNodeCount() * sizeof(TR_SingleBitContainer *));
    TR::NodeChecklist checklist(comp);
    for (TR::TreeTop *treeTop = comp->getStartTree(); treeTop; treeTop = treeTop->getNextTreeTop())
       {
@@ -113,9 +113,9 @@ TR_FearPointAnalysis::TR_FearPointAnalysis(
    // the caller
    //
    initializeBlockInfo();
-   
+
    {
-   TR::StackMemoryRegion stackMemoryRegion(*trMemory());
+   TR::StackMemoryRegion stackMemoryRegion(*comp->trMemory());
    performAnalysis(rootStructure, false);
    }
 
@@ -126,7 +126,7 @@ void TR_FearPointAnalysis::computeFear(TR::Compilation *comp, TR::Node *node, TR
    if (checklist.contains(node))
       return;
    checklist.add(node);
-   _fearfulNodes[node->getGlobalIndex()] = new (trStackMemory()) TR_SingleBitContainer(comp->getNodeCount(), trMemory(), stackAlloc);
+   _fearfulNodes[node->getGlobalIndex()] = new (comp->trStackMemory()) TR_SingleBitContainer(comp->getNodeCount(), comp->trMemory(), stackAlloc);
 
    // If only the treetops are of concern then its safe to use the
    // cheaper BitVector method to compute initial fear
@@ -201,7 +201,7 @@ TR_SingleBitContainer *TR_FearPointAnalysis::generatedFear(TR::Node *node)
    {
    TR_SingleBitContainer *returnValue = _fearfulNodes[node->getGlobalIndex()];
    if (!returnValue)
-     return &_EMPTY; 
+     return &_EMPTY;
    return returnValue;
    }
 
@@ -209,10 +209,10 @@ void TR_FearPointAnalysis::initializeGenAndKillSetInfo()
    {
    for (int32_t i = 0; i < comp()->getFlowGraph()->getNextNodeNumber(); ++i)
       {
-      _regularGenSetInfo[i] = new (trStackMemory()) TR_SingleBitContainer(getNumberOfBits(),trMemory(), stackAlloc);
-      _exceptionGenSetInfo[i] = new (trStackMemory()) TR_SingleBitContainer(getNumberOfBits(),trMemory(), stackAlloc);
-      _regularKillSetInfo[i] = new (trStackMemory()) TR_SingleBitContainer(getNumberOfBits(),trMemory(), stackAlloc);
-      _exceptionKillSetInfo[i] = new (trStackMemory()) TR_SingleBitContainer(getNumberOfBits(),trMemory(), stackAlloc);
+      _regularGenSetInfo[i] = new (comp()->trStackMemory()) TR_SingleBitContainer(getNumberOfBits(), comp()->trMemory(), stackAlloc);
+      _exceptionGenSetInfo[i] = new (comp()->trStackMemory()) TR_SingleBitContainer(getNumberOfBits(), comp()->trMemory(), stackAlloc);
+      _regularKillSetInfo[i] = new (comp()->trStackMemory()) TR_SingleBitContainer(getNumberOfBits(), comp()->trMemory(), stackAlloc);
+      _exceptionKillSetInfo[i] = new (comp()->trStackMemory()) TR_SingleBitContainer(getNumberOfBits(), comp()->trMemory(), stackAlloc);
       }
 
    TR::Block *currentBlock = NULL;

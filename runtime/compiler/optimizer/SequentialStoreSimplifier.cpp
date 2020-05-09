@@ -119,9 +119,6 @@ class TR_arraycopySequentialStores : public TR_SequentialStores
 
       TR::Compilation * comp() { return _comp; }
 
-      TR_Memory *    trMemory()      { return comp()->trMemory(); }
-      TR_StackMemory trStackMemory() { return trMemory(); }
-
       TR::SymbolReference* getLoadVarRef();
       bool checkALoadValue(TR::Node* loadNode);
       bool checkAiadd(TR::TreeTop * currentTree, TR::Node* aiaddNode);
@@ -478,7 +475,7 @@ bool TR_arraycopySequentialStores::checkALoadValue(TR::Node* loadNode)
    // just check general format right now and that shift values are in the right -range-.
    // need to wait until sorted trees list is presented to see if shifts match up with offsets
 
-   _activeValueTree = new (trStackMemory()) TR_ShiftedValueTree(comp());
+   _activeValueTree = new (comp()->trStackMemory()) TR_ShiftedValueTree(comp());
    return _activeValueTree->process(loadNode);
    }
 
@@ -749,7 +746,7 @@ bool TR_ShiftedValueTree::process(TR::Node* loadNode)
 bool TR_arraycopySequentialStores::checkAiadd(TR::TreeTop * currentTree, TR::Node* aiaddNode)
    {
 //   dumpOptDetails(comp(), "arraycopy sequential store - check aiadd node %p\n", aiaddNode);
-   _activeAddrTree = new (trStackMemory()) TR_AddressTree(stackAlloc, comp());
+   _activeAddrTree = new (comp()->trStackMemory()) TR_AddressTree(stackAlloc, comp());
    _activeTreeTop = currentTree;
    if (_activeAddrTree->process(aiaddNode, _comp->cg()->getSupportsAlignedAccessOnly()))
       {
@@ -2389,7 +2386,7 @@ int32_t TR_SequentialStoreSimplifier::perform()
    bool newTempsCreated = false;
 
    {
-   TR::StackMemoryRegion stackMemoryRegion(*trMemory());
+   TR::StackMemoryRegion stackMemoryRegion(*comp()->trMemory());
 
    TR::TreeTop* currentTree = comp()->getStartTree();
    TR::TreeTop* prevTree = NULL;

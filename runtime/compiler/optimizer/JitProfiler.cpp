@@ -89,9 +89,9 @@ int32_t TR_JitProfiler::perform()
    _lastTreeTop = comp()->findLastTree();
 
    {
-   TR::StackMemoryRegion stackMemoryRegion(*trMemory());
+   TR::StackMemoryRegion stackMemoryRegion(*comp()->trMemory());
 
-   _checklist = new (trStackMemory()) TR::NodeChecklist(comp());
+   _checklist = new (comp()->trStackMemory()) TR::NodeChecklist(comp());
 
    if (trace())
       comp()->dumpMethodTrees("Before JIT Profiling");
@@ -245,7 +245,7 @@ TR::Block *TR_JitProfiler::createProfilingBlocks(TR::Node *profilingNode, TR::Bl
 
    // Call block:
    // If there is no room left, call runtime helper first to process buffer
-   TR::Node *vmThread = TR::Node::createWithSymRef(profilingNode, TR::loadaddr, 0, new (trHeapMemory()) TR::SymbolReference(getSymRefTab(), TR::RegisterMappedSymbol::createMethodMetaDataSymbol(trHeapMemory(),"vmThread")));
+   TR::Node *vmThread = TR::Node::createWithSymRef(profilingNode, TR::loadaddr, 0, new (comp()->trHeapMemory()) TR::SymbolReference(getSymRefTab(), TR::RegisterMappedSymbol::createMethodMetaDataSymbol(comp()->trHeapMemory(),"vmThread")));
 
    TR::SymbolReference *parser = getSymRefTab()->findOrCreateRuntimeHelper(TR_jitProfileParseBuffer, false, false, true);
 #ifndef TR_TARGET_X86

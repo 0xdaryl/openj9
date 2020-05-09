@@ -81,7 +81,7 @@ void TR_SignExtendLoads::addNodeToHash(TR::Node *node,TR::Node *parent)
       }
    else
       {
-      nodeList = new (trStackMemory()) TR_ScratchList<TR::Node>(parent, trMemory());
+      nodeList = new (comp()->trStackMemory()) TR_ScratchList<TR::Node>(parent, comp()->trMemory());
       addListToHash(node,nodeList);
       }
    }
@@ -92,7 +92,7 @@ void TR_SignExtendLoads::addListToHash(TR::Node *node, TR_ScratchList<TR::Node> 
 
    int32_t hashBucket = nodeHashBucket(node);
 
-   HashTableEntry *entry = (HashTableEntry *)trMemory()->allocateStackMemory(sizeof(HashTableEntry));
+   HashTableEntry *entry = (HashTableEntry *)comp()->trMemory()->allocateStackMemory(sizeof(HashTableEntry));
    entry->_node = node;
    entry->_referringList = nodeList;
 
@@ -148,7 +148,7 @@ TR_ScratchList<TR::Node> * TR_SignExtendLoads::getListFromHash(TR::Node *node)
 void TR_SignExtendLoads::InitializeHashTable()
   {
    _sharedNodesHash._numBuckets = 127;
-   _sharedNodesHash._buckets = (HashTableEntry **)trMemory()->allocateStackMemory(_sharedNodesHash._numBuckets*sizeof(HashTableEntry *));
+   _sharedNodesHash._buckets = (HashTableEntry **)comp()->trMemory()->allocateStackMemory(_sharedNodesHash._numBuckets*sizeof(HashTableEntry *));
    memset(_sharedNodesHash._buckets, 0, _sharedNodesHash._numBuckets*sizeof(HashTableEntry *));
   }
 
@@ -737,7 +737,7 @@ void TR_SignExtendLoads::ProcessNodeList(TR_ScratchList<TR::Node> &list,bool isA
 // -------------------------------------------------------------------------------------------
 int32_t TR_SignExtendLoads::perform()
    {
-   TR::StackMemoryRegion stackMemoryRegion(*trMemory());
+   TR::StackMemoryRegion stackMemoryRegion(*comp()->trMemory());
 
    if (trace())
      {
@@ -750,8 +750,8 @@ int32_t TR_SignExtendLoads::perform()
    TR::TreeTop* prevTree = NULL;
 
    vcount_t visitCount1 = comp()->incVisitCount();
-   TR_ScratchList<TR::Node> i2lList(trMemory());
-   TR_ScratchList<TR::Node> useri2lList(trMemory());
+   TR_ScratchList<TR::Node> i2lList(comp()->trMemory());
+   TR_ScratchList<TR::Node> useri2lList(comp()->trMemory());
 
    InitializeHashTable();
 

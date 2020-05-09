@@ -139,7 +139,7 @@ int32_t TR_StringBuilderTransformer::performOnBlock(TR::Block* block)
 
             if (initNode != NULL)
                {
-               List<TR_Pair<TR::Node*, TR::RecognizedMethod> > appendArguments (trMemory());
+               List<TR_Pair<TR::Node*, TR::RecognizedMethod> > appendArguments (comp()->trMemory());
 
                if (findStringBuilderChainedAppendArguments(iter, currentNode, appendArguments) != NULL)
                   {
@@ -360,7 +360,7 @@ TR::Node* TR_StringBuilderTransformer::findStringBuilderChainedAppendArguments(T
                            traceMsg(comp(), "[0x%p] Adding argument of java/lang/StringBuilder.append acall node.\n", acallNode);
                            }
 
-                        appendArguments.add(new (trHeapMemory()) TR_Pair<TR::Node*, TR::RecognizedMethod> (acallNode->getSecondChild(), recogniedMethod));
+                        appendArguments.add(new (comp()->trHeapMemory()) TR_Pair<TR::Node*, TR::RecognizedMethod> (acallNode->getSecondChild(), recogniedMethod));
 
                         // The result of this append call is chained to the next so update the current receiver
                         stringBuilderReceiver = acallNode;

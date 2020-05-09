@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2019 IBM Corp. and others
+ * Copyright (c) 2000, 2020 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -297,20 +297,20 @@ class TR_RecursionState
 
 TR::MonitorElimination::MonitorElimination(TR::OptimizationManager *manager)
    : TR::Optimization(manager),
-   _alreadyClonedNodes(manager->trMemory()),
-   _alreadyClonedRhs(manager->trMemory()),
-   _specialBlockInfo(manager->trMemory()),
-   _coarsenedMonitorsInfo(manager->trMemory()),
-   _monentEdges(manager->trMemory()),
-   _monexitEdges(manager->trMemory()),
-   _cfgBackEdges(manager->trMemory()),
-   _splitBlocks(manager->trMemory()),
-   _nullTestBlocks(manager->trMemory()),
-   _monitors(manager->trMemory()),
+   _alreadyClonedNodes(comp()->trMemory()),
+   _alreadyClonedRhs(comp()->trMemory()),
+   _specialBlockInfo(comp()->trMemory()),
+   _coarsenedMonitorsInfo(comp()->trMemory()),
+   _monentEdges(comp()->trMemory()),
+   _monexitEdges(comp()->trMemory()),
+   _cfgBackEdges(comp()->trMemory()),
+   _splitBlocks(comp()->trMemory()),
+   _nullTestBlocks(comp()->trMemory()),
+   _monitors(comp()->trMemory()),
    _hasTMOpportunities(false),
    _tracer(manager->comp(), this)
    //,
-   //_tmCandidates(trMemory())
+   //_tmCandidates(comp()->trMemory())
    {
    requestOpt(OMR::redundantMonitorElimination);
 
@@ -378,26 +378,26 @@ int32_t TR::MonitorElimination::perform()
       }
 
    {
-   TR::StackMemoryRegion stackMemoryRegion(*trMemory());
+   TR::StackMemoryRegion stackMemoryRegion(*comp()->trMemory());
 
    comp()->incVisitCount();
 
    TR::CFG *cfg = comp()->getFlowGraph();
    _numBlocks = cfg->getNextNodeNumber();
 
-   _monitorStack = new (trStackMemory()) TR_Stack<TR_ActiveMonitor*> (trMemory(), 8, false, stackAlloc);
+   _monitorStack = new (comp()->trStackMemory()) TR_Stack<TR_ActiveMonitor*> (comp()->trMemory(), 8, false, stackAlloc);
 
    // Create an active monitor entry to represent the state outside the scope of
    // any monitor, and prime it with the entry block information
    //
-   TR_ActiveMonitor *outerScope = new (trStackMemory()) TR_ActiveMonitor(comp(), NULL, _numBlocks, NULL, trace());
+   TR_ActiveMonitor *outerScope = new (comp()->trStackMemory()) TR_ActiveMonitor(comp(), NULL, _numBlocks, NULL, trace());
    TR_SuccessorIterator succs(cfg->getStart());
    for (TR::CFGEdge *edge = succs.getFirst(); edge; edge = succs.getNext())
       {
       TR::Block *block = toBlock(edge->getTo());
       if (block->getEntry())
          {
-         TR_MonitorPath *newPath = new (trStackMemory()) TR_MonitorPath(block);
+         TR_MonitorPath *newPath = new (comp()->trStackMemory()) TR_MonitorPath(block);
          outerScope->addPath(newPath);
          }
       }
@@ -695,8 +695,8 @@ bool TR::MonitorElimination::findRedundantMonitors()
 
             // Create a new active monitor entry for the new scope.
             //
-            TR_ActiveMonitor *newMonitor = new (trStackMemory()) TR_ActiveMonitor(comp(), treeTop, _numBlocks, monitor, trace());
-            path = new (trStackMemory()) TR_MonitorPath(block, treeTop->getNextTreeTop());
+            TR_ActiveMonitor *newMonitor = new (comp()->trStackMemory()) TR_ActiveMonitor(comp(), treeTop, _numBlocks, monitor, trace());
+            path = new (comp()->trStackMemory()) TR_MonitorPath(block, treeTop->getNextTreeTop());
             newMonitor->addPath(path);
             _monitorStack->push(newMonitor);
             checkRedundantMonitor();
@@ -751,7 +751,7 @@ bool TR::MonitorElimination::findRedundantMonitors()
 
             // Add the path to the containing monitor's list of paths
             //
-            path = new (trStackMemory()) TR_MonitorPath(block, treeTop->getNextTreeTop());
+            path = new (comp()->trStackMemory()) TR_MonitorPath(block, treeTop->getNextTreeTop());
             if (!container->isPartialExitBlockSeen(path->getBlock()->getNumber()))
                container->addPartialExitPath(path);
             break;
@@ -827,7 +827,7 @@ bool TR::MonitorElimination::addPath(TR_ActiveMonitor *monitor, TR::Block *block
       if (monitor->isBlockSeen(block->getNumber()))
          return true;
 
-      TR_MonitorPath *newPath = new (trStackMemory()) TR_MonitorPath(block);
+      TR_MonitorPath *newPath = new (comp()->trStackMemory()) TR_MonitorPath(block);
       monitor->addPath(newPath);
       }
    return true;
@@ -1807,8 +1807,8 @@ void TR::MonitorElimination::recognizeIfThenReadRegion(TR::TreeTop *lastMonitor,
    {
    TR::CFG *cfg = comp()->getFlowGraph();
    TR::CFGEdgeList& edges = block->getSuccessors();
-   TR_ScratchList<TR::Block> intermediateBlocks(trMemory());
-   TR_ScratchList<TR::Block> blocksNeedingAdjustment(trMemory());
+   TR_ScratchList<TR::Block> intermediateBlocks(comp()->trMemory());
+   TR_ScratchList<TR::Block> blocksNeedingAdjustment(comp()->trMemory());
    if (edges.size() == 2)
       {
       TR::Block * block1 = toBlock(edges.front()->getTo());
@@ -1940,9 +1940,9 @@ void TR::MonitorElimination::recognizeIfThenReadRegion(TR::TreeTop *lastMonitor,
                         lastTree = gotoBlock->getExit();
                         TR::CFGEdge *newEdge = NULL;
                         cfg->addNode(gotoBlock);
-                        newEdge = TR::CFGEdge::createEdge(clonedTargetBlock,  gotoBlock, trMemory());
+                        newEdge = TR::CFGEdge::createEdge(clonedTargetBlock,  gotoBlock, comp()->trMemory());
                         cfg->addEdge(newEdge);
-                        newEdge = TR::CFGEdge::createEdge(gotoBlock,  nextBlock, trMemory());
+                        newEdge = TR::CFGEdge::createEdge(gotoBlock,  nextBlock, comp()->trMemory());
                         cfg->addEdge(newEdge);
                         gotoForFallThrough = gotoBlock;
                         }
@@ -1989,9 +1989,9 @@ void TR::MonitorElimination::recognizeIfThenReadRegion(TR::TreeTop *lastMonitor,
                      lastTree = gotoBlock->getExit();
                      TR::CFGEdge *newEdge = NULL;
                      cfg->addNode(gotoBlock);
-                     newEdge = TR::CFGEdge::createEdge(clonedMergeBlock1,  gotoBlock, trMemory());
+                     newEdge = TR::CFGEdge::createEdge(clonedMergeBlock1,  gotoBlock, comp()->trMemory());
                      cfg->addEdge(newEdge);
-                     newEdge = TR::CFGEdge::createEdge(gotoBlock,  nextBlock, trMemory());
+                     newEdge = TR::CFGEdge::createEdge(gotoBlock,  nextBlock, comp()->trMemory());
                      cfg->addEdge(newEdge);
                      }
 
@@ -2303,7 +2303,7 @@ bool TR::MonitorElimination::markBlocksAtSameNestingLevel(TR_Structure *structur
       TR_BitVector *blocksInRegion = blocksAtCurrentNestingLevel;
       if (isLoop)
          {
-         blocksInRegion = new (trStackMemory()) TR_BitVector(comp()->getFlowGraph()->getNextNodeNumber(), trMemory(), stackAlloc, notGrowable);
+         blocksInRegion = new (comp()->trStackMemory()) TR_BitVector(comp()->getFlowGraph()->getNextNodeNumber(), comp()->trMemory(), stackAlloc, notGrowable);
          collectCFGBackEdges(region->getEntry());
          _loopEntryBlocks->set(region->getEntry()->getNumber());
          if (trace())
@@ -2510,23 +2510,23 @@ void TR::MonitorElimination::coarsenMonitorRanges()
    if (!cfg->getStructure())
      return;
 
-   TR::StackMemoryRegion stackMemoryRegion(*trMemory());
+   TR::StackMemoryRegion stackMemoryRegion(*comp()->trMemory());
 
-   _containsAsyncCheck  = new (trStackMemory()) TR_BitVector(numBlocks, trMemory(), stackAlloc, notGrowable);
-   _containsCalls = new (trStackMemory()) TR_BitVector(numBlocks, trMemory(), stackAlloc, notGrowable);
-   _containsExceptions = new (trStackMemory()) TR_BitVector(numBlocks, trMemory(), stackAlloc, notGrowable);
-   _containsMonents = new (trStackMemory()) TR_BitVector(numBlocks, trMemory(), stackAlloc, notGrowable);
-   _containsMonexits = new (trStackMemory()) TR_BitVector(numBlocks, trMemory(), stackAlloc, notGrowable);
-   _guardedVirtualCallBlocks = new (trStackMemory()) TR_BitVector(numBlocks, trMemory(), stackAlloc, notGrowable);
-   _loopEntryBlocks = new (trStackMemory()) TR_BitVector(numBlocks, trMemory(), stackAlloc, notGrowable);
-   _lockedObjects = new (trStackMemory()) TR_BitVector(1, trMemory(), stackAlloc, growable);
-   _multiplyLockedObjects = new (trStackMemory()) TR_BitVector(1, trMemory(), stackAlloc, growable);
+   _containsAsyncCheck  = new (comp()->trStackMemory()) TR_BitVector(numBlocks, comp()->trMemory(), stackAlloc, notGrowable);
+   _containsCalls = new (comp()->trStackMemory()) TR_BitVector(numBlocks, comp()->trMemory(), stackAlloc, notGrowable);
+   _containsExceptions = new (comp()->trStackMemory()) TR_BitVector(numBlocks, comp()->trMemory(), stackAlloc, notGrowable);
+   _containsMonents = new (comp()->trStackMemory()) TR_BitVector(numBlocks, comp()->trMemory(), stackAlloc, notGrowable);
+   _containsMonexits = new (comp()->trStackMemory()) TR_BitVector(numBlocks, comp()->trMemory(), stackAlloc, notGrowable);
+   _guardedVirtualCallBlocks = new (comp()->trStackMemory()) TR_BitVector(numBlocks, comp()->trMemory(), stackAlloc, notGrowable);
+   _loopEntryBlocks = new (comp()->trStackMemory()) TR_BitVector(numBlocks, comp()->trMemory(), stackAlloc, notGrowable);
+   _lockedObjects = new (comp()->trStackMemory()) TR_BitVector(1, comp()->trMemory(), stackAlloc, growable);
+   _multiplyLockedObjects = new (comp()->trStackMemory()) TR_BitVector(1, comp()->trMemory(), stackAlloc, growable);
 
-   _symbolsWritten = (TR_BitVector **) trMemory()->allocateStackMemory(numBlocks* sizeof(TR_BitVector *));
-   _monentTrees = (TR::TreeTop **) trMemory()->allocateStackMemory(numBlocks* sizeof(TR::TreeTop *));
-   _monexitTrees = (TR::TreeTop **) trMemory()->allocateStackMemory(numBlocks* sizeof(TR::TreeTop *));
-   _monentBlockInfo = (int32_t *) trMemory()->allocateStackMemory(numBlocks* sizeof(int32_t));
-   _monexitBlockInfo = (int32_t *) trMemory()->allocateStackMemory(numBlocks* sizeof(int32_t));
+   _symbolsWritten = (TR_BitVector **) comp()->trMemory()->allocateStackMemory(numBlocks* sizeof(TR_BitVector *));
+   _monentTrees = (TR::TreeTop **) comp()->trMemory()->allocateStackMemory(numBlocks* sizeof(TR::TreeTop *));
+   _monexitTrees = (TR::TreeTop **) comp()->trMemory()->allocateStackMemory(numBlocks* sizeof(TR::TreeTop *));
+   _monentBlockInfo = (int32_t *) comp()->trMemory()->allocateStackMemory(numBlocks* sizeof(int32_t));
+   _monexitBlockInfo = (int32_t *) comp()->trMemory()->allocateStackMemory(numBlocks* sizeof(int32_t));
 
    int32_t symRefCount = comp()->getSymRefTab()->getNumSymRefs();
    int32_t i;
@@ -2534,15 +2534,15 @@ void TR::MonitorElimination::coarsenMonitorRanges()
       {
       _monentBlockInfo[i] = -2;
       _monexitBlockInfo[i] = -2;
-      _symbolsWritten[i] = new (trStackMemory()) TR_BitVector(symRefCount, trMemory(), stackAlloc, growable);
+      _symbolsWritten[i] = new (comp()->trStackMemory()) TR_BitVector(symRefCount, comp()->trMemory(), stackAlloc, growable);
       }
 
-   _symRefsInSimpleLockedRegion = new (trStackMemory()) TR_BitVector(symRefCount, trMemory(), stackAlloc, growable);
-   _storedSymRefsInSimpleLockedRegion = new (trStackMemory()) TR_BitVector(symRefCount, trMemory(), stackAlloc, growable);
+   _symRefsInSimpleLockedRegion = new (comp()->trStackMemory()) TR_BitVector(symRefCount, comp()->trMemory(), stackAlloc, growable);
+   _storedSymRefsInSimpleLockedRegion = new (comp()->trStackMemory()) TR_BitVector(symRefCount, comp()->trMemory(), stackAlloc, growable);
 
    TR_ValueNumberInfo *info = optimizer()->getValueNumberInfo();
    int32_t numberOfNodes = info->getNumberOfNodes();
-   _safeValueNumbers = (int32_t *) trMemory()->allocateStackMemory(numberOfNodes* sizeof(int32_t));
+   _safeValueNumbers = (int32_t *) comp()->trMemory()->allocateStackMemory(numberOfNodes* sizeof(int32_t));
 
    for (i=0;i<numberOfNodes;i++)
      _safeValueNumbers[i] = -1;
@@ -2553,7 +2553,7 @@ void TR::MonitorElimination::coarsenMonitorRanges()
    defs1.GrowTo(useDefInfo->getTotalNodes());
    defs2.GrowTo(useDefInfo->getTotalNodes());
 
-   _coarsenedMonitors = new (trStackMemory()) TR_BitVector(numberOfNodes, trMemory(), stackAlloc, notGrowable);
+   _coarsenedMonitors = new (comp()->trStackMemory()) TR_BitVector(numberOfNodes, comp()->trMemory(), stackAlloc, notGrowable);
 
    int32_t blockNum = -1;
    bool reanalyzeBlock = false;
@@ -2940,28 +2940,28 @@ void TR::MonitorElimination::coarsenMonitorRanges()
 
    _lastTreeTop = NULL;
 
-   _successorInfo = (TR_BitVector **) trMemory()->allocateStackMemory(numBlocks* sizeof(TR_BitVector *));
+   _successorInfo = (TR_BitVector **) comp()->trMemory()->allocateStackMemory(numBlocks* sizeof(TR_BitVector *));
    memset(_successorInfo, 0, numBlocks * sizeof(TR_BitVector *));
-   _predecessorInfo = (TR_BitVector **) trMemory()->allocateStackMemory(numBlocks* sizeof(TR_BitVector *));
+   _predecessorInfo = (TR_BitVector **) comp()->trMemory()->allocateStackMemory(numBlocks* sizeof(TR_BitVector *));
    memset(_predecessorInfo, 0, numBlocks * sizeof(TR_BitVector *));
 
-   _blockInfo = (TR::Block **) trMemory()->allocateStackMemory(numBlocks* sizeof(TR::Block *));
+   _blockInfo = (TR::Block **) comp()->trMemory()->allocateStackMemory(numBlocks* sizeof(TR::Block *));
    memset(_blockInfo, 0, numBlocks * sizeof(TR::Block *));
 
    for (TR::CFGNode *node = cfg->getFirstNode(); node; node = node->getNext())
       {
-      _successorInfo[node->getNumber()] = new (trStackMemory()) TR_BitVector(numBlocks, trMemory(), stackAlloc, notGrowable);
-      _predecessorInfo[node->getNumber()] = new (trStackMemory()) TR_BitVector(numBlocks, trMemory(), stackAlloc, notGrowable);
+      _successorInfo[node->getNumber()] = new (comp()->trStackMemory()) TR_BitVector(numBlocks, comp()->trMemory(), stackAlloc, notGrowable);
+      _predecessorInfo[node->getNumber()] = new (comp()->trStackMemory()) TR_BitVector(numBlocks, comp()->trMemory(), stackAlloc, notGrowable);
       _blockInfo[node->getNumber()] = toBlock(node);
       }
 
-   //TR_BitVector *seenPredNodes = new (trStackMemory()) TR_BitVector(numBlocks, trMemory(), stackAlloc, notGrowable);
-   //TR_BitVector *seenSuccNodes = new (trStackMemory()) TR_BitVector(numBlocks, trMemory(), stackAlloc, notGrowable);
-   TR_BitVector *visitedNodes = new (trStackMemory()) TR_BitVector(numBlocks, trMemory(), stackAlloc, notGrowable);
+   //TR_BitVector *seenPredNodes = new (comp()->trStackMemory()) TR_BitVector(numBlocks, comp()->trMemory(), stackAlloc, notGrowable);
+   //TR_BitVector *seenSuccNodes = new (comp()->trStackMemory()) TR_BitVector(numBlocks, comp()->trMemory(), stackAlloc, notGrowable);
+   TR_BitVector *visitedNodes = new (comp()->trStackMemory()) TR_BitVector(numBlocks, comp()->trMemory(), stackAlloc, notGrowable);
 
-   _subtraction = new (trStackMemory()) TR_BitVector(numBlocks, trMemory(), stackAlloc, notGrowable);
+   _subtraction = new (comp()->trStackMemory()) TR_BitVector(numBlocks, comp()->trMemory(), stackAlloc, notGrowable);
 
-   TR_BitVector *blocksAtCurrentNestingLevel = new (trStackMemory()) TR_BitVector(numBlocks, trMemory(), stackAlloc, notGrowable);
+   TR_BitVector *blocksAtCurrentNestingLevel = new (comp()->trStackMemory()) TR_BitVector(numBlocks, comp()->trMemory(), stackAlloc, notGrowable);
    bool containsImproperRegions = markBlocksAtSameNestingLevel(comp()->getFlowGraph()->getStructure(), blocksAtCurrentNestingLevel);
 
    if (containsImproperRegions)
@@ -2971,26 +2971,26 @@ void TR::MonitorElimination::coarsenMonitorRanges()
 
    collectPredsAndSuccs(cfg->getStart(), visitedNodes, _predecessorInfo, _successorInfo, &_cfgBackEdges, _loopEntryBlocks, comp());
 
-   _temp = new (trStackMemory()) TR_BitVector(numBlocks, trMemory(), stackAlloc, notGrowable);
-   _intersection = new (trStackMemory()) TR_BitVector(numBlocks, trMemory(), stackAlloc, notGrowable);
-   _inclusiveIntersection = new (trStackMemory()) TR_BitVector(numBlocks, trMemory(), stackAlloc, notGrowable);
-   _closureIntersection = new (trStackMemory()) TR_BitVector(numBlocks, trMemory(), stackAlloc, notGrowable);
-   _scratch = new (trStackMemory()) TR_BitVector(numBlocks, trMemory(), stackAlloc, notGrowable);
-   _scratchForSymbols = new (trStackMemory()) TR_BitVector(symRefCount, trMemory(), stackAlloc, growable);
-   _writtenSymbols = new (trStackMemory()) TR_BitVector(symRefCount, trMemory(), stackAlloc, growable);
-   _monexitWorkList = new (trStackMemory()) TR_BitVector(numBlocks, trMemory(), stackAlloc, notGrowable);
-   _adjustedMonentBlocks = new (trStackMemory()) TR_BitVector(numBlocks, trMemory(), stackAlloc, notGrowable);
-   _adjustedMonexitBlocks = new (trStackMemory()) TR_BitVector(numBlocks, trMemory(), stackAlloc, notGrowable);
-   _matchingMonentBlocks = new (trStackMemory()) TR_BitVector(numBlocks, trMemory(), stackAlloc, notGrowable);
-   _matchingMonexitBlocks = new (trStackMemory()) TR_BitVector(numBlocks, trMemory(), stackAlloc, notGrowable);
-   _matchingSpecialBlocks = new (trStackMemory()) TR_BitVector(numBlocks, trMemory(), stackAlloc, notGrowable);
-   _matchingNormalMonentBlocks = new (trStackMemory()) TR_BitVector(numBlocks, trMemory(), stackAlloc, notGrowable);
-   _matchingNormalMonexitBlocks = new (trStackMemory()) TR_BitVector(numBlocks, trMemory(), stackAlloc, notGrowable);
-   //_matchingSpecialMonexitBlocks = new (trStackMemory()) TR_BitVector(numBlocks, trMemory(), stackAlloc, notGrowable);
+   _temp = new (comp()->trStackMemory()) TR_BitVector(numBlocks, comp()->trMemory(), stackAlloc, notGrowable);
+   _intersection = new (comp()->trStackMemory()) TR_BitVector(numBlocks, comp()->trMemory(), stackAlloc, notGrowable);
+   _inclusiveIntersection = new (comp()->trStackMemory()) TR_BitVector(numBlocks, comp()->trMemory(), stackAlloc, notGrowable);
+   _closureIntersection = new (comp()->trStackMemory()) TR_BitVector(numBlocks, comp()->trMemory(), stackAlloc, notGrowable);
+   _scratch = new (comp()->trStackMemory()) TR_BitVector(numBlocks, comp()->trMemory(), stackAlloc, notGrowable);
+   _scratchForSymbols = new (comp()->trStackMemory()) TR_BitVector(symRefCount, comp()->trMemory(), stackAlloc, growable);
+   _writtenSymbols = new (comp()->trStackMemory()) TR_BitVector(symRefCount, comp()->trMemory(), stackAlloc, growable);
+   _monexitWorkList = new (comp()->trStackMemory()) TR_BitVector(numBlocks, comp()->trMemory(), stackAlloc, notGrowable);
+   _adjustedMonentBlocks = new (comp()->trStackMemory()) TR_BitVector(numBlocks, comp()->trMemory(), stackAlloc, notGrowable);
+   _adjustedMonexitBlocks = new (comp()->trStackMemory()) TR_BitVector(numBlocks, comp()->trMemory(), stackAlloc, notGrowable);
+   _matchingMonentBlocks = new (comp()->trStackMemory()) TR_BitVector(numBlocks, comp()->trMemory(), stackAlloc, notGrowable);
+   _matchingMonexitBlocks = new (comp()->trStackMemory()) TR_BitVector(numBlocks, comp()->trMemory(), stackAlloc, notGrowable);
+   _matchingSpecialBlocks = new (comp()->trStackMemory()) TR_BitVector(numBlocks, comp()->trMemory(), stackAlloc, notGrowable);
+   _matchingNormalMonentBlocks = new (comp()->trStackMemory()) TR_BitVector(numBlocks, comp()->trMemory(), stackAlloc, notGrowable);
+   _matchingNormalMonexitBlocks = new (comp()->trStackMemory()) TR_BitVector(numBlocks, comp()->trMemory(), stackAlloc, notGrowable);
+   //_matchingSpecialMonexitBlocks = new (comp()->trStackMemory()) TR_BitVector(numBlocks, comp()->trMemory(), stackAlloc, notGrowable);
 
    //*_intersection = *seenNodes;
 
-   _coarsenedMonexits = new (trStackMemory()) TR_BitVector(numBlocks, trMemory(), stackAlloc, notGrowable);
+   _coarsenedMonexits = new (comp()->trStackMemory()) TR_BitVector(numBlocks, comp()->trMemory(), stackAlloc, notGrowable);
 
    int32_t prevLockedObject = -1;
    TR::Node *prevMonitorNode = NULL;
@@ -3725,7 +3725,7 @@ void TR::MonitorElimination::collectSuccessors(int32_t blockNum, TR_BitVector *m
                {
                _matchingSpecialBlocks->set(nextSucc);
 
-               SpecialBlockInfo *specialBlockInfo = (SpecialBlockInfo *) trMemory()->allocateStackMemory(sizeof(SpecialBlockInfo));
+               SpecialBlockInfo *specialBlockInfo = (SpecialBlockInfo *) comp()->trMemory()->allocateStackMemory(sizeof(SpecialBlockInfo));
                //specialBlockInfo->_predBlock = _blockInfo[blockNum];
                specialBlockInfo->_succBlock = _blockInfo[nextSucc];
                if (trace())
@@ -3750,7 +3750,7 @@ void TR::MonitorElimination::collectSuccessors(int32_t blockNum, TR_BitVector *m
                if (!_matchingMonentBlocks->get(nextSucc))
                   {
                   _matchingMonentBlocks->set(nextSucc);
-                  TR_BitVector *predsContainingMonexits = new (trStackMemory()) TR_BitVector(comp()->getFlowGraph()->getNextNodeNumber(), trMemory(), stackAlloc, notGrowable);
+                  TR_BitVector *predsContainingMonexits = new (comp()->trStackMemory()) TR_BitVector(comp()->getFlowGraph()->getNextNodeNumber(), comp()->trMemory(), stackAlloc, notGrowable);
                   *predsContainingMonexits = *predecessors;
                   *predsContainingMonexits &= *blocksAtSameNestingLevel;
                   *predsContainingMonexits &= *_containsMonexits;
@@ -3995,7 +3995,7 @@ void TR::MonitorElimination::collectPredecessors(int32_t blockNum, TR_BitVector 
 
                if (trace())
                   traceMsg(comp(), "1special block info added\n");
-               SpecialBlockInfo *specialBlockInfo = (SpecialBlockInfo *) trMemory()->allocateStackMemory(sizeof(SpecialBlockInfo));
+               SpecialBlockInfo *specialBlockInfo = (SpecialBlockInfo *) comp()->trMemory()->allocateStackMemory(sizeof(SpecialBlockInfo));
                //specialBlockInfo->_predBlock = _blockInfo[nextPred];
                specialBlockInfo->_succBlock = _blockInfo[blockNum];
                specialBlockInfo->_treeTop = _monexitTrees[nextPred]->getPrevTreeTop();
@@ -4018,7 +4018,7 @@ void TR::MonitorElimination::collectPredecessors(int32_t blockNum, TR_BitVector 
                if (!_matchingMonexitBlocks->get(nextPred))
                   {
                   _matchingMonexitBlocks->set(nextPred);
-                  TR_BitVector *succsContainingMonents = new (trStackMemory()) TR_BitVector(comp()->getFlowGraph()->getNextNodeNumber(), trMemory(), stackAlloc, notGrowable);
+                  TR_BitVector *succsContainingMonents = new (comp()->trStackMemory()) TR_BitVector(comp()->getFlowGraph()->getNextNodeNumber(), comp()->trMemory(), stackAlloc, notGrowable);
                   *succsContainingMonents = *successors;
                   *succsContainingMonents &= *(getBlocksAtSameNestingLevel(_blockInfo[nextPred]));
                   *succsContainingMonents &= *_containsMonents;
@@ -4252,8 +4252,8 @@ void TR::MonitorElimination::insertNullTestBeforeBlock(TR::Node *prevMonitorNode
    for (auto edge = nextBlock->getPredecessors().begin(); edge != nextBlock->getPredecessors().end(); ++edge)
       (*edge)->getFrom()->asBlock()->getLastRealTreeTop()->adjustBranchOrSwitchTreeTop(comp(), nextBlock->getEntry(), ifBlock->getEntry());
    nextBlock->movePredecessors(ifBlock);
-   cfg->addEdge(TR::CFGEdge::createEdge(ifBlock,  nextBlock, trMemory()));
-   cfg->addEdge(TR::CFGEdge::createEdge(ifBlock,  destBlock, trMemory()));
+   cfg->addEdge(TR::CFGEdge::createEdge(ifBlock,  nextBlock, comp()->trMemory()));
+   cfg->addEdge(TR::CFGEdge::createEdge(ifBlock,  destBlock, comp()->trMemory()));
    }
 
 
@@ -4565,9 +4565,9 @@ TR::MonitorElimination::addClassThatShouldNotBeLoaded(char *name, int32_t len, T
          return false;
 
    if (stackAllocation)
-      classesThatShouldNotBeLoaded->add(new (trStackMemory()) TR_ClassLoadCheck(name, len));
+      classesThatShouldNotBeLoaded->add(new (comp()->trStackMemory()) TR_ClassLoadCheck(name, len));
    else
-      classesThatShouldNotBeLoaded->add(new (trHeapMemory()) TR_ClassLoadCheck(name, len));
+      classesThatShouldNotBeLoaded->add(new (comp()->trHeapMemory()) TR_ClassLoadCheck(name, len));
 
    return true;
    }
@@ -4582,9 +4582,9 @@ TR::MonitorElimination::addClassThatShouldNotBeNewlyExtended(TR_OpaqueClassBlock
          return false;
 
    if (stackAllocation)
-      classesThatShouldNotBeNewlyExtended->add(new (trStackMemory()) TR_ClassExtendCheck(clazz));
+      classesThatShouldNotBeNewlyExtended->add(new (comp()->trStackMemory()) TR_ClassExtendCheck(clazz));
    else
-      classesThatShouldNotBeNewlyExtended->add(new (trHeapMemory()) TR_ClassExtendCheck(clazz));
+      classesThatShouldNotBeNewlyExtended->add(new (comp()->trHeapMemory()) TR_ClassExtendCheck(clazz));
 
    return true;
    }
@@ -4643,9 +4643,9 @@ void TR::MonitorElimination::coarsenSpecialBlock(SpecialBlockInfo *blockInfo)
        if (gotoBlock)
           {
           cfg->addNode(gotoBlock);
-          newEdge = TR::CFGEdge::createEdge(newBlock,  gotoBlock, trMemory());
+          newEdge = TR::CFGEdge::createEdge(newBlock,  gotoBlock, comp()->trMemory());
           cfg->addEdge(newEdge);
-          newEdge = TR::CFGEdge::createEdge(gotoBlock, block->getNextBlock(), trMemory());
+          newEdge = TR::CFGEdge::createEdge(gotoBlock, block->getNextBlock(), comp()->trMemory());
           cfg->addEdge(newEdge);
           cfg->removeEdge(newBlock, block->getNextBlock());
           }
@@ -4689,9 +4689,9 @@ void TR::MonitorElimination::coarsenSpecialBlock(SpecialBlockInfo *blockInfo)
              cfg->addEdge(newBlock, succ);
           }
 
-       newEdge = TR::CFGEdge::createEdge(guardBlock,  block, trMemory());
+       newEdge = TR::CFGEdge::createEdge(guardBlock,  block, comp()->trMemory());
        cfg->addEdge(newEdge);
-       newEdge = TR::CFGEdge::createEdge(guardBlock,  newBlock, trMemory());
+       newEdge = TR::CFGEdge::createEdge(guardBlock,  newBlock, comp()->trMemory());
        cfg->addEdge(newEdge);
 
        TR::TreeTop *insertionTree = block->getEntry()->getPrevTreeTop();
@@ -4902,7 +4902,7 @@ TR::CoarsenedMonitorInfo *TR::MonitorElimination::findOrCreateCoarsenedMonitorIn
    TR::CoarsenedMonitorInfo *monitorInfo = findCoarsenedMonitorInfo(lockedObject);
    if (!monitorInfo)
       {
-      monitorInfo = new (trStackMemory()) TR::CoarsenedMonitorInfo(trMemory(), lockedObject, comp()->getFlowGraph()->getNextNodeNumber(), lockedNode);
+      monitorInfo = new (comp()->trStackMemory()) TR::CoarsenedMonitorInfo(comp()->trMemory(), lockedObject, comp()->getFlowGraph()->getNextNodeNumber(), lockedNode);
       _coarsenedMonitorsInfo.add(monitorInfo);
       }
 
@@ -5096,7 +5096,7 @@ bool TR::MonitorElimination::treesAllowCoarsening(TR::TreeTop *startTree, TR::Tr
             {
             recoveryPossible = false;
             if (trace())
-               traceMsg(comp(), "Recovery is NOT possible from call %p to method %s\n", node, resolvedMethod->signature(trMemory()));
+               traceMsg(comp(), "Recovery is NOT possible from call %p to method %s\n", node, resolvedMethod->signature(comp()->trMemory()));
             break;
             }
          else
@@ -5122,11 +5122,11 @@ bool TR::MonitorElimination::treesAllowCoarsening(TR::TreeTop *startTree, TR::Tr
                         if (symRef->getSymbol()->isConstObjectRef())
                            continue; // not a static field -- no danger
                         else
-                           sig = symRef->getOwningMethod(comp())->staticName(symRef->getCPIndex(), length, trMemory());
+                           sig = symRef->getOwningMethod(comp())->staticName(symRef->getCPIndex(), length, comp()->trMemory());
                         }
                      else if (symRef->getSymbol()->isShadow())
                         {
-                        sig = symRef->getOwningMethod(comp())->fieldName(symRef->getCPIndex(), length, trMemory());
+                        sig = symRef->getOwningMethod(comp())->fieldName(symRef->getCPIndex(), length, comp()->trMemory());
                         }
 
                      char *currSig = NULL;
@@ -5136,18 +5136,18 @@ bool TR::MonitorElimination::treesAllowCoarsening(TR::TreeTop *startTree, TR::Tr
                         if (currSymReference->getSymbol()->isConstObjectRef())
                            continue; // not a static field -- no danger
                         else
-                           currSig = currSymReference->getOwningMethod(comp())->staticName(currSymReference->getCPIndex(), currLength, trMemory());
+                           currSig = currSymReference->getOwningMethod(comp())->staticName(currSymReference->getCPIndex(), currLength, comp()->trMemory());
                         }
                      else if (currSymReference->getSymbol()->isShadow())
                         {
-                        currSig = currSymReference->getOwningMethod(comp())->fieldName(currSymReference->getCPIndex(), currLength, trMemory());
+                        currSig = currSymReference->getOwningMethod(comp())->fieldName(currSymReference->getCPIndex(), currLength, comp()->trMemory());
                         }
 
                      if ((length == currLength) &&
                          (memcmp(sig, currSig, length) == 0))
                         {
                         if (trace())
-                           traceMsg(comp(), "Recovery is NOT possible from call %p to method %s due to written symbols\n", node, resolvedMethod->signature(trMemory()));
+                           traceMsg(comp(), "Recovery is NOT possible from call %p to method %s due to written symbols\n", node, resolvedMethod->signature(comp()->trMemory()));
                         return false;
                         }
                      }

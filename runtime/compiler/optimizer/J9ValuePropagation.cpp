@@ -52,7 +52,7 @@
 J9::ValuePropagation::ValuePropagation(TR::OptimizationManager *manager)
    : OMR::ValuePropagation(manager),
      _bcdSignConstraints(NULL),
-     _callsToBeFoldedToNode(trMemory())
+     _callsToBeFoldedToNode(comp()->trMemory())
    {
    }
 
@@ -78,7 +78,7 @@ TR::VP_BCDSign **J9::ValuePropagation::getBCDSignConstraints(TR::DataType dt)
    if (_bcdSignConstraints == NULL)
       {
       size_t size = TR::DataType::numBCDTypes() * TR_Sign_Num_Types * sizeof(TR::VP_BCDSign*);
-      _bcdSignConstraints = (TR::VP_BCDSign**)trMemory()->allocateStackMemory(size);
+      _bcdSignConstraints = (TR::VP_BCDSign**)comp()->trMemory()->allocateStackMemory(size);
       memset(_bcdSignConstraints, 0, size);
 //    traceMsg(comp(),"create _bcdSignConstraints %p of size %d (numBCDTypes %d * TR_Sign_Num_Types %d * sizeof(TR::VP_BCDSign*) %d)\n",
 //       _bcdSignConstraints,size,TR::DataType::numBCDTypes(),TR_Sign_Num_Types,sizeof(TR::VP_BCDSign*));
@@ -196,7 +196,7 @@ J9::ValuePropagation::transformCallToIconstInPlaceOrInDelayedTransformations(TR:
        {
        if (trace())
           traceMsg(comp(), "The call to %s on node %p will be folded to %d in delayed transformations\n", signature, callNode, result);
-       _callsToBeFoldedToNode.add(new (trStackMemory()) TreeNodeResultPair(callTree, TR::Node::iconst(callTree->getNode()->getFirstChild(), result), requiresGuard));
+       _callsToBeFoldedToNode.add(new (comp()->trStackMemory()) TreeNodeResultPair(callTree, TR::Node::iconst(callTree->getNode()->getFirstChild(), result), requiresGuard));
        }
    }
 
@@ -208,7 +208,7 @@ J9::ValuePropagation::transformCallToNodeDelayedTransformations(TR::TreeTop *cal
    const char *signature = calledMethod->signature(comp()->trMemory(), stackAlloc);
    if (trace())
           traceMsg(comp(), "The call to %s on node %p will be folded in delayed transformations\n", signature, callNode, result);
-   _callsToBeFoldedToNode.add(new (trStackMemory()) TreeNodeResultPair(callTree, result, requiresGuard));
+   _callsToBeFoldedToNode.add(new (comp()->trStackMemory()) TreeNodeResultPair(callTree, result, requiresGuard));
    }
 /**
  * \brief
@@ -1173,7 +1173,7 @@ J9::ValuePropagation::constrainRecognizedMethod(TR::Node *node)
                node->setAndIncChild(0, classPointerNode);
 
                TR::SymbolReference *constructorSymRef = comp()->getSymRefTab()->findOrCreateMethodSymbol(JITTED_METHOD_INDEX, -1,
-                  comp()->fej9()->createResolvedMethod(trMemory(), constructor), TR::MethodSymbol::Special);
+                  comp()->fej9()->createResolvedMethod(comp()->trMemory(), constructor), TR::MethodSymbol::Special);
 
                TR::TreeTop *constructorCall = TR::TreeTop::create(comp(), _curTree,
                    TR::Node::create(node, TR::treetop, 1,
@@ -1236,7 +1236,7 @@ J9::ValuePropagation::getParmValues()
 
    // Allocate the constraints array for the parameters
    //
-   _parmValues = (TR::VPConstraint**)trMemory()->allocateStackMemory(numParms*sizeof(TR::VPConstraint*));
+   _parmValues = (TR::VPConstraint**)comp()->trMemory()->allocateStackMemory(numParms*sizeof(TR::VPConstraint*));
 
    // Create a constraint for each parameter that we can find info for.
    // First look for a "this" parameter then look through the method's signature
@@ -1289,7 +1289,7 @@ J9::ValuePropagation::getParmValues()
                      _resetClassesThatShouldNotBeNewlyExtended.add(cl);
                   cl->setShouldNotBeNewlyExtended(comp()->getCompThreadID());
 
-                  TR_ScratchList<TR_PersistentClassInfo> subClasses(trMemory());
+                  TR_ScratchList<TR_PersistentClassInfo> subClasses(comp()->trMemory());
                   TR_ClassQueries::collectAllSubClasses(cl, &subClasses, comp());
 
                   ListIterator<TR_PersistentClassInfo> it(&subClasses);
@@ -1392,7 +1392,7 @@ J9::ValuePropagation::getParmValues()
                         _resetClassesThatShouldNotBeNewlyExtended.add(cl);
                      cl->setShouldNotBeNewlyExtended(comp()->getCompThreadID());
 
-                     TR_ScratchList<TR_PersistentClassInfo> subClasses(trMemory());
+                     TR_ScratchList<TR_PersistentClassInfo> subClasses(comp()->trMemory());
                      TR_ClassQueries::collectAllSubClasses(cl, &subClasses, comp());
 
                      ListIterator<TR_PersistentClassInfo> it(&subClasses);
@@ -1508,8 +1508,8 @@ static void getHelperSymRefs(OMR::ValuePropagation *vp, TR::Node *curCallNode, T
    if (!jitHelpersClass || !TR::Compiler->cls.isClassInitialized(vp->comp(), jitHelpersClass))
       return;
 
-   TR_ScratchList<TR_ResolvedMethod> helperMethods(vp->trMemory());
-   vp->comp()->fej9()->getResolvedMethods(vp->trMemory(), jitHelpersClass, &helperMethods);
+   TR_ScratchList<TR_ResolvedMethod> helperMethods(vp->comp()->trMemory());
+   vp->comp()->fej9()->getResolvedMethods(vp->comp()->trMemory(), jitHelpersClass, &helperMethods);
    ListIterator<TR_ResolvedMethod> it(&helperMethods);
 
    //Find the symRefs
@@ -1666,14 +1666,14 @@ J9::ValuePropagation::innerConstrainAcall(TR::Node *node)
                          && !_objectCloneCalls.find(_curTree))
                         {
                         _objectCloneCalls.add(_curTree);
-                        _objectCloneTypes.add(new (trStackMemory()) OMR::ValuePropagation::ObjCloneInfo(constraint->getClass(), true));
+                        _objectCloneTypes.add(new (comp()->trStackMemory()) OMR::ValuePropagation::ObjCloneInfo(constraint->getClass(), true));
                         }
                      else if (constraint->getClassType()
                               && constraint->getClassType()->isArray() == TR_yes
                               && !_arrayCloneCalls.find(_curTree))
                         {
                         _arrayCloneCalls.add(_curTree);
-                        _arrayCloneTypes.add(new (trStackMemory()) OMR::ValuePropagation::ArrayCloneInfo(constraint->getClass(), true));
+                        _arrayCloneTypes.add(new (comp()->trStackMemory()) OMR::ValuePropagation::ArrayCloneInfo(constraint->getClass(), true));
                         }
                      }
                   }
@@ -1694,7 +1694,7 @@ J9::ValuePropagation::innerConstrainAcall(TR::Node *node)
                      if (trace())
                         traceMsg(comp(), "Object Clone: Resolved Class of node %p object clone\n", node);
                      _objectCloneCalls.add(_curTree);
-                     _objectCloneTypes.add(new (trStackMemory()) OMR::ValuePropagation::ObjCloneInfo(constraint->getClass(), false));
+                     _objectCloneTypes.add(new (comp()->trStackMemory()) OMR::ValuePropagation::ObjCloneInfo(constraint->getClass(), false));
                      }
                   // Currently enabled for X86 as the required codegen support is implemented on X86 only.
                   // Remove the condition as other platforms receive support.
@@ -1706,7 +1706,7 @@ J9::ValuePropagation::innerConstrainAcall(TR::Node *node)
                      if (trace())
                         traceMsg(comp(), "Object Clone: Resolved Class of node %p array clone\n", node);
                      _arrayCloneCalls.add(_curTree);
-                     _arrayCloneTypes.add(new (trStackMemory()) OMR::ValuePropagation::ArrayCloneInfo(constraint->getClass(), false));
+                     _arrayCloneTypes.add(new (comp()->trStackMemory()) OMR::ValuePropagation::ArrayCloneInfo(constraint->getClass(), false));
                      }
                   }
 #endif

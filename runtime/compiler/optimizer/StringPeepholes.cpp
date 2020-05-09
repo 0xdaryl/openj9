@@ -134,7 +134,7 @@ static uint16_t countNodeOccurrencesInSubTree(TR::Node *root, TR::Node *node, vc
    }
 
 TR_StringPeepholes::TR_StringPeepholes(TR::OptimizationManager *manager)
-   : TR::Optimization(manager), _transformedCalls(manager->trMemory())
+   : TR::Optimization(manager), _transformedCalls(comp()->trMemory())
    {}
 
 void TR_StringPeepholes::genFlush(TR::TreeTop *tt, TR::Node *node)
@@ -540,7 +540,7 @@ TR_BDChain *TR_StringPeepholes::detectChain(TR::RecognizedMethod recognizedMetho
 
    if (chainNode)
       {
-      TR_BDChain *nextInChain = new (trStackMemory()) TR_BDChain(recognizedMethod, chainNode, cursorTree, childNum, prevInChain);
+      TR_BDChain *nextInChain = new (comp()->trStackMemory()) TR_BDChain(recognizedMethod, chainNode, cursorTree, childNum, prevInChain);
       return nextInChain;
       }
 
@@ -1004,7 +1004,7 @@ TR::TreeTop *TR_StringPeepholes::detectBDPattern(TR::TreeTop *tt, TR::TreeTop *e
        ((node->getSymbolReference()->getSymbol()->getResolvedMethodSymbol()->getRecognizedMethod() == TR::java_math_BigDecimal_valueOf) ||
         (node->getSymbolReference()->getSymbol()->getResolvedMethodSymbol()->getRecognizedMethod() == TR::java_math_BigDecimal_valueOf_J)))
       {
-      prevInChain = new (trStackMemory()) TR_BDChain(node->getSymbolReference()->getSymbol()->getResolvedMethodSymbol()->getRecognizedMethod(), node, tt, -1);
+      prevInChain = new (comp()->trStackMemory()) TR_BDChain(node->getSymbolReference()->getSymbol()->getResolvedMethodSymbol()->getRecognizedMethod(), node, tt, -1);
       if (!firstInChain)
          firstInChain = prevInChain;
 
@@ -1939,7 +1939,7 @@ TR::SymbolReference *TR_StringPeepholes::findSymRefForValueOf(const char *sig)
       comp()->failCompilation<TR::CompilationException>("StringPeepholes: stringClass is NULL");
 
    TR_ASSERT_FATAL(stringClass, "stringClass should not be NULL\n");
-   TR_ResolvedMethod *method = comp()->fej9()->getResolvedMethodForNameAndSignature(trMemory(), stringClass, "valueOf", sig);
+   TR_ResolvedMethod *method = comp()->fej9()->getResolvedMethodForNameAndSignature(comp()->trMemory(), stringClass, "valueOf", sig);
    return method ? getSymRefTab()->findOrCreateMethodSymbol(JITTED_METHOD_INDEX, -1, method, TR::MethodSymbol::Static) : NULL;
    }
 
@@ -1957,7 +1957,7 @@ bool TR_StringPeepholes::checkMethodSignature(TR::SymbolReference *symRef, const
    TR::ResolvedMethodSymbol *method = symbol->castToResolvedMethodSymbol();
    if (!method) return false;
 
-   if (strncmp(method->getResolvedMethod()->signature(trMemory()), sig, strlen(sig)) == 0)
+   if (strncmp(method->getResolvedMethod()->signature(comp()->trMemory()), sig, strlen(sig)) == 0)
       return true;
    return false;
    }

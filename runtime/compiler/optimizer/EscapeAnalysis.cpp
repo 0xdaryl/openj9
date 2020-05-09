@@ -159,7 +159,7 @@ char *TR_EscapeAnalysis::getClassName(TR::Node *classNode)
 
          if (NULL != classNameChars)
             {
-            className = (char *)trMemory()->allocateStackMemory(classNameLength+1, TR_Memory::EscapeAnalysis);
+            className = (char *)comp()->trMemory()->allocateStackMemory(classNameLength+1, TR_Memory::EscapeAnalysis);
             memcpy(className, classNameChars, classNameLength);
             className[classNameLength] = 0;
             }
@@ -303,8 +303,8 @@ int32_t TR_EscapeAnalysis::perform()
    int32_t cost = 0;
 
    {
-   TR::StackMemoryRegion stackMemoryRegion(*trMemory());
-   _callsToProtect = new (trStackMemory()) CallLoadMap(CallLoadMapComparator(), comp()->trMemory()->currentStackRegion());
+   TR::StackMemoryRegion stackMemoryRegion(*comp()->trMemory());
+   _callsToProtect = new (comp()->trStackMemory()) CallLoadMap(CallLoadMapComparator(), comp()->trMemory()->currentStackRegion());
 
 #if CHECK_MONITORS
    /* monitors */
@@ -676,14 +676,14 @@ int32_t TR_EscapeAnalysis::performAnalysisOnce()
    if (!_candidates.isEmpty())
       {
       _useDefInfo = optimizer()->getUseDefInfo();
-      _blocksWithFlushOnEntry = new (trStackMemory()) TR_BitVector(comp()->getFlowGraph()->getNextNodeNumber(), trMemory(), stackAlloc);
-      _visitedNodes = new (trStackMemory()) TR_BitVector(comp()->getNodeCount(), trMemory(), stackAlloc, growable);
+      _blocksWithFlushOnEntry = new (comp()->trStackMemory()) TR_BitVector(comp()->getFlowGraph()->getNextNodeNumber(), comp()->trMemory(), stackAlloc);
+      _visitedNodes = new (comp()->trStackMemory()) TR_BitVector(comp()->getNodeCount(), comp()->trMemory(), stackAlloc, growable);
       _aliasesOfAllocNode =
           _doLoopAllocationAliasChecking
-                 ? new (trStackMemory()) TR_BitVector(0, trMemory(), stackAlloc, growable) : NULL;
+                 ? new (comp()->trStackMemory()) TR_BitVector(0, comp()->trMemory(), stackAlloc, growable) : NULL;
       _aliasesOfOtherAllocNode =
           _doLoopAllocationAliasChecking
-                 ? new (trStackMemory()) TR_BitVector(0, trMemory(), stackAlloc, growable) : NULL;
+                 ? new (comp()->trStackMemory()) TR_BitVector(0, comp()->trMemory(), stackAlloc, growable) : NULL;
 
       if (!_useDefInfo)
          {
@@ -701,11 +701,11 @@ int32_t TR_EscapeAnalysis::performAnalysisOnce()
          }
       else
          {
-         _ignoreableUses = new (trStackMemory()) TR_BitVector(0, trMemory(), stackAlloc);
-         _nonColdLocalObjectsValueNumbers = new (trStackMemory()) TR_BitVector(_valueNumberInfo->getNumberOfValues(), trMemory(), stackAlloc);
-         _allLocalObjectsValueNumbers = new (trStackMemory()) TR_BitVector(_valueNumberInfo->getNumberOfValues(), trMemory(), stackAlloc);
-         _notOptimizableLocalObjectsValueNumbers = new (trStackMemory()) TR_BitVector(_valueNumberInfo->getNumberOfValues(), trMemory(), stackAlloc);
-          _notOptimizableLocalStringObjectsValueNumbers = new (trStackMemory()) TR_BitVector(_valueNumberInfo->getNumberOfValues(), trMemory(), stackAlloc);
+         _ignoreableUses = new (comp()->trStackMemory()) TR_BitVector(0, comp()->trMemory(), stackAlloc);
+         _nonColdLocalObjectsValueNumbers = new (comp()->trStackMemory()) TR_BitVector(_valueNumberInfo->getNumberOfValues(), comp()->trMemory(), stackAlloc);
+         _allLocalObjectsValueNumbers = new (comp()->trStackMemory()) TR_BitVector(_valueNumberInfo->getNumberOfValues(), comp()->trMemory(), stackAlloc);
+         _notOptimizableLocalObjectsValueNumbers = new (comp()->trStackMemory()) TR_BitVector(_valueNumberInfo->getNumberOfValues(), comp()->trMemory(), stackAlloc);
+          _notOptimizableLocalStringObjectsValueNumbers = new (comp()->trStackMemory()) TR_BitVector(_valueNumberInfo->getNumberOfValues(), comp()->trMemory(), stackAlloc);
          }
       }
 
@@ -770,7 +770,7 @@ int32_t TR_EscapeAnalysis::performAnalysisOnce()
             if (!_devirtualizedCallSites.find(callSite))
                _devirtualizedCallSites.add(callSite);
 
-            _fixedVirtualCallSites.add(new (trStackMemory()) TR_EscapeAnalysis::TR_CallSitesFixedMapper(callSite, NULL));
+            _fixedVirtualCallSites.add(new (comp()->trStackMemory()) TR_EscapeAnalysis::TR_CallSitesFixedMapper(callSite, NULL));
             dumpOptDetails(comp(), "adding Map:vCall = %p direct = %p\n",callSite, NULL);
             _repeatAnalysis = true;
             _somethingChanged = true;
@@ -1273,8 +1273,8 @@ int32_t TR_EscapeAnalysis::performAnalysisOnce()
 
          TR::CFGEdge *edgeToRemove = comp()->getFlowGraph()->getStart()->asBlock()->getSuccessors().front();
 
-         comp()->getFlowGraph()->addEdge(TR::CFGEdge::createEdge(comp()->getFlowGraph()->getStart()->asBlock(),  firstBlockReplacement, trMemory()));
-         comp()->getFlowGraph()->addEdge(TR::CFGEdge::createEdge(firstBlockReplacement,  block, trMemory()));
+         comp()->getFlowGraph()->addEdge(TR::CFGEdge::createEdge(comp()->getFlowGraph()->getStart()->asBlock(),  firstBlockReplacement, comp()->trMemory()));
+         comp()->getFlowGraph()->addEdge(TR::CFGEdge::createEdge(firstBlockReplacement,  block, comp()->trMemory()));
 
          comp()->getFlowGraph()->removeEdge(edgeToRemove);
          }
@@ -1578,7 +1578,7 @@ void TR_EscapeAnalysis::findCandidates()
             //
             dememoizedMethodSymRef = node->getSymbolReference();
             TR::SymbolReference *constructorSymRef = comp()->getSymRefTab()->findOrCreateMethodSymbol(JITTED_METHOD_INDEX, -1,
-               comp()->fej9()->createResolvedMethod(trMemory(), constructor), TR::MethodSymbol::Special);
+               comp()->fej9()->createResolvedMethod(comp()->trMemory(), constructor), TR::MethodSymbol::Special);
             dememoizedConstructorCall = TR::TreeTop::create(comp(), _curTree,
                TR::Node::create(TR::treetop, 1,
                   TR::Node::createWithSymRef(TR::call, 2, 2,
@@ -1868,7 +1868,7 @@ Candidate *TR_EscapeAnalysis::createCandidateIfValid(TR::Node *node, TR_OpaqueCl
       }
 
    Candidate *result = NULL;
-   result = new (trStackMemory()) Candidate(node, _curTree, _curBlock, size, classInfo, comp());
+   result = new (comp()->trStackMemory()) Candidate(node, _curTree, _curBlock, size, classInfo, comp());
    result->setProfileOnly(profileOnly);
    return result;
    }
@@ -1900,7 +1900,7 @@ void TR_EscapeAnalysis::checkDefsAndUses()
       next = candidate->getNext();
       TR::Node   *node          = candidate->_node;
       int32_t    newVN         = _valueNumberInfo->getValueNumber(node);
-      candidate->_valueNumbers = new (trStackMemory()) TR_Array<int32_t>(trMemory(), 8, false, stackAlloc);
+      candidate->_valueNumbers = new (comp()->trStackMemory()) TR_Array<int32_t>(comp()->trMemory(), 8, false, stackAlloc);
       candidate->_valueNumbers->add(newVN);
 
       // Accumulate the set of value numbers that can be reached by this
@@ -1911,7 +1911,7 @@ void TR_EscapeAnalysis::checkDefsAndUses()
          if (_otherDefsForLoopAllocation)
             _otherDefsForLoopAllocation->empty();
          else
-            _otherDefsForLoopAllocation= new (trStackMemory()) TR_BitVector(_useDefInfo->getNumDefNodes(), trMemory(), stackAlloc);
+            _otherDefsForLoopAllocation= new (comp()->trStackMemory()) TR_BitVector(_useDefInfo->getNumDefNodes(), comp()->trMemory(), stackAlloc);
          }
 
       if (comp()->getOptions()->realTimeGC() &&
@@ -1937,8 +1937,8 @@ void TR_EscapeAnalysis::checkDefsAndUses()
          }
       }
 
-   _vnTemp = new (trStackMemory()) TR_BitVector( optimizer()->getValueNumberInfo()->getNumberOfNodes(), trMemory(), stackAlloc, notGrowable);
-   _vnTemp2 = new (trStackMemory()) TR_BitVector(optimizer()->getValueNumberInfo()->getNumberOfNodes(), trMemory(), stackAlloc, notGrowable);
+   _vnTemp = new (comp()->trStackMemory()) TR_BitVector( optimizer()->getValueNumberInfo()->getNumberOfNodes(), comp()->trMemory(), stackAlloc, notGrowable);
+   _vnTemp2 = new (comp()->trStackMemory()) TR_BitVector(optimizer()->getValueNumberInfo()->getNumberOfNodes(), comp()->trMemory(), stackAlloc, notGrowable);
 
    TR::TreeTop *tt = comp()->getStartTree();
    for (; tt; tt = tt->getNextTreeTop())
@@ -2223,7 +2223,7 @@ void TR_EscapeAnalysis::gatherUsesThroughAselectImpl(TR::Node *node, TR::NodeChe
 
 void TR_EscapeAnalysis::associateAselectWithChild(TR::Node *aselectNode, int32_t idx)
    {
-   TR::Region &stackMemoryRegion = trMemory()->currentStackRegion();
+   TR::Region &stackMemoryRegion = comp()->trMemory()->currentStackRegion();
    TR::Node *child = aselectNode->getChild(idx);
 
    NodeDeque *currChildUses;
@@ -2231,7 +2231,7 @@ void TR_EscapeAnalysis::associateAselectWithChild(TR::Node *aselectNode, int32_t
    if (NULL == _nodeUsesThroughAselect)
       {
       _nodeUsesThroughAselect =
-            new (trStackMemory()) NodeToNodeDequeMap((NodeComparator()),
+            new (comp()->trStackMemory()) NodeToNodeDequeMap((NodeComparator()),
                                                      NodeToNodeDequeMapAllocator(stackMemoryRegion));
       }
 
@@ -2249,7 +2249,7 @@ void TR_EscapeAnalysis::associateAselectWithChild(TR::Node *aselectNode, int32_t
       }
    else
       {
-      currChildUses = new (trStackMemory()) NodeDeque(stackMemoryRegion);
+      currChildUses = new (comp()->trStackMemory()) NodeDeque(stackMemoryRegion);
       (*_nodeUsesThroughAselect)[child] = currChildUses;
       }
 
@@ -3120,7 +3120,7 @@ bool TR_EscapeAnalysis::checkIfUseIsInSameLoopAsDef(TR::TreeTop *defTree, TR::No
    if (highestCyclicStructure)
       {
       TR::NodeChecklist visited (comp());
-      TR_ScratchList<TR::Block> blocksInRegion(trMemory());
+      TR_ScratchList<TR::Block> blocksInRegion(comp()->trMemory());
       highestCyclicStructure->getBlocks(&blocksInRegion);
 
       ListIterator<TR::Block> blocksIt(&blocksInRegion);
@@ -3501,8 +3501,8 @@ bool TR_EscapeAnalysis::restrictCandidates(TR::Node *node, TR::Node *reason, res
             TR_J9VMBase *fej9 = (TR_J9VMBase *)(fe());
             if (_parms && fej9->hasTwoWordObjectHeader())
                {
-               TR_ScratchList<TR_ResolvedMethod> resolvedMethodsInClass(trMemory());
-               fej9->getResolvedMethods(trMemory(), (TR_OpaqueClassBlock *) candidate->_class, &resolvedMethodsInClass);
+               TR_ScratchList<TR_ResolvedMethod> resolvedMethodsInClass(comp()->trMemory());
+               fej9->getResolvedMethods(comp()->trMemory(), (TR_OpaqueClassBlock *) candidate->_class, &resolvedMethodsInClass);
                bool containsSyncMethod = false;
                ListIterator<TR_ResolvedMethod> resolvedIt(&resolvedMethodsInClass);
                TR_ResolvedMethod *resolvedMethod;
@@ -3892,7 +3892,7 @@ void TR_EscapeAnalysis::referencedField(TR::Node *base, TR::Node *field, bool is
             int32_t i;
             if (!candidate->_fields)
                {
-               candidate->_fields = new (trStackMemory()) TR_Array<FieldInfo>(trMemory(), 8, false, stackAlloc);
+               candidate->_fields = new (comp()->trStackMemory()) TR_Array<FieldInfo>(comp()->trMemory(), 8, false, stackAlloc);
                i = -1;
                }
             else
@@ -3916,8 +3916,8 @@ void TR_EscapeAnalysis::referencedField(TR::Node *base, TR::Node *field, bool is
                (*candidate->_fields)[i]._symRef = NULL;
                (*candidate->_fields)[i]._size = fieldSize;
                (*candidate->_fields)[i]._vectorElem = 0;
-               (*candidate->_fields)[i]._goodFieldSymrefs = new (trStackMemory()) TR_ScratchList<TR::SymbolReference>(trMemory());
-               (*candidate->_fields)[i]._badFieldSymrefs  = new (trStackMemory()) TR_ScratchList<TR::SymbolReference>(trMemory());
+               (*candidate->_fields)[i]._goodFieldSymrefs = new (comp()->trStackMemory()) TR_ScratchList<TR::SymbolReference>(comp()->trMemory());
+               (*candidate->_fields)[i]._badFieldSymrefs  = new (comp()->trStackMemory()) TR_ScratchList<TR::SymbolReference>(comp()->trMemory());
                }
             if (!isPeeking)
                (*candidate->_fields)[i].rememberFieldSymRef(field, fieldOffset, candidate, this);
@@ -4882,7 +4882,7 @@ void TR_EscapeAnalysis::checkEscapeViaCall(TR::Node *node, TR::NodeChecklist& vi
    if (needToSniff)
       {
       if (methodSymbol)
-         dumpOptDetails(comp(), "Sniff call %p called %s\n", node, methodSymbol->getMethod()->signature(trMemory()));
+         dumpOptDetails(comp(), "Sniff call %p called %s\n", node, methodSymbol->getMethod()->signature(comp()->trMemory()));
       TR_LinkHead<SniffCallCache> sniffCacheList;
       sniffCacheList.setFirst(NULL);
       bool sniffCallInCache;
@@ -4958,7 +4958,7 @@ void TR_EscapeAnalysis::checkEscapeViaCall(TR::Node *node, TR::NodeChecklist& vi
                  // try to use cached result (_curTree, bytecodeSize) before sniffing into the call
                   sniffCallInCache = SniffCallCache::isInCache(&sniffCacheList, resolvedMethod, _inColdBlock, bytecodeSize);
                   dumpOptDetails(comp(), "Refined sniff call %p called %s, cached=%s\n",
-                                   node, resolvedMethod->signature(trMemory()), sniffCallInCache ? "true" : "false");
+                                   node, resolvedMethod->signature(comp()->trMemory()), sniffCallInCache ? "true" : "false");
                   if (!sniffCallInCache)
                      {
                      TR::SymbolReference * newSymRef;
@@ -4967,7 +4967,7 @@ void TR_EscapeAnalysis::checkEscapeViaCall(TR::Node *node, TR::NodeChecklist& vi
                      if (!newSymRef)
                         {
                         newSymRef = getSymRefTab()->findOrCreateMethodSymbol(symRef->getOwningMethodIndex(), -1, resolvedMethod, TR::MethodSymbol::Virtual);
-                        SymRefCache *symRefCache = new (trHeapMemory()) SymRefCache(newSymRef, resolvedMethod);
+                        SymRefCache *symRefCache = new (comp()->trHeapMemory()) SymRefCache(newSymRef, resolvedMethod);
                         getOptData()->_symRefList.add(symRefCache);
                         newSymRef->copyAliasSets(symRef, getSymRefTab());
                         newSymRef->setOffset(offset);
@@ -4976,7 +4976,7 @@ void TR_EscapeAnalysis::checkEscapeViaCall(TR::Node *node, TR::NodeChecklist& vi
 
                      ignoreRecursion = oldIgnoreRecursion;
                      bytecodeSize = sniffCall(node, newMethodSymbol->getResolvedMethodSymbol(), true, _inColdBlock, ignoreRecursion);
-                     SniffCallCache *sniffCallCache = new (trStackMemory()) SniffCallCache(newMethodSymbol->getResolvedMethodSymbol()->getResolvedMethod(), _inColdBlock, bytecodeSize);
+                     SniffCallCache *sniffCallCache = new (comp()->trStackMemory()) SniffCallCache(newMethodSymbol->getResolvedMethodSymbol()->getResolvedMethod(), _inColdBlock, bytecodeSize);
                      sniffCacheList.add(sniffCallCache);
                      }
                   refinedSniff = true;
@@ -5041,7 +5041,7 @@ void TR_EscapeAnalysis::checkEscapeViaCall(TR::Node *node, TR::NodeChecklist& vi
                      traceMsg(comp(), "   Normally [%p] would fail because child of call [%p] to %s, but user wants it locally allocated\n",
                           candidate->_node, node,
                           node->getSymbol()->getMethodSymbol()->getMethod()
-                             ? node->getSymbol()->getMethodSymbol()->getMethod()->signature(trMemory())
+                             ? node->getSymbol()->getMethodSymbol()->getMethod()->signature(comp()->trMemory())
                              : "[Unknown method]");
                   continue;
                   }
@@ -5081,7 +5081,7 @@ int32_t TR_EscapeAnalysis::sniffCall(TR::Node *callNode, TR::ResolvedMethodSymbo
    if (!method)
       return 0;
 
-   if (!method->isCompilable(trMemory()) || method->isJNINative())
+   if (!method->isCompilable(comp()->trMemory()) || method->isJNINative())
       return 0;
 
     uint32_t bytecodeSize = method->maxBytecodeIndex();
@@ -5106,7 +5106,7 @@ int32_t TR_EscapeAnalysis::sniffCall(TR::Node *callNode, TR::ResolvedMethodSymbo
       }
 
    if (trace())
-      traceMsg(comp(), "\nDepth %d sniffing into call at [%p] to %s\n", _sniffDepth, callNode, method->signature(trMemory()));
+      traceMsg(comp(), "\nDepth %d sniffing into call at [%p] to %s\n", _sniffDepth, callNode, method->signature(comp()->trMemory()));
 
    vcount_t visitCount = comp()->getVisitCount();
    if (!methodSymbol->getFirstTreeTop())
@@ -5180,7 +5180,7 @@ int32_t TR_EscapeAnalysis::sniffCall(TR::Node *callNode, TR::ResolvedMethodSymbo
              && !((TR_EscapeAnalysis::PersistentData*)manager()->getOptData())->_processedCalls->get(callNode->getGlobalIndex()))
             {
             dumpOptDetails(comp(), "%sAdding call [%p] n%dn to list of calls to protect for peeking to increase opportunities for stack allocation\n", OPT_DETAILS, callNode, callNode->getGlobalIndex());
-            TR_BitVector *candidateNodes = new (comp()->trStackMemory()) TR_BitVector(0, trMemory(), stackAlloc);
+            TR_BitVector *candidateNodes = new (comp()->trStackMemory()) TR_BitVector(0, comp()->trMemory(), stackAlloc);
             NodeDeque *loads = new (comp()->trMemory()->currentStackRegion()) NodeDeque(NodeDequeAllocator(comp()->trMemory()->currentStackRegion()));
             for (int32_t arg = callNode->getFirstArgumentIndex(); arg < callNode->getNumChildren(); ++arg)
                {
@@ -5217,7 +5217,7 @@ int32_t TR_EscapeAnalysis::sniffCall(TR::Node *callNode, TR::ResolvedMethodSymbo
       }
 
    int32_t firstArgIndex = callNode->getFirstArgumentIndex();
-   TR_Array<TR::Node*> *newParms =  new (trStackMemory()) TR_Array<TR::Node*>(trMemory(), callNode->getNumChildren() - firstArgIndex, false, stackAlloc);
+   TR_Array<TR::Node*> *newParms =  new (comp()->trStackMemory()) TR_Array<TR::Node*>(comp()->trMemory(), callNode->getNumChildren() - firstArgIndex, false, stackAlloc);
    for (int32_t i = firstArgIndex; i < callNode->getNumChildren(); ++i)
       {
       newParms->add(resolveSniffedNode(callNode->getChild(i)));
@@ -5264,7 +5264,7 @@ int32_t TR_EscapeAnalysis::sniffCall(TR::Node *callNode, TR::ResolvedMethodSymbo
          _removeMonitors = false;
          if (trace())
             traceMsg(comp(), "Disallowing monitor-removal because of strange monitor structure in sniffed method %s\n",
-                        methodSymbol->getMethod()->signature(trMemory()));
+                        methodSymbol->getMethod()->signature(comp()->trMemory()));
          }
       }
 #endif
@@ -5990,7 +5990,7 @@ bool TR_EscapeAnalysis::fixupNode(TR::Node *node, TR::Node *parent, TR::NodeChec
                {
                if (trace())
                   {
-                  /////printf("sec Opportunity to desynchronize call to %s (size %d) in %s\n", calledMethod->getResolvedMethod()->signature(trMemory()), maxBytecodeIndex(calledMethod->getResolvedMethod()), comp()->signature());
+                  /////printf("sec Opportunity to desynchronize call to %s (size %d) in %s\n", calledMethod->getResolvedMethod()->signature(comp()->trMemory()), maxBytecodeIndex(calledMethod->getResolvedMethod()), comp()->signature());
                   traceMsg(comp(), "Mark call node [%p] as desynchronized\n", node);
                   }
                node->setDesynchronizeCall(true);
@@ -6279,7 +6279,7 @@ bool TR_EscapeAnalysis::fixupFieldAccessForNonContiguousAllocation(TR::Node *nod
        node->getSymbol() == getSymRefTab()->findGenericIntShadowSymbol())
       {
       if (!candidate->_initializedWords)
-         candidate->_initializedWords = new (trStackMemory()) TR_BitVector(candidate->_size,  trMemory(), stackAlloc);
+         candidate->_initializedWords = new (comp()->trStackMemory()) TR_BitVector(candidate->_size,  comp()->trMemory(), stackAlloc);
 
       for (i = 3; i >= 0; i--)
          candidate->_initializedWords->set(node->getSymbolReference()->getOffset()+i);
@@ -6573,7 +6573,7 @@ void TR_EscapeAnalysis::makeLocalObject(Candidate *candidate)
          symRef->getSymbol()->setNotCollected();
       else
          {
-         referenceSlots = (int32_t *)trMemory()->allocateHeapMemory((numSlots+1)*4, TR_Memory::EscapeAnalysis);
+         referenceSlots = (int32_t *)comp()->trMemory()->allocateHeapMemory((numSlots+1)*4, TR_Memory::EscapeAnalysis);
          ////int32_t hdrSlots = TR::Compiler->om.contiguousArrayHeaderSizeInBytes()/_cg->sizeOfJavaPointer();
          int32_t hdrSlots = TR::Compiler->om.contiguousArrayHeaderSizeInBytes()/TR::Compiler->om.sizeofReferenceField();
          for (i = 0; i < numSlots; i++)
@@ -6702,7 +6702,7 @@ bool TR_EscapeAnalysis::tryToZeroInitializeUsingArrayset(Candidate* candidate, T
             TR::SymbolReference* allocationSymRef = allocationNode->getSymbolReference();
 
             TR::Node* arrayset = TR::Node::createWithSymRef(TR::arrayset, 3, 3,
-               TR::Node::createWithSymRef(allocationNode, TR::loadaddr, 0, new (trHeapMemory()) TR::SymbolReference(comp()->getSymRefTab(), allocationSymRef->getSymbol(), allocationSymRef->getOffset() + candidateHeaderSizeInBytes)),
+               TR::Node::createWithSymRef(allocationNode, TR::loadaddr, 0, new (comp()->trHeapMemory()) TR::SymbolReference(comp()->getSymRefTab(), allocationSymRef->getSymbol(), allocationSymRef->getOffset() + candidateHeaderSizeInBytes)),
                TR::Node::bconst(allocationNode, 0),
                TR::Node::iconst(allocationNode, candidateObjectSizeInBytes),
                comp()->getSymRefTab()->findOrCreateArraySetSymbol());
@@ -7603,7 +7603,7 @@ void TR_EscapeAnalysis::heapifyForColdBlocks(Candidate *candidate)
          coldBlockEntry->getNode()->setBlock(heapComparisonBlock);
          coldBlockExit->getNode()->setBlock(heapComparisonBlock);
 
-         TR_ScratchList<TR::CFGEdge> coldSuccessors(trMemory()), coldExceptionSuccessors(trMemory());
+         TR_ScratchList<TR::CFGEdge> coldSuccessors(comp()->trMemory()), coldExceptionSuccessors(comp()->trMemory());
 
          for (auto succ = coldBlock->getSuccessors().begin(); succ != coldBlock->getSuccessors().end(); ++succ)
             coldSuccessors.add(*succ);
@@ -7831,15 +7831,15 @@ bool TR_EscapeAnalysis::inlineCallSites()
          //
          if (getOptData()->_totalInlinedBytecodeSize + size > _maxInlinedBytecodeSize)
             {
-            dumpOptDetails(comp(), "\nNOT inlining method %s into treetop at [%p], total inlined size = %d\n", method->signature(trMemory()), treeTop->getNode(), getOptData()->_totalInlinedBytecodeSize + size);
+            dumpOptDetails(comp(), "\nNOT inlining method %s into treetop at [%p], total inlined size = %d\n", method->signature(comp()->trMemory()), treeTop->getNode(), getOptData()->_totalInlinedBytecodeSize + size);
             return false;
             }
          }
 
       if (trace())
          {
-         /////printf("secs Inlining method %s in %s\n", method->signature(trMemory()), comp()->signature());
-         traceMsg(comp(), "\nInlining method %s into treetop at [%p], total inlined size = %d\n", method->signature(trMemory()), treeTop->getNode(), getOptData()->_totalInlinedBytecodeSize+size);
+         /////printf("secs Inlining method %s in %s\n", method->signature(comp()->trMemory()), comp()->signature());
+         traceMsg(comp(), "\nInlining method %s into treetop at [%p], total inlined size = %d\n", method->signature(comp()->trMemory()), treeTop->getNode(), getOptData()->_totalInlinedBytecodeSize+size);
          }
 
       // Now inline the call
@@ -8003,7 +8003,7 @@ void Candidate::print()
       for (TR::TreeTop *callSite = callSites.getFirst(); callSite; callSite = callSites.getNext())
          {
          TR::Node *node = callSite->getNode()->getFirstChild();
-         traceMsg(comp(), "      [%p] %s\n", node, node->getSymbol()->getMethodSymbol()->getMethod()->signature(trMemory()));
+         traceMsg(comp(), "      [%p] %s\n", node, node->getSymbol()->getMethodSymbol()->getMethod()->signature(comp()->trMemory()));
          }
       }
    if (_fields)
@@ -8044,12 +8044,12 @@ void Candidate::print()
 
 bool TR_MonitorStructureChecker::checkMonitorStructure(TR::CFG *cfg)
    {
-   TR::StackMemoryRegion stackMemoryRegion(*trMemory());
+   TR::StackMemoryRegion stackMemoryRegion(*comp()->trMemory());
 
    _foundIllegalStructure = false;
    int32_t numBlocks = cfg->getNextNodeNumber();
-   _seenNodes = new (trStackMemory()) TR_BitVector(numBlocks, trMemory(), stackAlloc, notGrowable);
-   _blockInfo = (int32_t *) trMemory()->allocateStackMemory(numBlocks * sizeof(int32_t), TR_Memory::EscapeAnalysis);
+   _seenNodes = new (comp()->trStackMemory()) TR_BitVector(numBlocks, comp()->trMemory(), stackAlloc, notGrowable);
+   _blockInfo = (int32_t *) comp()->trMemory()->allocateStackMemory(numBlocks * sizeof(int32_t), TR_Memory::EscapeAnalysis);
    memset(_blockInfo, -1, numBlocks * sizeof(int32_t));
 
    TR::CFGNode *start = cfg->getStart();
@@ -8284,7 +8284,7 @@ TR_FlowSensitiveEscapeAnalysis::TR_FlowSensitiveEscapeAnalysis(TR::Compilation *
    _flushEdges.deleteAll();
    _splitBlocks.deleteAll();
 
-   _flushCandidates = new (trStackMemory()) TR_LinkHead<FlushCandidate>;
+   _flushCandidates = new (comp->trStackMemory()) TR_LinkHead<FlushCandidate>;
    _flushCandidates->setFirst(NULL);
 
    Candidate *candidate, *next;
@@ -8308,7 +8308,7 @@ TR_FlowSensitiveEscapeAnalysis::TR_FlowSensitiveEscapeAnalysis(TR::Compilation *
    initializeBlockInfo();
 
    // After this point all stack allocation will die when the function returns
-   TR::StackMemoryRegion stackMemoryRegion(*trMemory());
+   TR::StackMemoryRegion stackMemoryRegion(*comp->trMemory());
 
    if (!performAnalysis(rootStructure, false))
       {
@@ -8403,23 +8403,23 @@ TR_FlowSensitiveEscapeAnalysis::TR_FlowSensitiveEscapeAnalysis(TR::Compilation *
       }
 
    int32_t numBlocks = comp->getFlowGraph()->getNextNodeNumber();
-   _successorInfo = (TR_BitVector **) trMemory()->allocateStackMemory(numBlocks* sizeof(TR_BitVector *));
+   _successorInfo = (TR_BitVector **) comp->trMemory()->allocateStackMemory(numBlocks* sizeof(TR_BitVector *));
    memset(_successorInfo, 0, numBlocks * sizeof(TR_BitVector *));
-   _predecessorInfo = (TR_BitVector **) trMemory()->allocateStackMemory(numBlocks* sizeof(TR_BitVector *));
+   _predecessorInfo = (TR_BitVector **) comp->trMemory()->allocateStackMemory(numBlocks* sizeof(TR_BitVector *));
    memset(_predecessorInfo, 0, numBlocks * sizeof(TR_BitVector *));
    for (TR::CFGNode *node = comp->getFlowGraph()->getFirstNode(); node; node = node->getNext())
       {
-      _successorInfo[node->getNumber()] = new (trStackMemory()) TR_BitVector(numBlocks, trMemory(), stackAlloc, notGrowable);
-      _predecessorInfo[node->getNumber()] = new (trStackMemory()) TR_BitVector(numBlocks, trMemory(), stackAlloc, notGrowable);
+      _successorInfo[node->getNumber()] = new (comp->trStackMemory()) TR_BitVector(numBlocks, comp->trMemory(), stackAlloc, notGrowable);
+      _predecessorInfo[node->getNumber()] = new (comp->trStackMemory()) TR_BitVector(numBlocks, comp->trMemory(), stackAlloc, notGrowable);
       }
 
-   TR_BitVector *visitedNodes = new (trStackMemory()) TR_BitVector(numBlocks, trMemory(), stackAlloc, notGrowable);
-   _loopEntryBlocks = new (trStackMemory()) TR_BitVector(numBlocks, trMemory(), stackAlloc, notGrowable);
-   _catchBlocks = new (trStackMemory()) TR_BitVector(numBlocks, trMemory(), stackAlloc, notGrowable);
+   TR_BitVector *visitedNodes = new (comp->trStackMemory()) TR_BitVector(numBlocks, comp->trMemory(), stackAlloc, notGrowable);
+   _loopEntryBlocks = new (comp->trStackMemory()) TR_BitVector(numBlocks, comp->trMemory(), stackAlloc, notGrowable);
+   _catchBlocks = new (comp->trStackMemory()) TR_BitVector(numBlocks, comp->trMemory(), stackAlloc, notGrowable);
    getCFGBackEdgesAndLoopEntryBlocks(comp->getFlowGraph()->getStructure());
    TR::MonitorElimination::collectPredsAndSuccs(comp->getFlowGraph()->getStart(), visitedNodes, _predecessorInfo, _successorInfo, &_cfgBackEdges, _loopEntryBlocks, comp);
 
-   _scratch2 = new (trStackMemory()) TR_BitVector(numBlocks, trMemory(), stackAlloc, notGrowable);
+   _scratch2 = new (comp->trStackMemory()) TR_BitVector(numBlocks, comp->trMemory(), stackAlloc, notGrowable);
 
    _scratch = visitedNodes;
    _scratch->empty();
@@ -8428,7 +8428,7 @@ TR_FlowSensitiveEscapeAnalysis::TR_FlowSensitiveEscapeAnalysis(TR::Compilation *
    *_scratch2 |= *_catchBlocks;
    //_scratch2->empty();
 
-   TR_BitVector *movedToBlocks = new (trStackMemory()) TR_BitVector(numBlocks, trMemory(), stackAlloc, notGrowable);
+   TR_BitVector *movedToBlocks = new (comp->trStackMemory()) TR_BitVector(numBlocks, comp->trMemory(), stackAlloc, notGrowable);
 
    FlushCandidate *flushCandidate;
    for (flushCandidate = _flushCandidates->getFirst(); flushCandidate; flushCandidate = flushCandidate->getNext())
@@ -8509,7 +8509,7 @@ TR_FlowSensitiveEscapeAnalysis::TR_FlowSensitiveEscapeAnalysis(TR::Compilation *
                         ((*succ)->getTo()->getNumber() != nextSucc))
                        {
                        postDominated = false;
-                       _flushEdges.add(new (trStackMemory()) TR_CFGEdgeAllocationPair(*succ, candidate));
+                       _flushEdges.add(new (comp->trStackMemory()) TR_CFGEdgeAllocationPair(*succ, candidate));
                        }
                     }
                  }
@@ -8742,7 +8742,7 @@ TR_FlowSensitiveEscapeAnalysis::TR_FlowSensitiveEscapeAnalysis(TR::Compilation *
 
 bool TR_FlowSensitiveEscapeAnalysis::postInitializationProcessing()
    {
-   _blocksWithSyncs = new (trStackMemory()) TR_BitVector(_numberOfNodes, trMemory(), stackAlloc);
+   _blocksWithSyncs = new (comp()->trStackMemory()) TR_BitVector(_numberOfNodes, comp()->trMemory(), stackAlloc);
    int32_t blockNum = -1;
    TR::TreeTop *treeTop = NULL;
    for (treeTop = comp()->getStartTree(); treeTop; treeTop = treeTop->getNextTreeTop())
@@ -8757,7 +8757,7 @@ bool TR_FlowSensitiveEscapeAnalysis::postInitializationProcessing()
       if ((node->getOpCodeValue() == TR::allocationFence) &&
           node->getAllocation())
          {
-         FlushCandidate *candidate = new (trStackMemory()) FlushCandidate(treeTop, node->getAllocation(), blockNum);
+         FlushCandidate *candidate = new (comp()->trStackMemory()) FlushCandidate(treeTop, node->getAllocation(), blockNum);
          _flushCandidates->add(candidate);
          }
 
@@ -8807,12 +8807,12 @@ bool TR_FlowSensitiveEscapeAnalysis::postInitializationProcessing()
       return false;
       }
 
-   _blocksWithFlushes = new (trStackMemory()) TR_BitVector(_numberOfNodes, trMemory(), stackAlloc);
+   _blocksWithFlushes = new (comp()->trStackMemory()) TR_BitVector(_numberOfNodes, comp()->trMemory(), stackAlloc);
    FlushCandidate *flushCandidate;
    for (flushCandidate = _flushCandidates->getFirst(); flushCandidate; flushCandidate = flushCandidate->getNext())
       _blocksWithFlushes->set(flushCandidate->getBlockNum());
 
-   //_blocksThatNeedFlush = new (trStackMemory()) TR_BitVector(_numberOfNodes, trMemory(), stackAlloc, growable);
+   //_blocksThatNeedFlush = new (comp()->trStackMemory()) TR_BitVector(_numberOfNodes, comp()->trMemory(), stackAlloc, growable);
    return true;
    }
 
@@ -8947,7 +8947,7 @@ void TR_FlowSensitiveEscapeAnalysis::analyzeNode(TR::Node *node, bool seenExcept
                   dependencies = getDependentAllocationsFor(candidate, &(_escapeAnalysis->_dependentAllocations));
                   if (!dependencies)
                      {
-                     dependencies = new (trStackMemory()) TR_DependentAllocations(candidate, 0, trMemory());
+                     dependencies = new (comp()->trStackMemory()) TR_DependentAllocations(candidate, 0, comp()->trMemory());
                      _escapeAnalysis->_dependentAllocations.add(dependencies);
                      }
                   }
@@ -9038,7 +9038,7 @@ void TR_FlowSensitiveEscapeAnalysis::analyzeNode(TR::Node *node, bool seenExcept
 
 
 TR_LocalFlushElimination::TR_LocalFlushElimination(TR_EscapeAnalysis *escapeAnalysis, int32_t numAllocations)
-   : _dependentAllocations(escapeAnalysis->trMemory())
+   : _dependentAllocations(comp()->trMemory())
    {
    _escapeAnalysis = escapeAnalysis;
    _numAllocations = numAllocations;
@@ -9050,11 +9050,11 @@ int32_t TR_LocalFlushElimination::perform()
       _candidates = &(_escapeAnalysis->_candidates);
    else
       {
-      _candidates = new (trStackMemory()) TR_LinkHead<Candidate>;
+      _candidates = new (comp()->trStackMemory()) TR_LinkHead<Candidate>;
       _numAllocations = -1;
       }
 
-   _flushCandidates = new (trStackMemory()) TR_LinkHead<FlushCandidate>;
+   _flushCandidates = new (comp()->trStackMemory()) TR_LinkHead<FlushCandidate>;
    _flushCandidates->setFirst(NULL);
 
    TR::NodeChecklist visited(comp());
@@ -9078,15 +9078,15 @@ int32_t TR_LocalFlushElimination::perform()
               (node->getFirstChild()->getOpCodeValue() == TR::newarray) ||
               (node->getFirstChild()->getOpCodeValue() == TR::anewarray)))
             {
-            Candidate *candidate = new (trStackMemory()) Candidate(node, treeTop, block, -1, NULL, comp());
+            Candidate *candidate = new (comp()->trStackMemory()) Candidate(node, treeTop, block, -1, NULL, comp());
             _candidates->add(candidate);
             candidate->_index = _numAllocations++;
             }
          }
       }
 
-   _allocationInfo = new (trStackMemory()) TR_BitVector(_numAllocations, trMemory(), stackAlloc);
-   _temp = new (trStackMemory()) TR_BitVector(_numAllocations, trMemory(), stackAlloc);
+   _allocationInfo = new (comp()->trStackMemory()) TR_BitVector(_numAllocations, comp()->trMemory(), stackAlloc);
+   _temp = new (comp()->trStackMemory()) TR_BitVector(_numAllocations, comp()->trMemory(), stackAlloc);
 
    for (treeTop = comp()->getStartTree(); treeTop; treeTop = treeTop->getNextRealTreeTop())
       {
@@ -9099,7 +9099,7 @@ int32_t TR_LocalFlushElimination::perform()
       if ((node->getOpCodeValue() == TR::allocationFence) &&
           node->getAllocation())
          {
-         FlushCandidate *candidate = new (trStackMemory()) FlushCandidate(treeTop, node->getAllocation(), block->getNumber());
+         FlushCandidate *candidate = new (comp()->trStackMemory()) FlushCandidate(treeTop, node->getAllocation(), block->getNumber());
          _flushCandidates->add(candidate);
          }
       }
@@ -9183,7 +9183,7 @@ bool TR_LocalFlushElimination::examineNode(TR::Node *node, TR::NodeChecklist& vi
                     dependencies = getDependentAllocationsFor(candidate, list);
                     if (!dependencies)
                        {
-                       dependencies = new (trStackMemory()) TR_DependentAllocations(candidate, 0, trMemory());
+                       dependencies = new (comp()->trStackMemory()) TR_DependentAllocations(candidate, 0, comp()->trMemory());
                        list->add(dependencies);
                        }
                     }

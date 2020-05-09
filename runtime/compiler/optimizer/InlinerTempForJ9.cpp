@@ -468,7 +468,7 @@ TR_J9InlinerUtil::adjustByteCodeSize(TR_ResolvedMethod *calleeResolvedMethod, bo
         {
          char *tmptmp=0;
          if (calleeResolvedMethod)
-            tmptmp = TR::Compiler->cls.classSignature(comp(), calleeResolvedMethod->containingClass(),trMemory());
+            tmptmp = TR::Compiler->cls.classSignature(comp(), calleeResolvedMethod->containingClass(),comp()->trMemory());
 
          bool doit = false;
 
@@ -876,7 +876,7 @@ TR_J9InlinerPolicy::genCodeForUnsafeGetPut(TR::Node* unsafeAddress,
       arrayDirectAccessBlock->getExit()->insertTreeTopsAfterMe(directAccessBlock->getEntry(),
       directAccessBlock->getExit());
       cfg->addNode(directAccessBlock);
-      cfg->addEdge(TR::CFGEdge::createEdge(directAccessBlock,  joinBlock, trMemory()));
+      cfg->addEdge(TR::CFGEdge::createEdge(directAccessBlock,  joinBlock, comp()->trMemory()));
       }
    else
       {
@@ -940,10 +940,10 @@ TR_J9InlinerPolicy::genCodeForUnsafeGetPut(TR::Node* unsafeAddress,
          }
       lowTagCmpBlock->getEntry()->insertTreeTopsBeforeMe(isArrayBlock->getEntry(),
                                                          isArrayBlock->getExit());
-      cfg->addEdge(TR::CFGEdge::createEdge(isArrayBlock,  lowTagCmpBlock, trMemory()));
-      cfg->addEdge(TR::CFGEdge::createEdge(lowTagCmpBlock, indirectAccessBlock, trMemory()));
-      cfg->addEdge(TR::CFGEdge::createEdge(isArrayBlock, conversionNeeded ? arrayDirectAccessBlock : directAccessBlock, trMemory()));
-      cfg->addEdge(TR::CFGEdge::createEdge(nullComparisonBlock,  isArrayBlock, trMemory()));
+      cfg->addEdge(TR::CFGEdge::createEdge(isArrayBlock,  lowTagCmpBlock, comp()->trMemory()));
+      cfg->addEdge(TR::CFGEdge::createEdge(lowTagCmpBlock, indirectAccessBlock, comp()->trMemory()));
+      cfg->addEdge(TR::CFGEdge::createEdge(isArrayBlock, conversionNeeded ? arrayDirectAccessBlock : directAccessBlock, comp()->trMemory()));
+      cfg->addEdge(TR::CFGEdge::createEdge(nullComparisonBlock,  isArrayBlock, comp()->trMemory()));
 
       if(comp()->getOption(TR_TraceUnsafeInlining))
          {
@@ -977,16 +977,16 @@ TR_J9InlinerPolicy::genCodeForUnsafeGetPut(TR::Node* unsafeAddress,
       lowTagCmpTree->getNode()->setBranchDestination(directAccessBlock->getEntry());
       isClassNode->setBranchDestination(indirectAccessBlock->getEntry());
       isClassBlock->getEntry()->insertTreeTopsBeforeMe(lowTagCmpBlock->getEntry(), lowTagCmpBlock->getExit());
-      cfg->addEdge(TR::CFGEdge::createEdge(isClassBlock,directAccessBlock, trMemory()));
-      cfg->addEdge(TR::CFGEdge::createEdge(isClassBlock,indirectAccessBlock, trMemory()));
-      cfg->addEdge(TR::CFGEdge::createEdge(nullComparisonBlock, lowTagCmpBlock, trMemory()));
-      cfg->addEdge(TR::CFGEdge::createEdge(lowTagCmpBlock, isClassBlock, trMemory()));
+      cfg->addEdge(TR::CFGEdge::createEdge(isClassBlock,directAccessBlock, comp()->trMemory()));
+      cfg->addEdge(TR::CFGEdge::createEdge(isClassBlock,indirectAccessBlock, comp()->trMemory()));
+      cfg->addEdge(TR::CFGEdge::createEdge(nullComparisonBlock, lowTagCmpBlock, comp()->trMemory()));
+      cfg->addEdge(TR::CFGEdge::createEdge(lowTagCmpBlock, isClassBlock, comp()->trMemory()));
       if(comp()->getOption(TR_TraceUnsafeInlining))
          {
          traceMsg(comp(),"\t In genCodeForUnsafeGetPut, Block %d created for isClass Test\n",isClassBlock->getNumber());
          }
       }
-   cfg->addEdge(TR::CFGEdge::createEdge(lowTagCmpBlock,  directAccessBlock, trMemory()));
+   cfg->addEdge(TR::CFGEdge::createEdge(lowTagCmpBlock,  directAccessBlock, comp()->trMemory()));
    //Generating treetop and block for array check
    cfg->removeEdge(nullComparisonBlock, indirectAccessBlock);
    if (needNullCheck)
@@ -2786,7 +2786,7 @@ TR_MultipleCallTargetInliner::eliminateTailRecursion(
 //       block->append(TR::TreeTop::create(comp(), createVirtualGuard(callNode, callNode->getSymbol()->castToResolvedMethodSymbol(), branchDestination->getEntry(), false, (void *)calleeResolvedMethod->classOfMethod(), false)));
 //       //      branchDestination->setIsCold(); <--- branch destination is NOT cold
 //       block2->setIsCold();
-//       backEdge = TR::CFGEdge::createEdge(block,  branchDestination, trMemory());
+//       backEdge = TR::CFGEdge::createEdge(block,  branchDestination, comp()->trMemory());
 //       callerCFG->addEdge(backEdge);
 
       TR::Block *gotoBlock    = block->split(callNodeTreeTop, callerCFG);
@@ -2812,7 +2812,7 @@ TR_MultipleCallTargetInliner::eliminateTailRecursion(
       callerCFG->addEdge(block, block2);
 
       TR::CFGEdge *origEdge = gotoBlock->getSuccessors().front();
-      backEdge = TR::CFGEdge::createEdge(gotoBlock,  branchDestination, trMemory());
+      backEdge = TR::CFGEdge::createEdge(gotoBlock,  branchDestination, comp()->trMemory());
       callerCFG->addEdge(backEdge);
       callerCFG->removeEdge(origEdge);
       if (guard->_kind == TR_ProfiledGuard)
@@ -2838,7 +2838,7 @@ TR_MultipleCallTargetInliner::eliminateTailRecursion(
       callNodeTreeTop->setNode(TR::Node::create(callNode, TR::Goto, 0, branchDestination->getEntry()));
       TR_ASSERT((block->getSuccessors().size() == 1), "eliminateTailRecursion, block with call does not have exactly 1 successor");
       TR::CFGEdge * existingSuccessorEdge = block->getSuccessors().front();
-      backEdge = TR::CFGEdge::createEdge(block,  branchDestination, trMemory());
+      backEdge = TR::CFGEdge::createEdge(block,  branchDestination, comp()->trMemory());
       callerCFG->addEdge(backEdge);
       callerCFG->removeEdge(existingSuccessorEdge);
       if (block->getLastRealTreeTop() != callNodeTreeTop)
@@ -3008,12 +3008,12 @@ TR_MultipleCallTargetInliner::walkCallSites(TR::ResolvedMethodSymbol * callerSym
                TR::SymbolReference *symRef = node->getSymbolReference();
                TR::MethodSymbol *calleeSymbol = symRef->getSymbol()->castToMethodSymbol();
 
-               //TR_CallSite *callsite = new (trStackMemory()) TR_CallSite (symRef->getOwningMethod(comp()), tt, parent, node, calleeSymbol->getMethod(), 0, (int32_t)symRef->getOffset(), symRef->getCPIndex(), 0, calleeSymbol->getResolvedMethodSymbol(), node->getOpCode().isCallIndirect(), calleeSymbol->isInterface(), node->getByteCodeInfo(), comp());
+               //TR_CallSite *callsite = new (comp()->trStackMemory()) TR_CallSite (symRef->getOwningMethod(comp()), tt, parent, node, calleeSymbol->getMethod(), 0, (int32_t)symRef->getOffset(), symRef->getCPIndex(), 0, calleeSymbol->getResolvedMethodSymbol(), node->getOpCode().isCallIndirect(), calleeSymbol->isInterface(), node->getByteCodeInfo(), comp());
 
 
                TR_CallSite *callsite = TR_CallSite::create(tt, parent, node,
                                                             0, symRef, (TR_ResolvedMethod*) 0,
-                                                            comp(), trMemory() , stackAlloc);
+                                                            comp(), comp()->trMemory() , stackAlloc);
 
 
                debugTrace(tracer(),"**WalkCallSites: Analysing Call at call node %p . Creating callsite %p to encapsulate call.",node,callsite);
@@ -3084,7 +3084,7 @@ TR_MultipleCallTargetInliner::walkCallSites(TR::ResolvedMethodSymbol * callerSym
                            debugTrace(tracer(),"Walk call sites for scanning: at call site: %s\n", tracer()->traceSignature(callsite->getTarget(i)->_calleeSymbol));
 
 //                         TR::SymbolReference * symRef = node->getSymbolReference();
-                         // TR_CallSite *callsite = new (trStackMemory()) TR_CallSite (symRef->getOwningMethod(comp()),
+                         // TR_CallSite *callsite = new (comp()->trStackMemory()) TR_CallSite (symRef->getOwningMethod(comp()),
                                                                                     // tt,
                                                                                     // parent,
                                                                                     // node,
@@ -3111,7 +3111,7 @@ TR_MultipleCallTargetInliner::walkCallSites(TR::ResolvedMethodSymbol * callerSym
                               methodInfo->setWasScannedForInlining(true);
                               debugTrace(tracer(),"Walk call sites for scanning: set scaneed for methodInfo %p\n", methodInfo);
                               }
-                           //printf("Walk %s, method info %p\n", calleeResolvedSymbol->signature(trMemory()), methodInfo);
+                           //printf("Walk %s, method info %p\n", calleeResolvedSymbol->signature(comp()->trMemory()), methodInfo);
                            }
                         }
                      }
@@ -3210,7 +3210,7 @@ bool TR_MultipleCallTargetInliner::inlineCallTargets(TR::ResolvedMethodSymbol *c
 
                TR_CallSite *callsite = TR_CallSite::create(tt, parent, node,
                                                             0, symRef, (TR_ResolvedMethod*) 0,
-                                                            comp(), trMemory() , stackAlloc);
+                                                            comp(), comp()->trMemory() , stackAlloc);
 
                if (prevCallStack==0)
                   {
@@ -3568,7 +3568,7 @@ void TR_MultipleCallTargetInliner::weighCallSite( TR_CallStack * callStack , TR_
                      heuristicTrace(tracer(),"Not calling setWarmCallGraphTooBig on callNode %p because it is not from method being compiled bc index %d inlinedsiteindex %d",callsite->_callNode,callsite->_callNode->getByteCodeInfo().getByteCodeIndex(),callsite->_callNode->getInlinedSiteIndex());
                   if (comp()->trace(OMR::inlining))
                      heuristicTrace(tracer(),"inliner: Marked call as warm callee too big: %d > %d: %s\n", size, ecs->getSizeThreshold(), tracer()->traceSignature(calltarget->_calleeSymbol));
-               //printf("inliner: Marked call as warm callee too big: %d > %d: %s\n", nonRecursiveSize, sizeThreshold, calleeSymbol->signature(trMemory()));
+               //printf("inliner: Marked call as warm callee too big: %d > %d: %s\n", nonRecursiveSize, sizeThreshold, calleeSymbol->signature(comp()->trMemory()));
                   }
                }
             tracer()->insertCounter(ECS_Failed,calltarget->_myCallSite->_callNodeTreeTop);
@@ -3624,7 +3624,7 @@ void TR_MultipleCallTargetInliner::weighCallSite( TR_CallStack * callStack , TR_
             wouldBenefitFromInlining = true;
             }
 
-         if (strstr(calltarget->_calleeSymbol->signature(trMemory()),"BigDecimal.add("))
+         if (strstr(calltarget->_calleeSymbol->signature(comp()->trMemory()),"BigDecimal.add("))
             {
             size >>=2;
             heuristicTrace(tracer(),"Setting size to %d because call is BigDecimal.add",size);
@@ -3802,7 +3802,7 @@ void TR_MultipleCallTargetInliner::weighCallSite( TR_CallStack * callStack , TR_
                   if (comp()->trace(OMR::inlining))
                      heuristicTrace(tracer(),"inliner: Marked call as warm callee too big: %d > %d: %s\n", size, ecs->getSizeThreshold(), tracer()->traceSignature(calltarget->_calleeSymbol));
                   }
-               //printf("inliner: Marked call as warm callee too big: %d > %d: %s\n", nonRecursiveSize, sizeThreshold, calleeSymbol->signature(trMemory()));
+               //printf("inliner: Marked call as warm callee too big: %d > %d: %s\n", nonRecursiveSize, sizeThreshold, calleeSymbol->signature(comp()->trMemory()));
                }
             tracer()->insertCounter(Callee_Too_Many_Bytecodes,calltarget->_myCallSite->_callNodeTreeTop);
             TR::Options::INLINE_calleeToDeep ++;
@@ -4203,7 +4203,7 @@ TR_MultipleCallTargetInliner::exceedsSizeThreshold(TR_CallSite *callSite, int by
        && ((bytecodeSize * 100) / outterMethodSize) < 6
        && (!callSite->_ecsPrexArgInfo || !callSite->_ecsPrexArgInfo->get(0) || !callSite->_ecsPrexArgInfo->get(0)->getClass())
        && comp()->fej9()->maybeHighlyPolymorphic(comp(), callSite->_callerResolvedMethod, callSite->_cpIndex, callSite->_interfaceMethod, callSite->_receiverClass)
-       && (!trustedInterfaceRegex || !TR::SimpleRegex::match(trustedInterfaceRegex, callSite->_interfaceMethod->signature(trMemory()), false)))
+       && (!trustedInterfaceRegex || !TR::SimpleRegex::match(trustedInterfaceRegex, callSite->_interfaceMethod->signature(comp()->trMemory()), false)))
       {
       TR_PersistentJittedBodyInfo *bodyInfo = NULL;
       if (!calleeResolvedMethod->isInterpretedForHeuristics() && !calleeResolvedMethod->isJITInternalNative())
@@ -4220,7 +4220,7 @@ TR_MultipleCallTargetInliner::exceedsSizeThreshold(TR_CallSite *callSite, int by
          {
          debugTrace(tracer(), "### exceeding size threshold for potentially highly polymorphic callsite initialCalleeSymbol = %s callerResolvedMethod = %s calleeResolvedMethod = %s\n",
                  tracer()->traceSignature(callSite->_interfaceMethod), tracer()->traceSignature(callerResolvedMethod), tracer()->traceSignature(calleeResolvedMethod));
-         TR::DebugCounter::incStaticDebugCounter(comp(), TR::DebugCounter::debugCounterName(comp(), "inliner.highlyPolymorphicFail/(%s)/%s/(%s)/sizes=%d.%d", comp()->signature(), comp()->getHotnessName(comp()->getMethodHotness()), callSite->_interfaceMethod->signature(trMemory()), bytecodeSize, outterMethodSize));
+         TR::DebugCounter::incStaticDebugCounter(comp(), TR::DebugCounter::debugCounterName(comp(), "inliner.highlyPolymorphicFail/(%s)/%s/(%s)/sizes=%d.%d", comp()->signature(), comp()->getHotnessName(comp()->getMethodHotness()), callSite->_interfaceMethod->signature(comp()->trMemory()), bytecodeSize, outterMethodSize));
          return true;
          }
       }
@@ -4279,7 +4279,7 @@ TR_MultipleCallTargetInliner::exceedsSizeThreshold(TR_CallSite *callSite, int by
              {
              char *tmptmp =0;
              if (calleeResolvedMethod)
-                tmptmp = TR::Compiler->cls.classSignature(comp(), calleeResolvedMethod->containingClass(), trMemory());
+                tmptmp = TR::Compiler->cls.classSignature(comp(), calleeResolvedMethod->containingClass(), comp()->trMemory());
              bool doit = false;
 
              if (j9InlinerPolicy->aggressivelyInlineInLoops())
@@ -4357,7 +4357,7 @@ TR_MultipleCallTargetInliner::exceedsSizeThreshold(TR_CallSite *callSite, int by
           {
           /*
           char tmpian[1024];
-          comp()->fej9()->sampleSignature(calleeResolvedMethod->getPersistentIdentifier(), tmpian, 1024, trMemory());
+          comp()->fej9()->sampleSignature(calleeResolvedMethod->getPersistentIdentifier(), tmpian, 1024, comp()->trMemory());
           printf("R size of bc %d to %d meth %s comp %s\n",originalbcSize,bytecodeSize,tmpian,comp()->signature());
           fflush(stdout);
           */
@@ -4368,7 +4368,7 @@ TR_MultipleCallTargetInliner::exceedsSizeThreshold(TR_CallSite *callSite, int by
  /*      if ( bytecodeSize != originalbcSize )
           {
           char tmpian[1024];
-          comp()->fej9()->sampleSignature(calleeResolvedMethod->getPersistentIdentifier(), tmpian, 1024, trMemory());
+          comp()->fej9()->sampleSignature(calleeResolvedMethod->getPersistentIdentifier(), tmpian, 1024, comp()->trMemory());
           printf("R size of bc %d to %d meth %s comp %s\n",originalbcSize,bytecodeSize,tmpian,comp()->signature());
           fflush(stdout);
           }
@@ -4392,7 +4392,7 @@ TR_MultipleCallTargetInliner::exceedsSizeThreshold(TR_CallSite *callSite, int by
        if (bytecodeSize < originalbcSize && originalbcSize > 100)
        {
           char tmpian[1024];
-          comp()->fe()->sampleSignature(calleeResolvedMethod->getPersistentIdentifier(), tmpian, 1024, trMemory());
+          comp()->fe()->sampleSignature(calleeResolvedMethod->getPersistentIdentifier(), tmpian, 1024, comp()->trMemory());
           printf("R size of bc %d to %d meth %s comp %s\n",originalbcSize,bytecodeSize,tmpian,comp()->signature());
           fflush(stdout);
        }
@@ -4516,7 +4516,7 @@ TR_J9InlinerUtil::refineInlineGuard(TR::Node *callNode, TR::Block *&block1, TR::
                TR_OpaqueClassBlock *pc = p->getFixedProfiledClass();
                if (pc)
                   {
-                  //printf("Creating new guards in method %s caller %s callee %s\n", comp()->signature(), callerSymbol->getResolvedMethod()->signature(trMemory()), calleeSymbol->getResolvedMethod()->signature(trMemory()));
+                  //printf("Creating new guards in method %s caller %s callee %s\n", comp()->signature(), callerSymbol->getResolvedMethod()->signature(comp()->trMemory()), calleeSymbol->getResolvedMethod()->signature(comp()->trMemory()));
                   //fflush(stdout);
 
 
@@ -4919,7 +4919,7 @@ TR_J9InlinerUtil::computePrexInfo(TR_CallTarget *target, TR_PrexArgInfo *callerA
          traceMsg(comp(), "PREX.inl: Propagating prex argInfo from caller for [%p] %s %s\n",
                   site->_callNode,
                   site->_callNode->getOpCode().getName(),
-                  site->_callNode->getSymbol()->castToMethodSymbol()->getMethod()->signature(trMemory(), stackAlloc));
+                  site->_callNode->getSymbol()->castToMethodSymbol()->getMethod()->signature(comp()->trMemory(), stackAlloc));
 
       TR_PrexArgInfo* argsFromCaller = TR_PrexArgInfo::argInfoFromCaller(site->_callNode, callerArgInfo);
       target->_prexArgInfo = TR_PrexArgInfo::enhance(target->_prexArgInfo, argsFromCaller, comp());
@@ -4944,11 +4944,11 @@ TR_J9InlinerUtil::computePrexInfo(TR_CallTarget *target)
    //
    TR_PrexArgInfo *argInfo = target->_prexArgInfo;
    if (!argInfo)
-      argInfo = new (inliner()->trStackMemory()) TR_PrexArgInfo(site->_callNode->getNumArguments(), trMemory());
+      argInfo = new (comp()->trStackMemory()) TR_PrexArgInfo(site->_callNode->getNumArguments(), comp()->trMemory());
 
    bool tracePrex = comp()->trace(OMR::inlining) || comp()->trace(OMR::invariantArgumentPreexistence);
    if (tracePrex)
-      traceMsg(comp(), "PREX.inl: Populating prex argInfo for [%p] %s %s\n", site->_callNode, site->_callNode->getOpCode().getName(), site->_callNode->getSymbol()->castToMethodSymbol()->getMethod()->signature(trMemory(), stackAlloc));
+      traceMsg(comp(), "PREX.inl: Populating prex argInfo for [%p] %s %s\n", site->_callNode, site->_callNode->getOpCode().getName(), site->_callNode->getSymbol()->castToMethodSymbol()->getMethod()->signature(comp()->trMemory(), stackAlloc));
 
    // At this stage, we can improve the type of the virtual guard we are going to use
    // For a non-overridden guard or for an interface guard, if it makes sense, try to use a vft-test
@@ -4991,10 +4991,10 @@ TR_J9InlinerUtil::computePrexInfo(TR_CallTarget *target)
             {
             if (priorKnowledge < FIXED_CLASS)
                {
-               argInfo->set(0, new (inliner()->trStackMemory()) TR_PrexArgument(TR_PrexArgument::ClassIsFixed, target->_guard->_thisClass));
+               argInfo->set(0, new (comp()->trStackMemory()) TR_PrexArgument(TR_PrexArgument::ClassIsFixed, target->_guard->_thisClass));
                if (tracePrex)
                   {
-                  char *sig = TR::Compiler->cls.classSignature(comp(), target->_guard->_thisClass, trMemory());
+                  char *sig = TR::Compiler->cls.classSignature(comp(), target->_guard->_thisClass, comp()->trMemory());
                   traceMsg(comp(), "PREX.inl:      %p: class is fixed class %p %s\n", argInfo->get(0), target->_guard->_thisClass, sig);
                   }
                }
@@ -5014,7 +5014,7 @@ TR_J9InlinerUtil::computePrexInfo(TR_CallTarget *target)
             if (priorKnowledge < KNOWN_OBJECT)
                {
                TR::KnownObjectTable::Index methodHandleIndex = comp()->getKnownObjectTable()->getOrCreateIndexAt(target->_calleeSymbol->getResolvedMethod()->getMethodHandleLocation());
-               TR_PrexArgument *prexArg = new (inliner()->trStackMemory()) TR_PrexArgument(methodHandleIndex, comp());
+               TR_PrexArgument *prexArg = new (comp()->trStackMemory()) TR_PrexArgument(methodHandleIndex, comp());
                if (target->_guard->_kind == TR_MutableCallSiteTargetGuard)
                   prexArg->setTypeInfoForInlinedBody();
                argInfo->set(0, prexArg);
@@ -5032,7 +5032,7 @@ TR_J9InlinerUtil::computePrexInfo(TR_CallTarget *target)
          {
          if (priorKnowledge < KNOWN_OBJECT)
             {
-            argInfo->set(argOrdinal, new (inliner()->trStackMemory()) TR_PrexArgument(argument->getSymbolReference()->getKnownObjectIndex(), comp()));
+            argInfo->set(argOrdinal, new (comp()->trStackMemory()) TR_PrexArgument(argument->getSymbolReference()->getKnownObjectIndex(), comp()));
             if (tracePrex)
                traceMsg(comp(), "PREX.inl:      %p: is known object obj%d\n", argInfo->get(argOrdinal), argument->getSymbolReference()->getKnownObjectIndex());
             }
@@ -5046,10 +5046,10 @@ TR_J9InlinerUtil::computePrexInfo(TR_CallTarget *target)
                {
                if (priorKnowledge < FIXED_CLASS)
                   {
-                  argInfo->set(argOrdinal, new (inliner()->trStackMemory()) TR_PrexArgument(TR_PrexArgument::ClassIsFixed, (TR_OpaqueClassBlock *) parmSymbol->getFixedType()));
+                  argInfo->set(argOrdinal, new (comp()->trStackMemory()) TR_PrexArgument(TR_PrexArgument::ClassIsFixed, (TR_OpaqueClassBlock *) parmSymbol->getFixedType()));
                   if (tracePrex)
                      {
-                     char *sig = TR::Compiler->cls.classSignature(comp(), (TR_OpaqueClassBlock*)parmSymbol->getFixedType(),trMemory());
+                     char *sig = TR::Compiler->cls.classSignature(comp(), (TR_OpaqueClassBlock*)parmSymbol->getFixedType(),comp()->trMemory());
                      traceMsg(comp(), "PREX.inl:      %p: is load of parm with fixed class %p %s\n", argInfo->get(argOrdinal), parmSymbol->getFixedType(), sig);
                      }
                   }
@@ -5058,7 +5058,7 @@ TR_J9InlinerUtil::computePrexInfo(TR_CallTarget *target)
                {
                if (priorKnowledge < PREEXISTENT)
                   {
-                  argInfo->set(argOrdinal, new (inliner()->trStackMemory()) TR_PrexArgument(TR_PrexArgument::ClassIsPreexistent));
+                  argInfo->set(argOrdinal, new (comp()->trStackMemory()) TR_PrexArgument(TR_PrexArgument::ClassIsPreexistent));
                   if (tracePrex)
                      traceMsg(comp(), "PREX.inl:      %p: is preexistent\n", argInfo->get(argOrdinal));
                   }
@@ -5685,7 +5685,7 @@ TR_J9TransformInlinedFunction::wrapCalleeInTryRegion(bool isSynchronized, bool p
    TR::CFG  *calleeCFG  = _calleeSymbol->getFlowGraph();
    TR::Block *catchBlock = NULL;
    TR::Block *block      = NULL;
-   TR_ScratchList<TR::Block> newCatchBlocks(trMemory());
+   TR_ScratchList<TR::Block> newCatchBlocks(comp()->trMemory());
 
    TR_CatchBlockProfileInfo * catchInfo = TR_CatchBlockProfileInfo::get(comp());
    if (catchInfo && catchInfo->getCatchCounter() >= TR_CatchBlockProfileInfo::EDOThreshold)
@@ -6127,8 +6127,8 @@ TR_J9InnerPreexistenceInfo::perform(TR::Compilation *comp, TR::Node *guardNode, 
       PreexistencePoint *point = getPreexistencePoint(0); // ie. see if the 'this' for the call preexists
       if (point &&
             performTransformation(comp, "%sIPREX: remove virtual guard for inlined call %p to %s because it inner preexists parm ordinal %d of %s\n",
-                                   OPT_DETAILS, _callNode, _methodSymbol->getResolvedMethod()->signature(trMemory()),
-                                   point->_ordinal, point->_callStack->_methodSymbol->getResolvedMethod()->signature(trMemory())))
+                                   OPT_DETAILS, _callNode, _methodSymbol->getResolvedMethod()->signature(comp->trMemory()),
+                                   point->_ordinal, point->_callStack->_methodSymbol->getResolvedMethod()->signature(comp->trMemory())))
          {
          TR_ASSERT(virtualGuard, "we cannot directly devirtualize anything thats not guarded");
 
@@ -6183,7 +6183,7 @@ TR_J9InnerPreexistenceInfo::TR_J9InnerPreexistenceInfo(TR::Compilation * c, TR::
       return;
 
    _numArgs = methodSymbol->getParameterList().getSize();
-   _parameters = (ParmInfo **) trMemory()->allocateStackMemory(_numArgs * sizeof(ParmInfo*));
+   _parameters = (ParmInfo **) comp()->trMemory()->allocateStackMemory(_numArgs * sizeof(ParmInfo*));
    memset(_parameters, 0, _numArgs * sizeof(ParmInfo*));
 
    // Initialize the Parameter Info Array
@@ -6194,7 +6194,7 @@ TR_J9InnerPreexistenceInfo::TR_J9InnerPreexistenceInfo(TR::Compilation * c, TR::
       {
       if (p->getDataType() == TR::Address)
          {
-         _parameters[ordinal] = new (trStackMemory()) ParmInfo(p);
+         _parameters[ordinal] = new (comp()->trStackMemory()) ParmInfo(p);
          }
       }
 
@@ -6269,7 +6269,7 @@ TR_J9InnerPreexistenceInfo::getPreexistencePointImpl(int32_t ordinal, TR_CallSta
       {
 
       if (_guardKind != TR_ProfiledGuard && (_guardKind != TR_NoGuard || !comp()->hasIntStreamForEach())) // FIXME: this limitation can be removed by doing the tree transformation
-         point = new (trStackMemory()) PreexistencePoint(prevCallStack, ordinal);
+         point = new (comp()->trStackMemory()) PreexistencePoint(prevCallStack, ordinal);
       }
 
    return point;

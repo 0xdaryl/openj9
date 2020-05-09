@@ -86,7 +86,7 @@ int32_t TR_DynamicLiteralPool::perform()
       return 1;
 
    {
-   TR::StackMemoryRegion stackMemoryRegion(*trMemory());
+   TR::StackMemoryRegion stackMemoryRegion(*comp()->trMemory());
 
    process(comp()->getStartTree(), NULL);
 

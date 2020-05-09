@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2019 IBM Corp. and others
+ * Copyright (c) 2000, 2020 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -60,7 +60,7 @@ TR_LocalLiveVariablesForGC::TR_LocalLiveVariablesForGC(TR::OptimizationManager *
 
 int32_t TR_LocalLiveVariablesForGC::perform()
    {
-   TR::StackMemoryRegion stackMemoryRegion(*trMemory());
+   TR::StackMemoryRegion stackMemoryRegion(*comp()->trMemory());
 
    // The CFG is followed to the first GC point on each path. Any locals that can
    // reach a GC point without being initialized must be initialized to NULL during
@@ -88,7 +88,7 @@ int32_t TR_LocalLiveVariablesForGC::perform()
       }
 
    comp()->incVisitCount();
-   TR_BitVector localsToBeInitialized(_numLocals,trMemory(), stackAlloc);
+   TR_BitVector localsToBeInitialized(_numLocals,comp()->trMemory(), stackAlloc);
    localsToBeInitialized.setAll(_numLocals);
    findGCPointInBlock(toBlock(comp()->getFlowGraph()->getStart()), localsToBeInitialized);
 
@@ -145,8 +145,8 @@ void TR_LocalLiveVariablesForGC::findGCPointInBlock(TR::Block *block, TR_BitVect
    // If we have reached the end of the block without finding a GC safe point,
    // visit the successors.
    //
-   TR_BitVector myLocalsToBeInitialized(_numLocals,trMemory(), stackAlloc);
-   TR_BitVector succLocalsToBeInitialized(_numLocals,trMemory(), stackAlloc);
+   TR_BitVector myLocalsToBeInitialized(_numLocals,comp()->trMemory(), stackAlloc);
+   TR_BitVector succLocalsToBeInitialized(_numLocals,comp()->trMemory(), stackAlloc);
    for (auto succ = block->getSuccessors().begin(); succ != block->getSuccessors().end(); ++succ)
       {
       succLocalsToBeInitialized = localsToBeInitialized;
@@ -182,7 +182,7 @@ int32_t TR_GlobalLiveVariablesForGC::perform()
       return 0;
       }
 
-   TR::StackMemoryRegion stackMemoryRegion(*trMemory());
+   TR::StackMemoryRegion stackMemoryRegion(*comp()->trMemory());
 
    // Temporary until register maps are implemented - spill temps must be
    // included in the liveness analysis.
@@ -253,7 +253,7 @@ int32_t TR_GlobalLiveVariablesForGC::perform()
          int32_t blockNum    = block->getNumber();
          if (blockNum > 0 && liveLocals._blockAnalysisInfo[blockNum])
             {
-            liveVars = new (trHeapMemory()) TR_BitVector(numLocals, trMemory());
+            liveVars = new (comp()->trHeapMemory()) TR_BitVector(numLocals, comp()->trMemory());
             *liveVars = *liveLocals._blockAnalysisInfo[blockNum];
             block->setLiveLocals(liveVars);
             }
@@ -262,7 +262,7 @@ int32_t TR_GlobalLiveVariablesForGC::perform()
       // Make sure the code generator knows there are live locals for blocks, and
       // create a bit vector of the correct size for it.
       //
-      liveVars = new (trHeapMemory()) TR_BitVector(numLocals, trMemory());
+      liveVars = new (comp()->trHeapMemory()) TR_BitVector(numLocals, comp()->trMemory());
       cg()->setLiveLocals(liveVars);
       }
 

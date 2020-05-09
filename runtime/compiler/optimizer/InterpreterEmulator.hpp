@@ -205,7 +205,6 @@ class InterpreterEmulator : public TR_ByteCodeIteratorWithState<TR_J9ByteCode, J
        */
       bool findAndCreateCallsitesFromBytecodes(bool wasPeekingSuccessfull, bool withState);
       void setBlocks(TR::Block **blocks) { _blocks = blocks; }
-      TR_StackMemory trStackMemory()            { return _trMemory; }
       bool _nonColdCallExists;
       bool _inlineableCallExists;
 

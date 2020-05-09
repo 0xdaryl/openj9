@@ -178,7 +178,7 @@ ChangeAlignmentOfRegion(TR_CISCTransformer *trans)
    if (condT2P & _T2P_MatchMask) return changed;    // no need to change alignment
 
    if (disptrace) traceMsg(comp,"ChangeAlignmentOfRegion : tTop %d, pTop %d\n",t->getID(),pTop->getID());
-   TR_CISCNodeRegion r(T->getNumNodes(), trans->trMemory()->heapMemoryRegion());
+   TR_CISCNodeRegion r(T->getNumNodes(), comp->trMemory()->heapMemoryRegion());
    TR_CISCNode *firstNode = t;
    TR_CISCNode *lastNode = NULL;
    // Find the target node corresponding to pTop
@@ -557,7 +557,7 @@ moveStoreOutOfLoopForward(TR_CISCTransformer *trans)
    TR_CISCNode *boolTable = P->getSpecialCareNode(0);  // Note: The opcode isn't always TR_booltable.
    TR_CISCNode *p = boolTable->getChild(0); // just before TR_booltable, such as b2i
 
-   TR_BitVector findBV(P->getNumNodes(), trans->trMemory(), stackAlloc);
+   TR_BitVector findBV(P->getNumNodes(), comp->trMemory(), stackAlloc);
    findBV.set(boolTable->getID());
 
    TR_CISCNode *optionalCmp = P->getImportantNode(1); // ificmpge

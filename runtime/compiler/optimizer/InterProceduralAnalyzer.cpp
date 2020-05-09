@@ -66,7 +66,6 @@ class TR_OpaqueMethodBlock;
 TR::InterProceduralAnalyzer::InterProceduralAnalyzer(TR::Compilation * c, bool trace)
    :
    _compilation(c),
-   _trMemory(c->trMemory()),
    _maxSniffDepth(MAX_SNIFF_DEPTH),
    _sniffDepth(0),
    _maxSniffDepthExceeded(false),
@@ -74,24 +73,24 @@ TR::InterProceduralAnalyzer::InterProceduralAnalyzer(TR::Compilation * c, bool t
    _maxPeekedBytecodeSize(c->getMaxPeekedBytecodeSize()),
    _trace(trace),
    _fe(c->fe()),
-   _successfullyPeekedMethods(trMemory()),
-   _unsuccessfullyPeekedMethods(trMemory()),
-   _classesThatShouldNotBeLoadedInCurrentPeek(trMemory()),
-   _classesThatShouldNotBeNewlyExtendedInCurrentPeek(trMemory()),
-   _globalsWrittenInCurrentPeek(trMemory())
+   _successfullyPeekedMethods(c->trMemory()),
+   _unsuccessfullyPeekedMethods(c->trMemory()),
+   _classesThatShouldNotBeLoadedInCurrentPeek(c->trMemory()),
+   _classesThatShouldNotBeNewlyExtendedInCurrentPeek(c->trMemory()),
+   _globalsWrittenInCurrentPeek(c->trMemory())
    {
    //TR_ScratchList<TR_ClassExtendCheck> _classesThatShouldNotBeNewlyExtendedInCurrentPeekHT[1+ CLASSHASHTABLE_SIZE];
    _classesThatShouldNotBeNewlyExtendedInCurrentPeekHT =
       (TR_ScratchList<TR_ClassExtendCheck> *)
-         trMemory()->allocateHeapMemory(sizeof(TR_ScratchList<TR_ClassExtendCheck>) * (CLASSHASHTABLE_SIZE + 1));
+         c->trMemory()->allocateHeapMemory(sizeof(TR_ScratchList<TR_ClassExtendCheck>) * (CLASSHASHTABLE_SIZE + 1));
 
    memset(_classesThatShouldNotBeNewlyExtendedInCurrentPeekHT, 0, sizeof(TR_ScratchList<TR_ClassExtendCheck>) * (CLASSHASHTABLE_SIZE + 1));
    for (int32_t i = 0; i < CLASSHASHTABLE_SIZE + 1; ++i)
-      _classesThatShouldNotBeNewlyExtendedInCurrentPeekHT[i].setRegion(trMemory()->currentStackRegion());
+      _classesThatShouldNotBeNewlyExtendedInCurrentPeekHT[i].setRegion(c->trMemory()->currentStackRegion());
 
    _classesThatShouldNotBeNewlyExtendedHT =
       (TR_LinkHead<TR_ClassExtendCheck> *)
-         trMemory()->allocateHeapMemory(sizeof(TR_LinkHead<TR_ClassExtendCheck>) * (CLASSHASHTABLE_SIZE + 1));
+         c->trMemory()->allocateHeapMemory(sizeof(TR_LinkHead<TR_ClassExtendCheck>) * (CLASSHASHTABLE_SIZE + 1));
    memset(_classesThatShouldNotBeNewlyExtendedHT, 0, sizeof(TR_LinkHead<TR_ClassExtendCheck>) * (CLASSHASHTABLE_SIZE + 1));
 
    }
@@ -163,7 +162,7 @@ List<OMR::RuntimeAssumption> *TR::InterProceduralAnalyzer::analyzeCall(TR::Node 
    _globalsWrittenInCurrentPeek.deleteAll();
 
    if (success)
-      return new (trStackMemory()) TR_ScratchList<OMR::RuntimeAssumption>(trMemory());
+      return new (comp()->trStackMemory()) TR_ScratchList<OMR::RuntimeAssumption>(comp()->trMemory());
    else
       return NULL;
 
@@ -306,11 +305,11 @@ List<OMR::RuntimeAssumption> *TR::InterProceduralAnalyzer::analyzeCallGraph(TR::
       TR_PersistentClassInfo *classInfo = comp()->getPersistentInfo()->getPersistentCHTable()->findClassInfoAfterLocking(clazz, comp(), allowForAOT);
       if (classInfo)
          {
-         TR_ScratchList<TR_PersistentClassInfo> subClasses(trMemory());
+         TR_ScratchList<TR_PersistentClassInfo> subClasses(comp()->trMemory());
 	 TR_ClassQueries::getSubClasses(classInfo, subClasses, fe());
          if (trace())
             traceMsg(comp(), "Number of subclasses = %d\n", subClasses.getSize());
-         TR_ScratchList<TR_ResolvedMethod> subMethods(trMemory());
+         TR_ScratchList<TR_ResolvedMethod> subMethods(comp()->trMemory());
          int32_t numSubMethods = 0;
          ListIterator<TR_PersistentClassInfo> subClassesIt(&subClasses);
          for (TR_PersistentClassInfo *subClassInfo = subClassesIt.getFirst(); subClassInfo; subClassInfo = subClassesIt.getNext())
@@ -351,10 +350,10 @@ List<OMR::RuntimeAssumption> *TR::InterProceduralAnalyzer::analyzeMethod(TR::Nod
    {
    if (trace())
       {
-      traceMsg(comp(), "Consider method %s for peek\n", method->signature(trMemory()));
+      traceMsg(comp(), "Consider method %s for peek\n", method->signature(comp()->trMemory()));
       }
 
-   if (!method->isCompilable(trMemory()) || method->isJNINative())
+   if (!method->isCompilable(comp()->trMemory()) || method->isJNINative())
       {
       *success = false;
       return 0;
@@ -369,14 +368,14 @@ List<OMR::RuntimeAssumption> *TR::InterProceduralAnalyzer::analyzeMethod(TR::Nod
          *success = false;
          if (trace())
             {
-            traceMsg(comp(), "Prior peek failure for method %s caused current peek to be unsuccessful\n", method->signature(trMemory()));
+            traceMsg(comp(), "Prior peek failure for method %s caused current peek to be unsuccessful\n", method->signature(comp()->trMemory()));
             }
          }
       else
          {
          if (trace())
             {
-            traceMsg(comp(), "Prior peek success for method %s caused current peek to be successful -- prior assumptions added\n", method->signature(trMemory()));
+            traceMsg(comp(), "Prior peek success for method %s caused current peek to be successful -- prior assumptions added\n", method->signature(comp()->trMemory()));
             }
 
          for (TR_ClassLoadCheck * clc = priorPeek->_classesThatShouldNotBeLoaded.getFirst(); clc; clc = clc->getNext())
@@ -404,7 +403,7 @@ List<OMR::RuntimeAssumption> *TR::InterProceduralAnalyzer::analyzeMethod(TR::Nod
       return 0;
 
    if (trace())
-      traceMsg(comp(), "\nDepth %d sniffing into call at [%p] to %s\n", _sniffDepth, callNode, method->signature(trMemory()));
+      traceMsg(comp(), "\nDepth %d sniffing into call at [%p] to %s\n", _sniffDepth, callNode, method->signature(comp()->trMemory()));
 
    TR::SymbolReference * symRef = callNode->getSymbolReference();
    int32_t offset = symRef->getOffset();
@@ -425,9 +424,9 @@ List<OMR::RuntimeAssumption> *TR::InterProceduralAnalyzer::analyzeMethod(TR::Nod
       {
       int32_t firstArgIndex = callNode->getFirstArgumentIndex();
       int32_t numRealArgs = callNode->getNumChildren() - firstArgIndex;
-      const char **argInfo = (const char **)trMemory()->allocateHeapMemory(numRealArgs*sizeof(char *)); // can stack allocate in some cases
+      const char **argInfo = (const char **)comp()->trMemory()->allocateHeapMemory(numRealArgs*sizeof(char *)); // can stack allocate in some cases
       memset(argInfo, 0, numRealArgs*sizeof(char *));
-      int32_t *lenInfo = (int32_t *) trMemory()->allocateHeapMemory(numRealArgs*sizeof(int32_t)); // can stack allocate in some cases
+      int32_t *lenInfo = (int32_t *) comp()->trMemory()->allocateHeapMemory(numRealArgs*sizeof(int32_t)); // can stack allocate in some cases
       memset(lenInfo, 0xFF, numRealArgs*sizeof(int32_t));
 
       for (int32_t c = callNode->getNumChildren() - 1 ; c >= firstArgIndex; --c)
@@ -473,7 +472,7 @@ List<OMR::RuntimeAssumption> *TR::InterProceduralAnalyzer::analyzeMethod(TR::Nod
                   TR_YesNoMaybe isInstance = fe()->isInstanceOf(thisClazz, argClazz, true);
                   if (isInstance == TR_yes)
                      {
-                     s = TR::Compiler->cls.classSignature_DEPRECATED(comp(), thisClazz, len, trMemory());
+                     s = TR::Compiler->cls.classSignature_DEPRECATED(comp(), thisClazz, len, comp()->trMemory());
                      }
                   }
                }
@@ -498,7 +497,7 @@ List<OMR::RuntimeAssumption> *TR::InterProceduralAnalyzer::analyzeMethod(TR::Nod
       if (!performTransformation(comp(), "O^O INTERPROCEDURAL ANALYZER: Peeking into the IL for doing a limited form of interprocedural analysis  \n"))
           return 0;
 
-      TR_PeekingArgInfo *peekInfo = (TR_PeekingArgInfo *) trMemory()->allocateStackMemory(sizeof(TR_PeekingArgInfo)); // can stack allocate in some cases
+      TR_PeekingArgInfo *peekInfo = (TR_PeekingArgInfo *) comp()->trMemory()->allocateStackMemory(sizeof(TR_PeekingArgInfo)); // can stack allocate in some cases
       peekInfo->_args = argInfo;
       peekInfo->_lengths = lenInfo;
       peekInfo->_method = resolvedMethodSymbol->getResolvedMethod();
@@ -593,7 +592,7 @@ List<OMR::RuntimeAssumption> *TR::InterProceduralAnalyzer::analyzeMethod(TR::Nod
 
    if (0 && *success)
       {
-      TR::PriorPeekInfo *priorPeek = (TR::PriorPeekInfo *) trMemory()->allocateHeapMemory(sizeof(TR::PriorPeekInfo));
+      TR::PriorPeekInfo *priorPeek = (TR::PriorPeekInfo *) comp()->trMemory()->allocateHeapMemory(sizeof(TR::PriorPeekInfo));
       priorPeek->_method = resolvedMethodSymbol->getResolvedMethod();
       priorPeek->_classesThatShouldNotBeLoaded.setFirst(NULL);
       priorPeek->_classesThatShouldNotBeNewlyExtended.setFirst(NULL);
@@ -603,26 +602,26 @@ List<OMR::RuntimeAssumption> *TR::InterProceduralAnalyzer::analyzeMethod(TR::Nod
       ListElement<TR::GlobalSymbol> *currSymRef = _globalsWrittenInCurrentPeek.getListHead();
       while (currClc != prevClc)
          {
-         priorPeek->_classesThatShouldNotBeLoaded.add(new (trHeapMemory()) TR_ClassLoadCheck(currClc->getData()->_name, currClc->getData()->_length));
+         priorPeek->_classesThatShouldNotBeLoaded.add(new (comp()->trHeapMemory()) TR_ClassLoadCheck(currClc->getData()->_name, currClc->getData()->_length));
          currClc = currClc->getNextElement();
          }
 
       while (currCec != prevCec)
          {
-         priorPeek->_classesThatShouldNotBeNewlyExtended.add(new (trHeapMemory()) TR_ClassExtendCheck(currCec->getData()->_clazz));
+         priorPeek->_classesThatShouldNotBeNewlyExtended.add(new (comp()->trHeapMemory()) TR_ClassExtendCheck(currCec->getData()->_clazz));
          currCec = currCec->getNextElement();
          }
 
       while (currSymRef != prevSymRef)
          {
-         priorPeek->_globalsWritten.add(new (trHeapMemory()) TR::GlobalSymbol(currSymRef->getData()->_symRef));
+         priorPeek->_globalsWritten.add(new (comp()->trHeapMemory()) TR::GlobalSymbol(currSymRef->getData()->_symRef));
          currSymRef = currSymRef->getNextElement();
          }
 
       _successfullyPeekedMethods.add(priorPeek);
       if (trace())
          {
-         traceMsg(comp(), "Method %s is successfully peeked\n", resolvedMethodSymbol->getResolvedMethod()->signature(trMemory()));
+         traceMsg(comp(), "Method %s is successfully peeked\n", resolvedMethodSymbol->getResolvedMethod()->signature(comp()->trMemory()));
          }
       }
    else
@@ -631,7 +630,7 @@ List<OMR::RuntimeAssumption> *TR::InterProceduralAnalyzer::analyzeMethod(TR::Nod
          {
          if (trace())
             {
-            traceMsg(comp(), "1Method %s is unsuccessfully peeked\n", resolvedMethodSymbol->getResolvedMethod()->signature(trMemory()));
+            traceMsg(comp(), "1Method %s is unsuccessfully peeked\n", resolvedMethodSymbol->getResolvedMethod()->signature(comp()->trMemory()));
             }
 
          _unsuccessfullyPeekedMethods.add(resolvedMethodSymbol->getResolvedMethod());
@@ -643,7 +642,7 @@ List<OMR::RuntimeAssumption> *TR::InterProceduralAnalyzer::analyzeMethod(TR::Nod
             {
             if (trace())
                {
-               traceMsg(comp(), "2Method %s is unsuccessfully peeked\n", resolvedMethodSymbol->getResolvedMethod()->signature(trMemory()));
+               traceMsg(comp(), "2Method %s is unsuccessfully peeked\n", resolvedMethodSymbol->getResolvedMethod()->signature(comp()->trMemory()));
                }
             _unsuccessfullyPeekedMethods.add(resolvedMethodSymbol->getResolvedMethod());
             }
@@ -746,13 +745,13 @@ TR::InterProceduralAnalyzer::addClassThatShouldNotBeLoaded(char *name, int32_t l
       }
 
    if (!found)
-      _classesThatShouldNotBeLoadedInCurrentPeek.add(new (trStackMemory()) TR_ClassLoadCheck(name, len));
+      _classesThatShouldNotBeLoadedInCurrentPeek.add(new (comp()->trStackMemory()) TR_ClassLoadCheck(name, len));
 
    for (TR_ClassLoadCheck * clc = _classesThatShouldNotBeLoaded.getFirst(); clc; clc = clc->getNext())
       if (clc->_length == len && !strncmp(clc->_name, name, len))
          return false;
 
-   _classesThatShouldNotBeLoaded.add(new (trHeapMemory()) TR_ClassLoadCheck(name, len));
+   _classesThatShouldNotBeLoaded.add(new (comp()->trHeapMemory()) TR_ClassLoadCheck(name, len));
 
    return true;
    }
@@ -775,7 +774,7 @@ TR::InterProceduralAnalyzer::addClassThatShouldNotBeNewlyExtended(TR_OpaqueClass
 
 
    cl->setShouldNotBeNewlyExtended(comp()->getCompThreadID());
-   TR_ScratchList<TR_PersistentClassInfo> subClasses(trMemory());
+   TR_ScratchList<TR_PersistentClassInfo> subClasses(comp()->trMemory());
 
    TR_ClassQueries::collectAllSubClasses(cl, &subClasses, comp());
 
@@ -818,8 +817,8 @@ bool TR::InterProceduralAnalyzer::addSingleClassThatShouldNotBeNewlyExtended(TR_
 
    if (!found)
       {
-      _classesThatShouldNotBeNewlyExtendedInCurrentPeek.add(new (trStackMemory()) TR_ClassExtendCheck(clazz));
-      _classesThatShouldNotBeNewlyExtendedInCurrentPeekHT[hashNum].add(new (trStackMemory()) TR_ClassExtendCheck(clazz));
+      _classesThatShouldNotBeNewlyExtendedInCurrentPeek.add(new (comp()->trStackMemory()) TR_ClassExtendCheck(clazz));
+      _classesThatShouldNotBeNewlyExtendedInCurrentPeekHT[hashNum].add(new (comp()->trStackMemory()) TR_ClassExtendCheck(clazz));
       }
 
    found = false;
@@ -833,8 +832,8 @@ bool TR::InterProceduralAnalyzer::addSingleClassThatShouldNotBeNewlyExtended(TR_
 
    if (!found)
       {
-      _classesThatShouldNotBeNewlyExtended.add(new (trHeapMemory()) TR_ClassExtendCheck(clazz));
-      _classesThatShouldNotBeNewlyExtendedHT[hashNum].add(new (trHeapMemory()) TR_ClassExtendCheck(clazz));
+      _classesThatShouldNotBeNewlyExtended.add(new (comp()->trHeapMemory()) TR_ClassExtendCheck(clazz));
+      _classesThatShouldNotBeNewlyExtendedHT[hashNum].add(new (comp()->trHeapMemory()) TR_ClassExtendCheck(clazz));
       }
    return true;
    }
@@ -848,9 +847,9 @@ TR::InterProceduralAnalyzer::addWrittenGlobal(TR::SymbolReference *symRef)
    char *sig = NULL;
    int32_t length = 0;
    if (symRef->getSymbol()->isStaticField())
-      sig = symRef->getOwningMethod(comp())->staticName(symRef->getCPIndex(), length, trMemory());
+      sig = symRef->getOwningMethod(comp())->staticName(symRef->getCPIndex(), length, comp()->trMemory());
    else if (symRef->getSymbol()->isShadow())
-      sig = symRef->getOwningMethod(comp())->fieldName(symRef->getCPIndex(), length, trMemory());
+      sig = symRef->getOwningMethod(comp())->fieldName(symRef->getCPIndex(), length, comp()->trMemory());
 
    bool found = false;
    for (ListElement<TR::GlobalSymbol> *currSymRef = _globalsWrittenInCurrentPeek.getListHead(); currSymRef != _prevSymRef; currSymRef = currSymRef->getNextElement())
@@ -859,9 +858,9 @@ TR::InterProceduralAnalyzer::addWrittenGlobal(TR::SymbolReference *symRef)
       char *currSig = NULL;
       int32_t currLength = 0;
       if (currSymReference->getSymbol()->isStaticField())
-         currSig = currSymReference->getOwningMethod(comp())->staticName(currSymReference->getCPIndex(), currLength, trMemory());
+         currSig = currSymReference->getOwningMethod(comp())->staticName(currSymReference->getCPIndex(), currLength, comp()->trMemory());
       else if (currSymReference->getSymbol()->isShadow())
-         currSig = currSymReference->getOwningMethod(comp())->fieldName(currSymReference->getCPIndex(), currLength, trMemory());
+         currSig = currSymReference->getOwningMethod(comp())->fieldName(currSymReference->getCPIndex(), currLength, comp()->trMemory());
 
       if ((length == currLength) &&
           (memcmp(sig, currSig, length) == 0))
@@ -872,7 +871,7 @@ TR::InterProceduralAnalyzer::addWrittenGlobal(TR::SymbolReference *symRef)
       }
 
    if (!found)
-      _globalsWrittenInCurrentPeek.add(new (trStackMemory()) TR::GlobalSymbol(symRef));
+      _globalsWrittenInCurrentPeek.add(new (comp()->trStackMemory()) TR::GlobalSymbol(symRef));
 
    for (TR::GlobalSymbol *currSym = _globalsWritten.getFirst(); currSym; currSym = currSym->getNext())
       {
@@ -880,16 +879,16 @@ TR::InterProceduralAnalyzer::addWrittenGlobal(TR::SymbolReference *symRef)
       char *currSig = NULL;
       int32_t currLength = 0;
       if (currSymReference->getSymbol()->isStaticField())
-         currSig = currSymReference->getOwningMethod(comp())->staticName(currSymReference->getCPIndex(), currLength, trMemory());
+         currSig = currSymReference->getOwningMethod(comp())->staticName(currSymReference->getCPIndex(), currLength, comp()->trMemory());
       else if (currSymReference->getSymbol()->isShadow())
-         currSig = currSymReference->getOwningMethod(comp())->fieldName(currSymReference->getCPIndex(), currLength, trMemory());
+         currSig = currSymReference->getOwningMethod(comp())->fieldName(currSymReference->getCPIndex(), currLength, comp()->trMemory());
 
       if ((length == currLength) &&
           (memcmp(sig, currSig, length) == 0))
          return false;
       }
 
-   _globalsWritten.add(new (trHeapMemory()) TR::GlobalSymbol(symRef));
+   _globalsWritten.add(new (comp()->trHeapMemory()) TR::GlobalSymbol(symRef));
 
    return true;
    }

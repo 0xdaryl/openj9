@@ -1779,7 +1779,7 @@ TR_NodeDuplicator::restructureTree(TR::Node *oldTree, TR::Node *newTree)
       else
          {
          TR::Node *newChild = newTree->getChild(i);
-         pair = new (trHeapMemory()) TR_Pair<TR::Node,TR::Node>(oldChild, newChild);
+         pair = new (comp()->trHeapMemory()) TR_Pair<TR::Node,TR::Node>(oldChild, newChild);
          _list.add(pair);
          restructureTree(oldChild, newChild);
          }
@@ -1892,22 +1892,22 @@ TR::TreeTop * TR_UseTreeTopMap::findParentTreeTop(TR::Node *useNode)
 /*******************************************/
 TR_CISCTransformer::TR_CISCTransformer(TR::OptimizationManager *manager)
    : TR_LoopTransformer(manager),
-     _candidatesForShowing(manager->trMemory()),
+     _candidatesForShowing(comp()->trMemory()),
      _candidateBBStartEnd(0),
-     _backPatchList(manager->trMemory()),
-     _beforeInsertions(manager->trMemory()),
-     _afterInsertions(manager->trMemory()),
-     _bblistPred(manager->trMemory()),
-     _bblistBody(manager->trMemory()),
-     _bblistSucc(manager->trMemory()),
-     _candidatesForRegister(manager->trMemory()),
+     _backPatchList(comp()->trMemory()),
+     _beforeInsertions(comp()->trMemory()),
+     _afterInsertions(comp()->trMemory()),
+     _bblistPred(comp()->trMemory()),
+     _bblistBody(comp()->trMemory()),
+     _bblistSucc(comp()->trMemory()),
+     _candidatesForRegister(comp()->trMemory()),
      _useTreeTopMap(manager->comp(), manager->optimizer()),
-     _BitsKeepAliveList(manager->trMemory())
+     _BitsKeepAliveList(comp()->trMemory())
    {
-   _afterInsertionsIdiom = (ListHeadAndTail<TR::Node> *) trMemory()->allocateHeapMemory(sizeof(ListHeadAndTail<TR::Node>)*2);
+   _afterInsertionsIdiom = (ListHeadAndTail<TR::Node> *) comp()->trMemory()->allocateHeapMemory(sizeof(ListHeadAndTail<TR::Node>)*2);
    memset(_afterInsertionsIdiom, 0, sizeof(ListHeadAndTail<TR::Node>)*2);
    for (int32_t i = 0; i < 2; ++i)
-      _afterInsertionsIdiom[i].setRegion(trMemory()->heapMemoryRegion());
+      _afterInsertionsIdiom[i].setRegion(comp()->trMemory()->heapMemoryRegion());
 
    _lastCFGNode = 0;
    _backPatchList.init();
@@ -1956,9 +1956,9 @@ TR_CISCTransformer::createLoopCandidates(List<TR_RegionStructure> *loopCandidate
 
 
    loopCandidates->init();
-   TR_ScratchList<TR_Structure> whileLoops(trMemory());
+   TR_ScratchList<TR_Structure> whileLoops(comp()->trMemory());
    ListAppender<TR_Structure> whileLoopsInnerFirst(&whileLoops);
-   TR_ScratchList<TR_Structure> doWhileLoops(trMemory());
+   TR_ScratchList<TR_Structure> doWhileLoops(comp()->trMemory());
    ListAppender<TR_Structure> doWhileLoopsInnerFirst(&doWhileLoops);
    TR_ScratchList<TR_Structure> *candidate;
    comp()->incVisitCount();
@@ -2067,7 +2067,7 @@ TR_CISCTransformer::addPreHeaderIfNeeded(TR_RegionStructure *region)
       // iterate again and fixup the preds to branch to the
       // new pre-header
       //
-      TR_ScratchList<TR::CFGEdge> removedEdges(trMemory());
+      TR_ScratchList<TR::CFGEdge> removedEdges(comp()->trMemory());
       TR::CFGEdge *e = NULL;
       for (auto e = loopEntry->getPredecessors().begin(); e != loopEntry->getPredecessors().end(); ++e)
          {
@@ -2313,7 +2313,7 @@ TR_CISCTransformer::addAllSubNodes(TR_CISCGraph *const graph, TR::Block *const b
       return 0;
    int32_t i;
    int32_t numChildren = node->getNumChildren();
-   TR_ScratchList<TR_CISCNode> childList(trMemory());
+   TR_ScratchList<TR_CISCNode> childList(comp()->trMemory());
    vcount_t curVisit = comp()->getVisitCount();
 
    if (node->getVisitCount() == curVisit)       // already visited
@@ -2378,12 +2378,12 @@ TR_CISCTransformer::addAllSubNodes(TR_CISCGraph *const graph, TR::Block *const b
          TR_CISCNode *const1 = graph->getCISCNode(opcodeConst, true, 1);
          if (!const1)
             {
-            const1 = new (trHeapMemory()) TR_CISCNode(trMemory(), opcodeConst, opcodeDataType, graph->incNumNodes(), 0, 0, 0, 1);
+            const1 = new (comp()->trHeapMemory()) TR_CISCNode(comp()->trMemory(), opcodeConst, opcodeDataType, graph->incNumNodes(), 0, 0, 0, 1);
             const1->setNewCISCNode();
             graph->addNode(const1, 0, 0, 0);
             }
 
-         TR_CISCNode *mul = new (trHeapMemory()) TR_CISCNode(trMemory(),
+         TR_CISCNode *mul = new (comp()->trHeapMemory()) TR_CISCNode(comp()->trMemory(),
                                                              is64bit ? TR::lmul : TR::imul,
                                                              is64bit ? TR::Int64 : TR::Int32,
                                                              graph->incNumNodes(), dagId, 1, 2);
@@ -2419,14 +2419,14 @@ TR_CISCTransformer::addAllSubNodes(TR_CISCGraph *const graph, TR::Block *const b
          TR_CISCNode *variable = graph->getCISCNode(TR_variable, true, refNum);
          if (!variable)
             {
-            variable = new (trHeapMemory()) TR_CISCNode(trMemory(), TR_variable, TR::NoType, graph->incNumNodes(), 0,
+            variable = new (comp()->trHeapMemory()) TR_CISCNode(comp()->trMemory(), TR_variable, TR::NoType, graph->incNumNodes(), 0,
                                        0, 0, refNum);
             variable->addTrNode(block, top, node);
             graph->addNode(variable);
             }
 
          numChildren = 1;
-         newCisc = new (trHeapMemory()) TR_CISCNode(trMemory(), opcode, nodeDataType, graph->incNumNodes(), dagId,
+         newCisc = new (comp()->trHeapMemory()) TR_CISCNode(comp()->trMemory(), opcode, nodeDataType, graph->incNumNodes(), dagId,
                                    1, numChildren);
          newCisc->setIsNegligible();
          newCisc->setIsLoadVarDirect();
@@ -2465,13 +2465,13 @@ TR_CISCTransformer::addAllSubNodes(TR_CISCGraph *const graph, TR::Block *const b
                graph->addTrNode(newCisc, block, top, node);
             else
                {
-               newCisc = new (trHeapMemory()) TR_CISCNode(trMemory(), opcode, nodeDataType, graph->incNumNodes(), 0,
+               newCisc = new (comp()->trHeapMemory()) TR_CISCNode(comp()->trMemory(), opcode, nodeDataType, graph->incNumNodes(), 0,
                                          0, 0, val);
                graph->addNode(newCisc, block, top, node);
                }
             return newCisc;
             }
-         newCisc = new (trHeapMemory()) TR_CISCNode(trMemory(), opcode, nodeDataType, graph->incNumNodes(), dagId,
+         newCisc = new (comp()->trHeapMemory()) TR_CISCNode(comp()->trMemory(), opcode, nodeDataType, graph->incNumNodes(), dagId,
                               1, numChildren);
          }
       else if (node->getOpCode().isStoreDirect())
@@ -2484,7 +2484,7 @@ TR_CISCTransformer::addAllSubNodes(TR_CISCGraph *const graph, TR::Block *const b
             TR_CISCNode *variable = graph->getCISCNode(TR_variable, true, refNum);
             if (!variable)
                {
-               variable = new (trHeapMemory()) TR_CISCNode(trMemory(), TR_variable, TR::NoType, graph->incNumNodes(), 0,
+               variable = new (comp()->trHeapMemory()) TR_CISCNode(comp()->trMemory(), TR_variable, TR::NoType, graph->incNumNodes(), 0,
                                                            0, 0, refNum);
                variable->addTrNode(block, top, node);
                graph->addNode(variable);
@@ -2492,14 +2492,14 @@ TR_CISCTransformer::addAllSubNodes(TR_CISCGraph *const graph, TR::Block *const b
             if (!child->isInterestingConstant()) child->setDest(variable);
 
             numChildren = 2;
-            newCisc = new (trHeapMemory()) TR_CISCNode(trMemory(), opcode, nodeDataType, graph->incNumNodes(), dagId,
+            newCisc = new (comp()->trHeapMemory()) TR_CISCNode(comp()->trMemory(), opcode, nodeDataType, graph->incNumNodes(), dagId,
                                                        1, numChildren);
             newCisc->setIsStoreDirect();
             childList.add(variable);
             }
          else
             {
-            newCisc = new (trHeapMemory()) TR_CISCNode(trMemory(), opcode, nodeDataType, graph->incNumNodes(), dagId,
+            newCisc = new (comp()->trHeapMemory()) TR_CISCNode(comp()->trMemory(), opcode, nodeDataType, graph->incNumNodes(), dagId,
                                                        1, numChildren);
             }
          }
@@ -2512,13 +2512,13 @@ TR_CISCTransformer::addAllSubNodes(TR_CISCGraph *const graph, TR::Block *const b
             {
             TR_ASSERT(numChildren == 0, "TR::Case: numChildren != 0 ???");
             numChildren = 1;
-            newCisc = new (trHeapMemory()) TR_CISCNode(trMemory(), opcode, nodeDataType, graph->incNumNodes(), dagId,
+            newCisc = new (comp()->trHeapMemory()) TR_CISCNode(comp()->trMemory(), opcode, nodeDataType, graph->incNumNodes(), dagId,
                                       nSucc, numChildren);
             childList.add(graph->getCISCNode(top->getNode()->getChild(0)));
             }
          else
             {
-            newCisc = new (trHeapMemory()) TR_CISCNode(trMemory(), opcode, nodeDataType, graph->incNumNodes(), dagId,
+            newCisc = new (comp()->trHeapMemory()) TR_CISCNode(comp()->trMemory(), opcode, nodeDataType, graph->incNumNodes(), dagId,
                                       nSucc, numChildren);
             }
          switch(newCisc->getOpcode())
@@ -2876,7 +2876,7 @@ TR_CISCTransformer::makeCISCGraph(List<TR::Block> *pred,
                                   List<TR::Block> *succ)
    {
    int32_t dagId = 1, bodyDagId;
-   TR_CISCGraph *graph = new (trHeapMemory()) TR_CISCGraph(trMemory(), comp()->signature());
+   TR_CISCGraph *graph = new (comp()->trHeapMemory()) TR_CISCGraph(comp()->trMemory(), comp()->signature());
    TR::Block *block;
    ListIterator<TR::Block> bi(pred);
    //ListElement<TR_CISCNode> *head;
@@ -2886,7 +2886,7 @@ TR_CISCTransformer::makeCISCGraph(List<TR::Block> *pred,
    comp()->incVisitCount();
 
    // make entry node
-   TR_CISCNode *newCisc = new (trHeapMemory()) TR_CISCNode(trMemory(), TR_entrynode, TR::NoType, graph->incNumNodes(), dagId, 1, 0);
+   TR_CISCNode *newCisc = new (comp()->trHeapMemory()) TR_CISCNode(comp()->trMemory(), TR_entrynode, TR::NoType, graph->incNumNodes(), dagId, 1, 0);
    graph->setEntryNode(newCisc);
    graph->addNode(newCisc);
    _lastCFGNode = newCisc;
@@ -2924,7 +2924,7 @@ TR_CISCTransformer::makeCISCGraph(List<TR::Block> *pred,
       }
 #endif
 
-   TR_CISCNode *exitNode = new (trHeapMemory()) TR_CISCNode(trMemory(), TR_exitnode, TR::NoType, graph->incNumNodes(), dagId, 0, 0);
+   TR_CISCNode *exitNode = new (comp()->trHeapMemory()) TR_CISCNode(comp()->trMemory(), TR_exitnode, TR::NoType, graph->incNumNodes(), dagId, 0, 0);
    graph->addNode(exitNode);
    graph->setExitNode(exitNode);
    if (_lastCFGNode)
@@ -2940,7 +2940,7 @@ TR_CISCTransformer::makeCISCGraph(List<TR::Block> *pred,
 
    if (!graph->getCISCNode(opcode, true, ahsize))
       {
-      graph->addNode(new (trHeapMemory()) TR_CISCNode(trMemory(), opcode, nodeDataType, graph->incNumNodes(), 0, 0, 0, ahsize));
+      graph->addNode(new (comp()->trHeapMemory()) TR_CISCNode(comp()->trMemory(), opcode, nodeDataType, graph->incNumNodes(), 0, 0, 0, ahsize));
       }
 
    bodyDagId = renumberDagId(graph, dagId, bodyDagId);
@@ -3004,20 +3004,20 @@ int32_t TR_CISCTransformer::perform()
    int32_t cost = 0;
 
    {
-   TR::StackMemoryRegion stackMemoryRegion(*trMemory());
+   TR::StackMemoryRegion stackMemoryRegion(*comp()->trMemory());
 
    _cfg = comp()->getFlowGraph();
    _rootStructure = _cfg->getStructure();
-   _nodesInCycle = new (trStackMemory()) TR_BitVector(_cfg->getNextNodeNumber(), trMemory(), stackAlloc);
+   _nodesInCycle = new (comp()->trStackMemory()) TR_BitVector(_cfg->getNextNodeNumber(), comp()->trMemory(), stackAlloc);
    _isGenerateI2L = comp()->target().is64Bit();
    _showMesssagesStdout = (VERBOSE || showStdout);
 
    // make loop candidates
-   List<TR_RegionStructure> loopCandidates(trMemory());
+   List<TR_RegionStructure> loopCandidates(comp()->trMemory());
 
    if (createLoopCandidates(&loopCandidates))
       {
-      TR_CFGReversePostOrder revPost(trMemory());
+      TR_CFGReversePostOrder revPost(comp()->trMemory());
       ListIterator<TR::CFGNode> revPostIterator(revPost.compute(_cfg));
       if (trace())
          revPost.dump(comp());
@@ -3043,7 +3043,7 @@ int32_t TR_CISCTransformer::perform()
       _BitsKeepAliveList = BitsKeepAliveList;
 
       int32_t numNodes = _cfg->getNextNodeNumber();
-      TR_BitVector cfgBV(numNodes, trMemory(), stackAlloc);
+      TR_BitVector cfgBV(numNodes, comp()->trMemory(), stackAlloc);
       TR::CFGNode *cfgnode;
       int loopNumber = 0;
 
@@ -4224,8 +4224,8 @@ TR_CISCTransformer::makeLists()
    memset(_T2P, 0, _sizeT2P);
 
    int i;
-   for (i = 0; i < _numPNodes; i++) _P2T[i].setRegion(trMemory()->heapMemoryRegion());
-   for (i = 0; i < _numTNodes; i++) _T2P[i].setRegion(trMemory()->heapMemoryRegion());
+   for (i = 0; i < _numPNodes; i++) _P2T[i].setRegion(comp()->trMemory()->heapMemoryRegion());
+   for (i = 0; i < _numTNodes; i++) _T2P[i].setRegion(comp()->trMemory()->heapMemoryRegion());
 
    for (p = pi.getFirst(); p; p = pi.getNext())
       {
@@ -4974,7 +4974,7 @@ TR_CISCTransformer::areAllNodesIncluded(TR_CISCNodeRegion *r)
    {
    ListIterator<TR_CISCNode> ni;
    TR_CISCNode *t;
-   TR_BitVector bv(_P->getNumNodes(), trMemory(), stackAlloc);
+   TR_BitVector bv(_P->getNumNodes(), comp()->trMemory(), stackAlloc);
    ni.set(_P->getNodes());
    // Set the IDs of required nodes in the idiom _P to the bit vector bv.
    for (t = ni.getFirst(); t; t = ni.getNext())
@@ -5176,7 +5176,7 @@ TR_CISCTransformer::moveCISCNodes(TR_CISCNode *from, TR_CISCNode *to, TR_CISCNod
 TR_CISCNodeRegion *
 TR_CISCTransformer::extractMatchingRegion()
    {
-   TR_CISCNodeRegion *lists = new (trHeapMemory()) TR_CISCNodeRegion(_numTNodes, comp()->trMemory()->heapMemoryRegion());
+   TR_CISCNodeRegion *lists = new (comp()->trHeapMemory()) TR_CISCNodeRegion(_numTNodes, comp()->trMemory()->heapMemoryRegion());
    TR_ScratchList<TR_CISCNodeRegion> regions(comp()->trMemory());
    TR_CISCNode *t;
    ListElement<TR_CISCNode> *firstNegligible = 0;
@@ -5245,7 +5245,7 @@ TR_CISCTransformer::extractMatchingRegion()
                   empty = true;
                   firstNegligible = 0;
                   regions.add(lists);
-                  lists = new (trHeapMemory()) TR_CISCNodeRegion(_numTNodes, comp()->trMemory()->heapMemoryRegion());
+                  lists = new (comp()->trHeapMemory()) TR_CISCNodeRegion(_numTNodes, comp()->trMemory()->heapMemoryRegion());
                   }
                else
                   {
@@ -5319,7 +5319,7 @@ TR_CISCTransformer::verifyCandidate()
    {
    ListIterator<TR_CISCNode> ci(_candidateRegion);
    TR_CISCNode *cn;
-   ListHeadAndTail<TR_CISCNode> *listBB = new (trHeapMemory()) ListHeadAndTail<TR_CISCNode>(trMemory());
+   ListHeadAndTail<TR_CISCNode> *listBB = new (comp()->trHeapMemory()) ListHeadAndTail<TR_CISCNode>(comp()->trMemory());
    ListElement <TR_CISCNode> *le;
 
    // Create the list of TR::BBStart and TR::BBEnd nodes in the region.
@@ -5571,7 +5571,7 @@ TR_CISCTransformer::addEdge(TR::CFGEdgeList *succList, TR::Block *srcBlock, TR::
          return; // already exists!
          }
       }
-   _cfg->addEdge(TR::CFGEdge::createEdge(srcBlock,  destBlock, trMemory()));
+   _cfg->addEdge(TR::CFGEdge::createEdge(srcBlock,  destBlock, comp()->trMemory()));
    return;
    }
 
@@ -5883,7 +5883,7 @@ TR_CISCTransformer::setSuccessorEdges(TR::Block *block, TR::Block *target0, TR::
       gotoExit->join(oldNext);
 
       _cfg->setStructure(0);
-      _cfg->addEdge(TR::CFGEdge::createEdge(gotoBlock,  target0, trMemory()));
+      _cfg->addEdge(TR::CFGEdge::createEdge(gotoBlock,  target0, comp()->trMemory()));
       setEdges(&block->getSuccessors(), block, gotoBlock, target1);
       return gotoBlock;
       }
@@ -5936,7 +5936,7 @@ TR::Block *
 TR_CISCTransformer::modifyBlockByVersioningCheck(TR::Block *block, TR::TreeTop *startTop, TR::Node *lengthNode, List<TR::Node> *guardList)
    {
    uint16_t versionLength = _P->getVersionLength();
-   List<TR::Node> guardListLocal(trMemory());
+   List<TR::Node> guardListLocal(comp()->trMemory());
    // Create versioning if necessary
    if (versionLength >= 1)      // Skip if versionLength is less than 1.
       {
@@ -6474,14 +6474,14 @@ TR_CISCTransformer::analyzeBoolTable(TR_BitVector **bv, TR::TreeTop **retSameExi
    TR_CISCNode * exitnode;
    TR_CISCNode *n;
    int32_t i;
-   TR_BitVector takenBV(allocBVSize, trMemory(), stackAlloc), ntakenBV(allocBVSize, trMemory(), stackAlloc), tmpBV(allocBVSize, trMemory(), stackAlloc);
-   TR_BitVector orgBV(allocBVSize, trMemory(), stackAlloc);
+   TR_BitVector takenBV(allocBVSize, comp()->trMemory(), stackAlloc), ntakenBV(allocBVSize, comp()->trMemory(), stackAlloc), tmpBV(allocBVSize, comp()->trMemory(), stackAlloc);
+   TR_BitVector orgBV(allocBVSize, comp()->trMemory(), stackAlloc);
 
    //
    // Perform a forward dataflow analysis to compute exit conditions of the loop
    //
    for (i = T->getNumNodes(); --i >= 0; )
-      bv[i] = new (trStackMemory()) TR_BitVector(allocBVSize, trMemory(), stackAlloc);
+      bv[i] = new (comp()->trStackMemory()) TR_BitVector(allocBVSize, comp()->trMemory(), stackAlloc);
    exitnode = T->getExitNode();
    exitTreeTop = 0;
    initExitTreeTop = false;
@@ -6746,7 +6746,7 @@ TR_CISCTransformer::analyzeBoolTable(TR_BitVector **bv, TR::TreeTop **retSameExi
 int32_t
 TR_CISCTransformer::analyzeByteBoolTable(TR_CISCNode *boolTable, uint8_t *table256, TR_CISCNode *ignoreNode, TR::TreeTop **retSameExit)
    {
-   TR::StackMemoryRegion stackMemoryRegion(*trMemory());
+   TR::StackMemoryRegion stackMemoryRegion(*comp()->trMemory());
 
    List<TR_CISCNode> *P2T = _P2T;
    List<TR_CISCNode> *T2P = _T2P;
@@ -6761,12 +6761,12 @@ TR_CISCTransformer::analyzeByteBoolTable(TR_CISCNode *boolTable, uint8_t *table2
    memset(table256, 0, 256);
    if (!boolTable || !getP2TRepInLoop(boolTable)) return 0;     // # of delimiter is zero
 
-   TR_BitVector **bv, defBV(ALLOCBYTEBVSIZE, trMemory(), stackAlloc);
+   TR_BitVector **bv, defBV(ALLOCBYTEBVSIZE, comp()->trMemory(), stackAlloc);
    uint32_t size = sizeof(*bv) * T->getNumNodes();
    TR_ASSERT(boolTable->getOpcode() == TR_booltable, "error!");
    TR_CISCNode *defNode = boolTable->getChild(0);
    TR_CISCNode *defTargetNode = getP2TRepInLoop(defNode);
-   bv = (TR_BitVector **)trMemory()->allocateMemory(size, stackAlloc);
+   bv = (TR_BitVector **)comp()->trMemory()->allocateMemory(size, stackAlloc);
    memset(bv, 0, size);
 
    switch((defTargetNode ? defTargetNode : defNode)->getOpcode())
@@ -6836,7 +6836,7 @@ TR_CISCTransformer::analyzeByteBoolTable(TR_CISCNode *boolTable, uint8_t *table2
 int32_t
 TR_CISCTransformer::analyzeCharBoolTable(TR_CISCNode *boolTable, uint8_t *table65536, TR_CISCNode *ignoreNode, TR::TreeTop **retSameExit)
    {
-   TR::StackMemoryRegion stackMemoryRegion(*trMemory());
+   TR::StackMemoryRegion stackMemoryRegion(*comp()->trMemory());
 
    List<TR_CISCNode> *P2T = _P2T;
    List<TR_CISCNode> *T2P = _T2P;
@@ -6850,12 +6850,12 @@ TR_CISCTransformer::analyzeCharBoolTable(TR_CISCNode *boolTable, uint8_t *table6
    memset(table65536, 0, 65536);
    if (!boolTable || !getP2TRepInLoop(boolTable)) return 0;     // # of delimiter is zero
 
-   TR_BitVector **bv, defBV(ALLOCCHARBVSIZE, trMemory(), stackAlloc);
+   TR_BitVector **bv, defBV(ALLOCCHARBVSIZE, comp()->trMemory(), stackAlloc);
    uint32_t size = sizeof(*bv) * T->getNumNodes();
    TR_ASSERT(boolTable->getOpcode() == TR_booltable, "error!");
    TR_CISCNode *defNode = boolTable->getChild(0);
    TR_CISCNode *defTargetNode = getP2TRepInLoop(defNode);
-   bv = (TR_BitVector **)trMemory()->allocateMemory(size, stackAlloc);
+   bv = (TR_BitVector **)comp()->trMemory()->allocateMemory(size, stackAlloc);
    memset(bv, 0, size);
 
    switch((defTargetNode ? defTargetNode : defNode)->getOpcode())
@@ -7174,7 +7174,7 @@ TR_CISCTransformer::simpleOptimization()
    ListIterator<TR_CISCNode> ni(_T->getOrderByData());
    TR_CISCNode *n, *ch, *def;
    List<TR_CISCNode> *l;
-   TR_CISCNode quasiConst2(trMemory(), TR_quasiConst2, TR::NoType, 0, 0, 0, 0);
+   TR_CISCNode quasiConst2(comp()->trMemory(), TR_quasiConst2, TR::NoType, 0, 0, 0, 0);
 
    for (n = ni.getFirst(); n; n = ni.getNext())
       {
@@ -7515,7 +7515,7 @@ TR_CISCTransformer::computeTopologicalEmbedding(TR_CISCGraph *P, TR_CISCGraph *T
    if (showMesssagesStdout()) printf("Idiom: loop %d, %s\n",_bblistBody.getListHead()->getData()->getNumber(),
                                      P->getTitle());
    _sizeResult = _numPNodes * _numTNodes * sizeof(*_embeddedForData);
-   _embeddedForData = (uint8_t*)trMemory()->allocateMemory(_sizeResult, stackAlloc);
+   _embeddedForData = (uint8_t*)comp()->trMemory()->allocateMemory(_sizeResult, stackAlloc);
    if (!computeEmbeddedForData()) return false; // It cannot find all of the idiom nodes.
    if (showMesssagesStdout()) printf("find1 %s\n", P->getTitle());
    if (trace())
@@ -7523,10 +7523,10 @@ TR_CISCTransformer::computeTopologicalEmbedding(TR_CISCGraph *P, TR_CISCGraph *T
 
    // Step 2 computes embedding information for an input control flow graph.
    //
-   _embeddedForCFG = (uint8_t*)trMemory()->allocateMemory(_sizeResult, stackAlloc);
+   _embeddedForCFG = (uint8_t*)comp()->trMemory()->allocateMemory(_sizeResult, stackAlloc);
    _sizeDE = _numPNodes * sizeof(*_DE);
-   _EM = (uint8_t*)trMemory()->allocateMemory(_sizeResult, stackAlloc);
-   _DE = (uint8_t*)trMemory()->allocateMemory(_sizeDE, stackAlloc);
+   _EM = (uint8_t*)comp()->trMemory()->allocateMemory(_sizeResult, stackAlloc);
+   _DE = (uint8_t*)comp()->trMemory()->allocateMemory(_sizeDE, stackAlloc);
    if (!computeEmbeddedForCFG()) return false; // It cannot find all of the idiom nodes.
    if (showMesssagesStdout()) printf("find2 %s\n", P->getTitle());
    if (trace())
@@ -7537,9 +7537,9 @@ TR_CISCTransformer::computeTopologicalEmbedding(TR_CISCGraph *P, TR_CISCGraph *T
    // We can use them to find target nodes from pattern nodes, and vice versa.
    //
    _sizeP2T = _numPNodes * sizeof(*_P2T);
-   _P2T = (List<TR_CISCNode> *)trMemory()->allocateMemory(_sizeP2T, stackAlloc);
+   _P2T = (List<TR_CISCNode> *)comp()->trMemory()->allocateMemory(_sizeP2T, stackAlloc);
    _sizeT2P = _numTNodes * sizeof(*_T2P);
-   _T2P = (List<TR_CISCNode> *)trMemory()->allocateMemory(_sizeT2P, stackAlloc);
+   _T2P = (List<TR_CISCNode> *)comp()->trMemory()->allocateMemory(_sizeT2P, stackAlloc);
    if (!makeLists()) return false; // a variable corresponds to multiple nodes
    if (showMesssagesStdout()) printf("find3 %s\n", P->getTitle());
 

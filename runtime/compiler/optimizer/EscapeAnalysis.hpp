@@ -137,7 +137,7 @@ class Candidate : public TR_Link<Candidate>
         _initializedWords(0),
         _maxInlineDepth(0), _inlineBytecodeSize(0), _seenFieldStore(false), _seenSelfStore(false), _seenStoreToLocalObject(false), _seenArrayCopy(false), _argToCall(false), _usedInNonColdBlock(false), _lockedInNonColdBlock(false),_isImmutable(false),
         _originalAllocationNode(0), _lockedObject(false), _index(-1), _flushRequired(true),
-        _comp(c), _trMemory(c->trMemory()),
+        _comp(c),
         _flushMovedFrom(c->trMemory()),
         _symRefs(c->trMemory()),
         _callSites(c->trMemory()),
@@ -152,11 +152,6 @@ class Candidate : public TR_Link<Candidate>
          }
 
    TR::Compilation *          comp()                        { return _comp; }
-
-   TR_Memory *               trMemory()                    { return _trMemory; }
-   TR_StackMemory            trStackMemory()               { return _trMemory; }
-   TR_HeapMemory             trHeapMemory()                { return _trMemory; }
-   TR_PersistentMemory *     trPersistentMemory()          { return _trMemory->trPersistentMemory(); }
 
    bool isLocalAllocation()          {return _flags.testAny(LocalAllocation);}
    bool isContiguousAllocation()     {return mustBeContiguousAllocation() || hasCallSites();}
@@ -243,7 +238,7 @@ class Candidate : public TR_Link<Candidate>
          }
       else
          {
-         TR_ColdBlockEscapeInfo *coldBlockInfo = new (trStackMemory()) TR_ColdBlockEscapeInfo(block, node, tree, trMemory());
+         TR_ColdBlockEscapeInfo *coldBlockInfo = new (comp()->trStackMemory()) TR_ColdBlockEscapeInfo(block, node, tree, comp()->trMemory());
          _coldBlockEscapeInfo.add(coldBlockInfo);
          }
       }
@@ -261,7 +256,6 @@ class Candidate : public TR_Link<Candidate>
      void                   *_class;
      TR::Node                *_originalAllocationNode;
      TR::Compilation *        _comp;
-     TR_Memory *             _trMemory;
      TR::Node                *_stringCopyNode;
 
      TR::TreeTop             *_stringCopyCallTree;
@@ -762,9 +756,6 @@ class TR_LocalFlushElimination
 
    TR::Optimizer *        optimizer()                     { return _escapeAnalysis->optimizer(); }
    TR::Compilation *        comp()                          { return _escapeAnalysis->comp(); }
-
-   TR_Memory *               trMemory()                      { return comp()->trMemory(); }
-   TR_StackMemory            trStackMemory()                 { return comp()->trStackMemory(); }
 
    bool                      trace()                         { return _escapeAnalysis->trace(); }
 

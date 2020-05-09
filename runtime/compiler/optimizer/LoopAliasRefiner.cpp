@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2019 IBM Corp. and others
+ * Copyright (c) 2000, 2020 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -49,7 +49,7 @@ namespace TR { class TreeTop; }
 TR_LoopAliasRefiner::TR_LoopAliasRefiner(TR::OptimizationManager *manager)
    : TR_LoopVersioner(manager, true, true)
    {}
-  
+
 const char *
 TR_LoopAliasRefiner::optDetailString() const throw()
    {
@@ -75,7 +75,7 @@ void TR_LoopAliasRefiner::collectArrayAliasCandidates(TR::Node *parentArrayNode,
       if (!parentArrayNode->getOpCode().isLoadIndirect() && !parentArrayNode->getOpCode().isStoreIndirect())
          {
          _addressingTooComplicated = true;
-         if (trace()) 
+         if (trace())
             dumpOptDetails(comp(), "FAIL: Unexpected parentArrayNode to aiadd/aladd [%p]\n", parentArrayNode);
          return;
          }
@@ -83,8 +83,8 @@ void TR_LoopAliasRefiner::collectArrayAliasCandidates(TR::Node *parentArrayNode,
       // trivialarrayindependence may have already refined this shadow--if so ignore it
       if (comp()->getSymRefTab()->isRefinedArrayShadow(parentArrayNode->getSymbolReference()))
          {
-         if (trace()) 
-            traceMsg(comp(), "FAIL: Shadow #%d in [%p] already refined\n", 
+         if (trace())
+            traceMsg(comp(), "FAIL: Shadow #%d in [%p] already refined\n",
                             parentArrayNode->getSymbolReference()->getReferenceNumber(),
                             parentArrayNode);
          return;
@@ -107,7 +107,7 @@ void TR_LoopAliasRefiner::collectArrayAliasCandidates(TR::Node *parentArrayNode,
                             parentArrayNode);
          return;
          }
-      
+
       TR::Node *arrayAddress = node->getFirstChild();
 
       if (!_containsCall &&
@@ -121,7 +121,7 @@ void TR_LoopAliasRefiner::collectArrayAliasCandidates(TR::Node *parentArrayNode,
          if (trace())
             traceMsg(comp(), "\tA) Adding candidate node %p parent %p for block_%d\n", node, parentArrayNode, _currentBlock->getNumber());
 
-         _arrayMemberLoadCandidates->add(new (trStackMemory()) TR_NodeParentBlockTuple(node, parentArrayNode, _currentBlock));
+         _arrayMemberLoadCandidates->add(new (comp()->trStackMemory()) TR_NodeParentBlockTuple(node, parentArrayNode, _currentBlock));
          }
       }
    }
@@ -146,7 +146,7 @@ bool TR_LoopAliasRefiner::hasMulShadowTypes(TR_ScratchList<TR_NodeParentBlockTup
    for (; npbt; npbt = candIterator.getNext())
       {
           TR::SymbolReference *targetSymRef = npbt->_parent->getSymbolReference();
-      
+
       if(targetSymRef!=sourceSymRef && !sourceSymRef->getUseDefAliases().contains(targetSymRef, comp()))
          return true;
       }
@@ -177,7 +177,7 @@ bool TR_LoopAliasRefiner::processArrayAliasCandidates()
 
    if (trace())
       traceMsg(comp(), "LAR: Processing loop %d\n", _currentNaturalLoop->getNumber());
-  
+
    markAsProcessed(_currentNaturalLoop->getNumber());
 
    if (!SPMDPreCheck::isSPMDCandidate(comp(), _currentNaturalLoop))
@@ -187,24 +187,24 @@ bool TR_LoopAliasRefiner::processArrayAliasCandidates()
       return false;
       }
 
-   TR_ScratchList<IVValueRange> ivList(trMemory()); // list of all ivs possibly referenced in this loop
+   TR_ScratchList<IVValueRange> ivList(comp()->trMemory()); // list of all ivs possibly referenced in this loop
 
    ListIterator<TR_NodeParentBlockTuple> useCand(_arrayLoadCandidates);
    TR_NodeParentBlockTuple *curTuple;
- 
-   _arrayRanges = new(trStackMemory()) TR_ScratchList<ArrayRangeLimits>(trMemory());
- 
+
+   _arrayRanges = new(comp()->trStackMemory()) TR_ScratchList<ArrayRangeLimits>(comp()->trMemory());
+
    numUses = 0;
 
    bool goodCandidateDetected = false;
-   
+
    if (trace())
-      traceMsg(comp(), "LAR: Finished loop processing\n\t%s\n", 
+      traceMsg(comp(), "LAR: Finished loop processing\n\t%s\n",
                      (haveGoodMemberCandidates) &&
                      foundSecondArray?"Candidates exist":"No Candidates");
 
    if (!foundSecondArray || !haveGoodMemberCandidates) return false;
-   
+
    ListIterator<TR_NodeParentBlockTuple> memberCand(_arrayMemberLoadCandidates);
 
    numUses = 0;
@@ -212,7 +212,7 @@ bool TR_LoopAliasRefiner::processArrayAliasCandidates()
    bool atLeastOneStore = false;
 
    while (curTuple = _arrayMemberLoadCandidates->popHead())
-      { 
+      {
       memberCand.reset();
       int32_t refCount = 0;
 
@@ -235,18 +235,18 @@ bool TR_LoopAliasRefiner::processArrayAliasCandidates()
          }
 
 
-      TR_ScratchList<TR_NodeParentBlockTuple> *copyOfCandidateRefs = new(trStackMemory()) TR_ScratchList<TR_NodeParentBlockTuple>(trMemory());
+      TR_ScratchList<TR_NodeParentBlockTuple> *copyOfCandidateRefs = new(comp()->trStackMemory()) TR_ScratchList<TR_NodeParentBlockTuple>(comp()->trMemory());
       TR::SymbolReference *arrayAccessSymRef = curTuple->_parent->getSymbolReference();
 
       for (; curTuple; curTuple = memberCand.getNext())
          {
          if (false)
-            traceMsg(comp(), "    this:#%d member:%d offset %d indshadow:#%d\n",  
-                            curTuple->_node->getFirstChild()->getFirstChild()->getSymbolReference()->getReferenceNumber(), 
-                            curTuple->_node->getFirstChild()->getSymbolReference()->getReferenceNumber(),  
-                            curTuple->_node->getFirstChild()->getSymbolReference()->getOffset(), 
+            traceMsg(comp(), "    this:#%d member:%d offset %d indshadow:#%d\n",
+                            curTuple->_node->getFirstChild()->getFirstChild()->getSymbolReference()->getReferenceNumber(),
+                            curTuple->_node->getFirstChild()->getSymbolReference()->getReferenceNumber(),
+                            curTuple->_node->getFirstChild()->getSymbolReference()->getOffset(),
                             curTuple->_parent->getSymbolReference()->getReferenceNumber());
-         
+
          //if (numUses >= 2)
             goodCandidateDetected = true;// expect at least two uses between stores for commoning
 
@@ -288,10 +288,10 @@ bool TR_LoopAliasRefiner::processArrayAliasCandidates()
 
       if (goodCandidateDetected)
          {
-         if (trace()) 
+         if (trace())
             traceMsg(comp(), "\tAdding entry for base #%d member #%d offset %d with %d refs\n",
                              currentBaseSymRef->getReferenceNumber(),
-                             currentMemberSymRef ? currentMemberSymRef->getReferenceNumber() : 0, 
+                             currentMemberSymRef ? currentMemberSymRef->getReferenceNumber() : 0,
                              currentMemberSymRef ? currentMemberSymRef->getOffset() : 0,
                              refCount);
 
@@ -312,11 +312,11 @@ bool TR_LoopAliasRefiner::processArrayAliasCandidates()
 
 void TR_LoopAliasRefiner::initAdditionalDataStructures()
    {
-   _processedLoops = new(trStackMemory()) TR_BitVector(1, trMemory(), stackAlloc, growable);
+   _processedLoops = new(comp()->trStackMemory()) TR_BitVector(1, comp()->trMemory(), stackAlloc, growable);
    }
 
 void TR_LoopAliasRefiner::buildAliasRefinementComparisonTrees(List<TR::TreeTop> *nullCheckTrees, List<TR::TreeTop> *divCheckTrees, List<TR::TreeTop> *checkCastTrees, List<TR::TreeTop> *arrayStoreCheckTrees, TR_ScratchList<TR::Node> *comparisonTrees,  TR::Block *exitGotoBlock)
-   { 
+   {
    if (!_arrayRanges)
       {
       if (trace())
@@ -338,18 +338,18 @@ void TR_LoopAliasRefiner::buildAliasRefinementComparisonTrees(List<TR::TreeTop> 
         collectAllExpressionsToBeChecked(nullCheckTrees, divCheckTrees, checkCastTrees, arrayStoreCheckTrees, nodeToBeNullChkd, comparisonTrees, exitGotoBlock, visitCount);
         }
 
-   TR_ScratchList<ArrayRangeLimits> *listCopy = new(trStackMemory()) TR_ScratchList<ArrayRangeLimits>(trMemory());
+   TR_ScratchList<ArrayRangeLimits> *listCopy = new(comp()->trStackMemory()) TR_ScratchList<ArrayRangeLimits>(comp()->trMemory());
 
    while( ArrayRangeLimits *arlAPtr = _arrayRanges->popHead())
       {
       listCopy->add(arlAPtr);
-    
+
       ListIterator<ArrayRangeLimits> arIterator(_arrayRanges);
       ArrayRangeLimits *arlBPtr;
       for (arlBPtr = arIterator.getFirst(); arlBPtr; arlBPtr = arIterator.getNext())
          {
          TR::Node *testExpr  =  arlAPtr->createRangeTestExpr(comp(), arlBPtr, exitGotoBlock, trace());
-         if (testExpr && performTransformation(comp(), "%sAdding test [%p] to refine aliases for loop %d\n", 
+         if (testExpr && performTransformation(comp(), "%sAdding test [%p] to refine aliases for loop %d\n",
                                            optDetailString(),
                                            testExpr, _currentNaturalLoop->getNumber()))
             {
@@ -369,14 +369,14 @@ TR_LoopAliasRefiner::refineArrayAliases(TR_RegionStructure *whileLoop)
 
    vcount_t visitCount = comp()->incVisitCount();
    ListIterator<ArrayRangeLimits> arIterator(_arrayRanges);
-   TR_ScratchList<TR::SymbolReference> newShadowList(trMemory());
+   TR_ScratchList<TR::SymbolReference> newShadowList(comp()->trMemory());
 
    for (ArrayRangeLimits *arlPtr = arIterator.getFirst(); arlPtr; arlPtr = arIterator.getNext())
       {
       TR_ScratchList<TR_NodeParentBlockTuple> *list = arlPtr->getCandidateList();
       ListIterator<TR_NodeParentBlockTuple> candIterator(list);
       TR_NodeParentBlockTuple* npbt;
-    
+
       if (!performTransformation(comp(), "%sReplacing shadows for array reference #%d\n",
                                          optDetailString(),
                                          arlPtr->getBaseSymRef()->getReferenceNumber()))
@@ -384,7 +384,7 @@ TR_LoopAliasRefiner::refineArrayAliases(TR_RegionStructure *whileLoop)
 
       TR::SymbolReference * oldShadow = NULL;
       TR::SymbolReference * newShadow = NULL;
-   
+
       for (npbt = candIterator.getFirst(); npbt; npbt = candIterator.getNext())
          {
          TR::Node *targetNode = npbt->_parent;
@@ -399,8 +399,8 @@ TR_LoopAliasRefiner::refineArrayAliases(TR_RegionStructure *whileLoop)
             {
             newShadow = comp()->getSymRefTab()->createRefinedArrayShadowSymbolRef(oldShadow->getSymbol()->getDataType());
 
-            dumpOptDetails(comp(), "Replacing1 shadow #%d with #%d in [%p] %d %d\n", oldShadow->getReferenceNumber(), 
-                          newShadow->getReferenceNumber(), targetNode, oldShadow->getSymbol()->getDataType().getDataType(), 
+            dumpOptDetails(comp(), "Replacing1 shadow #%d with #%d in [%p] %d %d\n", oldShadow->getReferenceNumber(),
+                          newShadow->getReferenceNumber(), targetNode, oldShadow->getSymbol()->getDataType().getDataType(),
                                                                        newShadow->getSymbol()->getDataType().getDataType());
 
             ListIterator<TR::SymbolReference> symRefIterator(&newShadowList);
@@ -413,7 +413,7 @@ TR_LoopAliasRefiner::refineArrayAliases(TR_RegionStructure *whileLoop)
             newShadowList.add(newShadow);
             }
 
-         dumpOptDetails(comp(), "Replacing2 shadow #%d with #%d in [%p] %d %d\n", oldShadow->getReferenceNumber(), 
+         dumpOptDetails(comp(), "Replacing2 shadow #%d with #%d in [%p] %d %d\n", oldShadow->getReferenceNumber(),
                           newShadow->getReferenceNumber(), targetNode, oldShadow->getSymbol()->getDataType().getDataType(),
                           newShadow->getSymbol()->getDataType().getDataType());
 
@@ -427,7 +427,7 @@ TR_LoopAliasRefiner::refineArrayAliases(TR_RegionStructure *whileLoop)
 
 
 
-/* 
+/*
  * Create a conditional branch based on the limits of current range vs other range.  The test should look like
  * if (a == b && (other.low <= this.high && this.low <= other.high)) goto unrefined loop
  *
@@ -441,11 +441,11 @@ TR_LoopAliasRefiner::ArrayRangeLimits::createRangeTestExpr(TR::Compilation *comp
 
    dumpOptDetails(comp, "#%d(%d) (member #%d(%d) vs. #%d(%d) (member #%d(%d))\n",
                           getBaseSymRef()->getReferenceNumber(),
-                          getBaseSymRef()->getOffset(), 
+                          getBaseSymRef()->getOffset(),
                           getMemberSymRef() ? getMemberSymRef()->getReferenceNumber() : 0,
                           getMemberSymRef() ? getMemberSymRef()->getOffset() : 0,
                           other->getBaseSymRef()->getReferenceNumber(),
-                          other->getBaseSymRef()->getOffset(), 
+                          other->getBaseSymRef()->getOffset(),
                           other->getMemberSymRef() ? other->getMemberSymRef()->getReferenceNumber() : 0,
                           other->getMemberSymRef() ? other->getMemberSymRef()->getOffset() : 0);
 

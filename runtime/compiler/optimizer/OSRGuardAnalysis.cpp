@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2019 IBM Corp. and others
+ * Copyright (c) 2000, 2020 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -39,11 +39,11 @@ TR_OSRGuardAnalysis::TR_OSRGuardAnalysis(TR::Compilation *comp, TR::Optimizer *o
    if (comp->getVisitCount() > 8000)
       comp->resetVisitCounts(1);
 
-   _containsYields = new (trStackMemory()) TR_BitVector(0, trMemory(), stackAlloc, growable);
+   _containsYields = new (comp->trStackMemory()) TR_BitVector(0, comp->trMemory(), stackAlloc, growable);
    initializeBlockInfo();
-   
+
    {
-   TR::StackMemoryRegion stackMemoryRegion(*trMemory());
+   TR::StackMemoryRegion stackMemoryRegion(*comp->trMemory());
    performAnalysis(rootStructure, false);
    }
 
@@ -55,7 +55,7 @@ bool TR_OSRGuardAnalysis::supportsGenAndKillSets() { return true; }
 
 TR_DataFlowAnalysis::Kind TR_OSRGuardAnalysis::getKind() { return OSRGuardAnalysis; }
 
-void TR_OSRGuardAnalysis::analyzeNode(TR::Node *node, vcount_t visitCount, TR_BlockStructure *block, TR_SingleBitContainer *bv) 
+void TR_OSRGuardAnalysis::analyzeNode(TR::Node *node, vcount_t visitCount, TR_BlockStructure *block, TR_SingleBitContainer *bv)
    {
    }
 
@@ -82,10 +82,10 @@ void TR_OSRGuardAnalysis::initializeGenAndKillSetInfo()
    {
    for (int32_t i = 0; i < comp()->getFlowGraph()->getNextNodeNumber(); ++i)
       {
-      _regularGenSetInfo[i] = new (trStackMemory()) TR_SingleBitContainer(getNumberOfBits(),trMemory(), stackAlloc);
-      _exceptionGenSetInfo[i] = new (trStackMemory()) TR_SingleBitContainer(getNumberOfBits(),trMemory(), stackAlloc);
-      _regularKillSetInfo[i] = new (trStackMemory()) TR_SingleBitContainer(getNumberOfBits(),trMemory(), stackAlloc);
-      _exceptionKillSetInfo[i] = new (trStackMemory()) TR_SingleBitContainer(getNumberOfBits(),trMemory(), stackAlloc);
+      _regularGenSetInfo[i] = new (comp()->trStackMemory()) TR_SingleBitContainer(getNumberOfBits(),comp()->trMemory(), stackAlloc);
+      _exceptionGenSetInfo[i] = new (comp()->trStackMemory()) TR_SingleBitContainer(getNumberOfBits(),comp()->trMemory(), stackAlloc);
+      _regularKillSetInfo[i] = new (comp()->trStackMemory()) TR_SingleBitContainer(getNumberOfBits(),comp()->trMemory(), stackAlloc);
+      _exceptionKillSetInfo[i] = new (comp()->trStackMemory()) TR_SingleBitContainer(getNumberOfBits(),comp()->trMemory(), stackAlloc);
       }
 
    TR::Block *block = comp()->getStartTree()->getEnclosingBlock();

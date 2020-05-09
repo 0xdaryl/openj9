@@ -86,9 +86,9 @@ InterpreterEmulator::maintainStackForGetField()
       TR::Symbol::RecognizedField recognizedField = TR::Symbol::searchRecognizedField(comp(), _calltarget->_calleeMethod, cpIndex, false);
       TR::Symbol *fieldSymbol = NULL;
       if (recognizedField != TR::Symbol::UnknownField)
-         fieldSymbol = TR::Symbol::createRecognizedShadow(trStackMemory(),type, recognizedField);
+         fieldSymbol = TR::Symbol::createRecognizedShadow(comp()->trStackMemory(),type, recognizedField);
       else
-         fieldSymbol = TR::Symbol::createShadow(trStackMemory(),type);
+         fieldSymbol = TR::Symbol::createShadow(comp()->trStackMemory(),type);
       if (isFinal)
          fieldSymbol->setFinal();
 
@@ -118,10 +118,10 @@ InterpreterEmulator::maintainStackForGetField()
                   {
                   knot->updateKnownObjectTableAtServer(resultIndex, objectPointerReference);
 
-                  newOperand = new (trStackMemory()) KnownObjOperand(resultIndex);
+                  newOperand = new (comp()->trStackMemory()) KnownObjOperand(resultIndex);
                   int32_t len = 0;
                   debugTrace(tracer(), "dereference obj%d (%p)from field %s(offset = %d) of base obj%d(%p)\n",
-                        newOperand->getKnownObjectIndex(), (void *)fieldAddress, _calltarget->_calleeMethod->fieldName(cpIndex, len, this->trMemory()),
+                        newOperand->getKnownObjectIndex(), (void *)fieldAddress, _calltarget->_calleeMethod->fieldName(cpIndex, len, comp()->trMemory()),
                         fieldOffset, baseObjectIndex, baseObjectAddress);
                   }
                }
@@ -136,10 +136,10 @@ InterpreterEmulator::maintainStackForGetField()
                if (fieldDeclaringClass && comp()->fej9()->isInstanceOf(baseObjectClass, fieldDeclaringClass, true) == TR_yes)
                   {
                   uintptr_t fieldAddress = comp()->fej9()->getReferenceFieldAtAddress(baseObjectAddress + fieldOffset);
-                  newOperand = new (trStackMemory()) KnownObjOperand(knot->getOrCreateIndex(fieldAddress));
+                  newOperand = new (comp()->trStackMemory()) KnownObjOperand(knot->getOrCreateIndex(fieldAddress));
                   int32_t len = 0;
                   debugTrace(tracer(), "dereference obj%d (%p)from field %s(offset = %d) of base obj%d(%p)\n",
-                        newOperand->getKnownObjectIndex(), (void *)fieldAddress, _calltarget->_calleeMethod->fieldName(cpIndex, len, this->trMemory()),
+                        newOperand->getKnownObjectIndex(), (void *)fieldAddress, _calltarget->_calleeMethod->fieldName(cpIndex, len, comp()->trMemory()),
                         fieldOffset, baseObjectIndex, baseObjectAddress);
                   }
                }
@@ -159,20 +159,20 @@ InterpreterEmulator::saveStack(int32_t targetIndex)
       return;
    bool createTargetStack = (targetIndex >= 0 && !_stacks[targetIndex]);
    if (createTargetStack)
-      _stacks[targetIndex] = new (trStackMemory()) ByteCodeStack(this->trMemory(), std::max<uint32_t>(20, _stack->size()));
+      _stacks[targetIndex] = new (comp()->trStackMemory()) ByteCodeStack(comp()->trMemory(), std::max<uint32_t>(20, _stack->size()));
    }
 
 void
 InterpreterEmulator::initializeIteratorWithState()
    {
    _iteratorWithState = true;
-   _unknownOperand = new (trStackMemory()) Operand();
+   _unknownOperand = new (comp()->trStackMemory()) Operand();
    uint32_t size = this->maxByteCodeIndex() + 5;
-   _flags  = (flags8_t *) this->trMemory()->allocateStackMemory(size * sizeof(flags8_t));
-   _stacks = (ByteCodeStack * *) this->trMemory()->allocateStackMemory(size * sizeof(ByteCodeStack *));
+   _flags  = (flags8_t *) comp()->trMemory()->allocateStackMemory(size * sizeof(flags8_t));
+   _stacks = (ByteCodeStack * *) comp()->trMemory()->allocateStackMemory(size * sizeof(ByteCodeStack *));
    memset(_flags, 0, size * sizeof(flags8_t));
    memset(_stacks, 0, size * sizeof(ByteCodeStack *));
-   _stack = new (trStackMemory()) TR_Stack<Operand *>(this->trMemory(), 20, false, stackAlloc);
+   _stack = new (comp()->trStackMemory()) TR_Stack<Operand *>(comp()->trMemory(), 20, false, stackAlloc);
 
    genBBStart(0);
    setupBBStartContext(0);
@@ -198,19 +198,19 @@ InterpreterEmulator::maintainStack(TR_J9ByteCode bc)
       case J9BCinvokespecialsplit:
          maintainStackForDirectCall(_calltarget->_calleeMethod);
          break;
-      case J9BCiconstm1: push (new (trStackMemory()) IconstOperand(-1)); break;
-      case J9BCiconst0:  push (new (trStackMemory()) IconstOperand(0)); break;
-      case J9BCiconst1:  push (new (trStackMemory()) IconstOperand(1)); break;
-      case J9BCiconst2:  push (new (trStackMemory()) IconstOperand(2)); break;
-      case J9BCiconst3:  push (new (trStackMemory()) IconstOperand(3)); break;
-      case J9BCiconst4:  push (new (trStackMemory()) IconstOperand(4)); break;
-      case J9BCiconst5:  push (new (trStackMemory()) IconstOperand(5)); break;
+      case J9BCiconstm1: push (new (comp()->trStackMemory()) IconstOperand(-1)); break;
+      case J9BCiconst0:  push (new (comp()->trStackMemory()) IconstOperand(0)); break;
+      case J9BCiconst1:  push (new (comp()->trStackMemory()) IconstOperand(1)); break;
+      case J9BCiconst2:  push (new (comp()->trStackMemory()) IconstOperand(2)); break;
+      case J9BCiconst3:  push (new (comp()->trStackMemory()) IconstOperand(3)); break;
+      case J9BCiconst4:  push (new (comp()->trStackMemory()) IconstOperand(4)); break;
+      case J9BCiconst5:  push (new (comp()->trStackMemory()) IconstOperand(5)); break;
       case J9BCifne:
-         push (new (trStackMemory()) IconstOperand(0));
+         push (new (comp()->trStackMemory()) IconstOperand(0));
          maintainStackForIf(J9BCificmpne);
          break;
       case J9BCifeq:
-         push (new (trStackMemory()) IconstOperand(0));
+         push (new (comp()->trStackMemory()) IconstOperand(0));
          maintainStackForIf(J9BCificmpeq);
          break;
       case J9BCgoto:
@@ -285,7 +285,7 @@ InterpreterEmulator::maintainStackForAload(int slotIndex)
       if (prexArgument && TR_PrexArgument::knowledgeLevel(prexArgument) == KNOWN_OBJECT)
          {
          debugTrace(tracer(), "aload known obj%d from slot %d\n", prexArgument->getKnownObjectIndex(), slotIndex);
-         push(new (trStackMemory()) KnownObjOperand(prexArgument->getKnownObjectIndex()));
+         push(new (comp()->trStackMemory()) KnownObjOperand(prexArgument->getKnownObjectIndex()));
          return;
          }
       }
@@ -297,7 +297,7 @@ InterpreterEmulator::maintainStackForCall(TR_ResolvedMethod *callerMethod, Opera
    {
    TR_ASSERT_FATAL(_iteratorWithState, "has to be called when the iterator has state!");
    int32_t cpIndex = next2Bytes();
-   TR::Method * calleeMethod = comp()->fej9()->createMethod(trMemory(), callerMethod->containingClass(), cpIndex);
+   TR::Method * calleeMethod = comp()->fej9()->createMethod(comp()->trMemory(), callerMethod->containingClass(), cpIndex);
    int32_t argNum = calleeMethod->numberOfExplicitParameters() + (isDirect ? 0: 1);
 
    for (int i = 1; i <= argNum; i++)
@@ -341,10 +341,10 @@ InterpreterEmulator::getReturnValueForInvokestatic(TR_ResolvedMethod *callee)
    switch (recognizedMethod)
       {
       case TR::java_lang_invoke_ILGenMacros_isCustomThunk:
-         result = new (trStackMemory()) IconstOperand(1);
+         result = new (comp()->trStackMemory()) IconstOperand(1);
          break;
       case TR::java_lang_invoke_ILGenMacros_isShareableThunk:
-         result = new (trStackMemory()) IconstOperand(0);
+         result = new (comp()->trStackMemory()) IconstOperand(0);
          break;
       }
    return result;
@@ -382,7 +382,7 @@ InterpreterEmulator::getReturnValueForInvokevirtual(TR_ResolvedMethod *callee)
                {
                knot->updateKnownObjectTableAtServer(resultIndex, objectPointerReference);
                }
-            result = new (trStackMemory()) MutableCallsiteTargetOperand(resultIndex, receiverIndex);
+            result = new (comp()->trStackMemory()) MutableCallsiteTargetOperand(resultIndex, receiverIndex);
             }
          else
 #endif /* defined(J9VM_OPT_JITSERVER) */
@@ -394,7 +394,7 @@ InterpreterEmulator::getReturnValueForInvokevirtual(TR_ResolvedMethod *callee)
             TR_ASSERT_FATAL(comp()->fej9()->isInstanceOf(receiverClass, mutableCallsiteClass, true) == TR_yes, "receiver of mutableCallsite_getTarget must be instance of MutableCallSite (*%p)", knot->getPointerLocation(receiverIndex));
             uintptr_t fieldAddress = comp()->fej9()->getReferenceFieldAt(receiverAddress, targetFieldOffset);
             resultIndex = knot->getOrCreateIndex(fieldAddress);
-            result = new (trStackMemory()) MutableCallsiteTargetOperand(resultIndex, receiverIndex);
+            result = new (comp()->trStackMemory()) MutableCallsiteTargetOperand(resultIndex, receiverIndex);
             }
          }
       }
@@ -434,7 +434,7 @@ InterpreterEmulator::refineResolvedCalleeForInvokestatic(TR_ResolvedMethod *&cal
          if (mhIndex != TR::KnownObjectTable::UNKNOWN)
             {
             debugTrace(tracer(), "refine java_lang_invoke_MethodHandle_invokeExact with obj%d to archetype specimen at bcIndex=%d\n", mhIndex, _bcIndex);
-            callee = comp()->fej9()->createMethodHandleArchetypeSpecimen(this->trMemory(), comp()->getKnownObjectTable()->getPointerLocation(mhIndex), _calltarget->_calleeMethod);
+            callee = comp()->fej9()->createMethodHandleArchetypeSpecimen(comp()->trMemory(), comp()->getKnownObjectTable()->getPointerLocation(mhIndex), _calltarget->_calleeMethod);
             }
          return;
          }
@@ -501,7 +501,7 @@ InterpreterEmulator::refineResolvedCalleeForInvokestatic(TR_ResolvedMethod *&cal
                }
             }
          TR_ASSERT(j9method, "Must have a j9method to generate a custom call");
-         callee = fej9->createResolvedMethod(this->trMemory(), j9method);
+         callee = fej9->createResolvedMethod(comp()->trMemory(), j9method);
          return;
          }
       }
@@ -612,7 +612,7 @@ InterpreterEmulator::visitInvokedynamic()
       uintptr_t *entryLocation = (uintptr_t*)owningMethod->callSiteTableEntryAddress(cpIndex);
       // Add callsite handle to known object table
       knot->getOrCreateIndexAt((uintptr_t*)entryLocation);
-      TR_ResolvedMethod * resolvedMethod = comp()->fej9()->createMethodHandleArchetypeSpecimen(this->trMemory(), entryLocation, owningMethod);
+      TR_ResolvedMethod * resolvedMethod = comp()->fej9()->createMethodHandleArchetypeSpecimen(comp()->trMemory(), entryLocation, owningMethod);
       bool allconsts= false;
 
       heuristicTrace(tracer(),"numberOfExplicitParameters = %d  _pca.getNumPrevConstArgs = %d\n", resolvedMethod->numberOfExplicitParameters() , _pca.getNumPrevConstArgs(resolvedMethod->numberOfExplicitParameters()));
@@ -657,7 +657,7 @@ InterpreterEmulator::debugUnresolvedOrCold(TR_ResolvedMethod *resolvedMethod)
                cpIndex |= J9_STATIC_SPLIT_TABLE_INDEX_FLAG;
                break;
             }
-         TR::Method *meth = comp()->fej9()->createMethod(this->trMemory(), _calltarget->_calleeMethod->containingClass(), cpIndex);
+         TR::Method *meth = comp()->fej9()->createMethod(comp()->trMemory(), _calltarget->_calleeMethod->containingClass(), cpIndex);
          heuristicTrace(tracer(), "Depth %d: Call at bc index %d is Cold.  Not searching for targets. Signature %s", _recursionDepth, _bcIndex, meth->signature(comp()->trMemory()));
          }
       }
@@ -866,7 +866,7 @@ InterpreterEmulator::visitInvokeinterface()
 
    TR::Method * interfaceMethod = NULL;
    if (isInterface)
-      interfaceMethod = comp()->fej9()->createMethod(this->trMemory(), _calltarget->_calleeMethod->containingClass(), cpIndex);
+      interfaceMethod = comp()->fej9()->createMethod(comp()->trMemory(), _calltarget->_calleeMethod->containingClass(), cpIndex);
 
    TR::TreeTop *callNodeTreeTop = 0;
    TR::Node *parent = 0;

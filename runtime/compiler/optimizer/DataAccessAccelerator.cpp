@@ -1457,12 +1457,12 @@ void TR_DataAccessAccelerator::createPrecisionDiamond(TR::Compilation* comp,
    // Other block is a fall-through of the fast block
    fastExit->join(otherBlock->getEntry());
 
-   cfg->addEdge(TR::CFGEdge::createEdge(lastTestBlock,  fastBlock, trMemory()));
-   cfg->addEdge(TR::CFGEdge::createEdge(fastBlock,   otherBlock, trMemory()));
-   cfg->addEdge(TR::CFGEdge::createEdge(slowBlock,   otherBlock, trMemory()));
+   cfg->addEdge(TR::CFGEdge::createEdge(lastTestBlock,  fastBlock, comp->trMemory()));
+   cfg->addEdge(TR::CFGEdge::createEdge(fastBlock,   otherBlock, comp->trMemory()));
+   cfg->addEdge(TR::CFGEdge::createEdge(slowBlock,   otherBlock, comp->trMemory()));
    for(int i = 0; i < numGuards; ++i)
       {
-      cfg->addEdge(TR::CFGEdge::createEdge(testBlocks[i], slowBlock, trMemory()));
+      cfg->addEdge(TR::CFGEdge::createEdge(testBlocks[i], slowBlock, comp->trMemory()));
       }
 
    // We introduced fastBlock in between these two, so it is not needed anymore

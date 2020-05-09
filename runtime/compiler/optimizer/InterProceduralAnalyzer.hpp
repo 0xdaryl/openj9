@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2019 IBM Corp. and others
+ * Copyright (c) 2000, 2020 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -54,11 +54,11 @@ struct PriorPeekInfo
    {
    TR_ResolvedMethod *_method;
    TR_LinkHead<TR_ClassLoadCheck> _classesThatShouldNotBeLoaded;
-   TR_LinkHead<TR_ClassExtendCheck> _classesThatShouldNotBeNewlyExtended; 
+   TR_LinkHead<TR_ClassExtendCheck> _classesThatShouldNotBeNewlyExtended;
    TR_LinkHead<TR::GlobalSymbol> _globalsWritten;
    };
 
-class InterProceduralAnalyzer 
+class InterProceduralAnalyzer
    {
 public:
    TR_ALLOC(TR_Memory::InterProceduralAnalyzer)
@@ -70,18 +70,14 @@ public:
    TR_FrontEnd * fe() { return _fe; }
    TR::Compilation * comp() { return _compilation; }
 
-   TR_Memory *               trMemory()                    { return _trMemory; }
-   TR_StackMemory            trStackMemory()               { return _trMemory; }
-   TR_HeapMemory             trHeapMemory()                { return _trMemory; }
-
    List<OMR::RuntimeAssumption> *analyzeCall(TR::Node *);
    List<OMR::RuntimeAssumption> *analyzeCallGraph(TR::Node *, bool *);
    List<OMR::RuntimeAssumption> *analyzeMethod(TR::Node *, TR_ResolvedMethod *, bool *);
-     
+
    bool isOnPeekingStack(TR_ResolvedMethod *method);
    bool capableOfPeekingVirtualCalls();
    bool trace() { return _trace; }
-     
+
    bool addClassThatShouldNotBeLoaded(char *name, int32_t len);
    bool addClassThatShouldNotBeNewlyExtended(TR_OpaqueClassBlock *clazz);
    bool addSingleClassThatShouldNotBeNewlyExtended(TR_OpaqueClassBlock *clazz);
@@ -103,7 +99,6 @@ protected:
    bool _trace;
    TR_OpaqueClassBlock *_classPointer;
    TR::Compilation *_compilation;
-   TR_Memory * _trMemory;
    TR::SymbolReferenceTable *_symRefTab;
    TR::SymbolReferenceTable *_currentPeekingSymRefTab;
    TR_FrontEnd *_fe;
@@ -120,9 +115,9 @@ protected:
 
 public:
    TR_LinkHead<TR_ClassLoadCheck> _classesThatShouldNotBeLoaded;
-   TR_LinkHead<TR_ClassExtendCheck> _classesThatShouldNotBeNewlyExtended; 
+   TR_LinkHead<TR_ClassExtendCheck> _classesThatShouldNotBeNewlyExtended;
    TR_LinkHead<TR_ClassExtendCheck> *_classesThatShouldNotBeNewlyExtendedHT;
-   TR_LinkHead<TR::GlobalSymbol> _globalsWritten; 
+   TR_LinkHead<TR::GlobalSymbol> _globalsWritten;
    };
 
 }

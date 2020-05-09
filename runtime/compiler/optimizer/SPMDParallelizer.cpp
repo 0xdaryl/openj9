@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2019 IBM Corp. and others
+ * Copyright (c) 2000, 2020 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -147,7 +147,7 @@ TR::Node * TR_SPMDKernelParallelizer::findLoopDataType(TR::Node* node, TR::Compi
 void TR_SPMDKernelParallelizer::setLoopDataType(TR_RegionStructure *loop,TR::Compilation *comp)
    {
 
-   TR_ScratchList<TR::Block> blocksInLoop(trMemory());
+   TR_ScratchList<TR::Block> blocksInLoop(comp->trMemory());
    loop->getBlocks(&blocksInLoop);
    ListIterator<TR::Block> blocksIt(&blocksInLoop);
 
@@ -1393,8 +1393,8 @@ bool TR_SPMDKernelParallelizer::processSPMDKernelLoopForSIMDize(TR::Compilation 
    // need scalar loop for handling residual iterations
    // piggybacking on loop unroller implementation
 
-   //void *stackMark = trMemory()->markStack();
-   TR::StackMemoryRegion stackMemoryRegion(*trMemory());
+   //void *stackMark = comp()->trMemory()->markStack();
+   TR::StackMemoryRegion stackMemoryRegion(*comp->trMemory());
 
    unroller.unroll(loop, branchNode);
 
@@ -1405,9 +1405,9 @@ bool TR_SPMDKernelParallelizer::processSPMDKernelLoopForSIMDize(TR::Compilation 
    unroller._optimizer->setEnableOptimization(inductionVariableAnalysis, true, NULL);
 #endif
 
-   //trMemory()->releaseStack(stackMark);
+   //comp()->trMemory()->releaseStack(stackMark);
 
-   TR_ScratchList<TR::Block> blocksInLoop(trMemory());
+   TR_ScratchList<TR::Block> blocksInLoop(comp->trMemory());
    loop->getBlocks(&blocksInLoop);
    ListIterator<TR::Block> blocksIt1(&blocksInLoop);
 
@@ -2739,7 +2739,7 @@ void TR_SPMDKernelParallelizer::insertGPURegionExitInRegionExits(List<TR::Block>
    List<TR::CFGEdge> exitEdges(comp()->trMemory());
 
    TR::CFG *cfg = comp()->getFlowGraph();
-   TR_BitVector *blocksInsideLoop = new (trStackMemory()) TR_BitVector(cfg->getNextNodeNumber(), trMemory(), stackAlloc);
+   TR_BitVector *blocksInsideLoop = new (comp()->trStackMemory()) TR_BitVector(cfg->getNextNodeNumber(), comp()->trMemory(), stackAlloc);
 
    TR::Block *blockInLoop = 0;
    ListIterator<TR::Block> si(blocksInRegion);
@@ -2980,11 +2980,11 @@ bool TR_SPMDKernelParallelizer::processGPULoop(TR_RegionStructure *loop, TR_SPMD
 
    char *programSource;
    TR::Node *errorNode;
-   List<TR::AutomaticSymbol> autos(trMemory());
+   List<TR::AutomaticSymbol> autos(comp()->trMemory());
    ListAppender<TR::AutomaticSymbol> aa(&autos);
    aa.add((TR::AutomaticSymbol*)piv->getSymRef()->getSymbol());
 
-   List<TR::ParameterSymbol> parms(trMemory());
+   List<TR::ParameterSymbol> parms(comp()->trMemory());
    ListAppender<TR::ParameterSymbol> pa(&parms);
 
    comp()->cg()->_gpuSymbolMap.MakeEmpty();
@@ -3349,13 +3349,13 @@ bool TR_SPMDKernelParallelizer::processGPULoop(TR_RegionStructure *loop, TR_SPMD
 TR_SPMDKernelParallelizer::TR_SPMDKernelParallelizer(TR::OptimizationManager *manager)
     : TR_LoopTransformer(manager), _pivList(comp()->allocator(), NULL), _visitedNodes(comp()->getNodeCount(), comp()->trMemory(), heapAlloc, growable)
    {
-   _loopDataType = new (trStackMemory()) TR_HashTab(comp()->trMemory(), stackAlloc, comp()->getFlowGraph()->getNextNodeNumber());
+   _loopDataType = new (comp()->trStackMemory()) TR_HashTab(comp()->trMemory(), stackAlloc, comp()->getFlowGraph()->getNextNodeNumber());
 
 #if 0 // TODO: do we need to set these flags somewhere ?
    if (comp()->getMethodHotness() > warm)
       _flags.set(requiresLocalsUseDefInfo | doesNotRequireLoadsAsDefs | requiresLocalsValueNumbering);
 #endif
-   _reversedBranchNodes = new (trStackMemory()) TR_BitVector(comp()->getNodeCount(), trMemory(), stackAlloc, growable);
+   _reversedBranchNodes = new (comp()->trStackMemory()) TR_BitVector(comp()->getNodeCount(), comp()->trMemory(), stackAlloc, growable);
 
    };
 
@@ -3365,7 +3365,7 @@ TR_SPMDKernelParallelizer::perform()
    if (optimizer()->optsThatCanCreateLoopsDisabled())
       return 0;
 
-   TR::StackMemoryRegion stackMemoryRegion(*trMemory());
+   TR::StackMemoryRegion stackMemoryRegion(*comp()->trMemory());
 
    TR_UseDefInfo *useDefInfo = optimizer()->getUseDefInfo();
    if (!useDefInfo) return 1;
@@ -3380,15 +3380,15 @@ TR_SPMDKernelParallelizer::perform()
 
    _origCfgBlocks = comp()->getFlowGraph()->createArrayOfBlocks();
 
-   List<TR_SPMDScopeInfo>   gpuScopes(trMemory());
-   List<TR_RegionStructure> gpuKernels(trMemory());
+   List<TR_SPMDScopeInfo>   gpuScopes(comp()->trMemory());
+   List<TR_RegionStructure> gpuKernels(comp()->trMemory());
 
 #ifdef ENABLE_GPU
    if (comp()->getOptions()->getEnableGPU(TR_EnableGPU))
       collectGPUScopes(root, gpuKernels, gpuScopes);
 #endif
 
-   List<TR_RegionStructure> simdLoops(trMemory());
+   List<TR_RegionStructure> simdLoops(comp()->trMemory());
    TR_HashTab* reductionOperationsHashTab = new (comp()->trStackMemory()) TR_HashTab(comp()->trMemory(), stackAlloc);
 
   //TODO: make independent of GPU
@@ -3552,7 +3552,7 @@ TR_SPMDKernelParallelizer::calculateNonColdCPUBlocks(TR_RegionStructure *region,
                                                 TR_ScratchList<TR::Block> *coldLoopBlocks,
                                                 SharedSparseBitVector *nonColdCPUBlocksVector)
    {
-   TR_ScratchList<TR::Block> allBlocks(trMemory());
+   TR_ScratchList<TR::Block> allBlocks(comp()->trMemory());
    region->getBlocks(&allBlocks);
 
    SharedSparseBitVector allBlocksVector(comp()->allocator());
@@ -3610,7 +3610,7 @@ TR_SPMDKernelParallelizer::analyzeGPUScope(TR_SPMDScopeInfo* pScopeInfo)
    {
    ListIterator<TR_RegionStructure> kit(pScopeInfo->getKernelList());
    TR_RegionStructure *kernel;
-   TR_ScratchList<TR::Block> kernelBlocks(trMemory());
+   TR_ScratchList<TR::Block> kernelBlocks(comp()->trMemory());
 
     for (kernel = kit.getFirst(); kernel; kernel = kit.getNext())
        {
@@ -3627,7 +3627,7 @@ TR_SPMDKernelParallelizer::analyzeGPUScope(TR_SPMDScopeInfo* pScopeInfo)
        }
 
    ListIterator<TR_RegionStructure> lit(pScopeInfo->getColdLoops());
-   TR_ScratchList<TR::Block> coldLoopBlocks(trMemory());
+   TR_ScratchList<TR::Block> coldLoopBlocks(comp()->trMemory());
 
    for (TR_RegionStructure *loop = lit.getFirst(); loop; loop = lit.getNext())
       {
