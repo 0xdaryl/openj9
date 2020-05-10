@@ -149,7 +149,7 @@ TR_J9ByteCodeIterator::findFloatingPointInstruction()
                index = index | J9_SPECIAL_SPLIT_TABLE_INDEX_FLAG;
 
             TR_J9VMBase *fej9 = (TR_J9VMBase *)_fe;
-            TR::Method *thisMethod = fej9->createMethod(_trMemory, method()->containingClass(), index);
+            TR::Method *thisMethod = fej9->createMethod(comp()->trMemory(), method()->containingClass(), index);
 
             // check return type
             type = thisMethod->returnType();

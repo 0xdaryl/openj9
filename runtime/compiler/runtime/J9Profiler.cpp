@@ -162,14 +162,14 @@ void TR_GlobalRecompilationCounters::modifyTrees()
       }
 
    {
-   TR::StackMemoryRegion stackMemoryRegion(*trMemory());
+   TR::StackMemoryRegion stackMemoryRegion(*comp()->trMemory());
 
    // Find all natural loops and insert a decrement of the counter to their
    // header blocks
    //
    TR::CFG *cfg = comp()->getFlowGraph();
    int32_t numBlocks = cfg->getNextNodeNumber();
-   TR_BitVector headerBlocks(numBlocks, trMemory(), stackAlloc);
+   TR_BitVector headerBlocks(numBlocks, comp()->trMemory(), stackAlloc);
 
    examineStructure(cfg->getStructure(), headerBlocks);
    } // Scope of the stack memory region
@@ -574,7 +574,7 @@ void TR_ValueProfiler::modifyTrees()
             TR::ResolvedMethodSymbol *method = firstChild->getSymbolReference()->getSymbol()->castToResolvedMethodSymbol();
             TR_ResolvedMethod *m = method->getResolvedMethod();
             char *sig = "java/lang/String.<init>(";
-            if ((strncmp(m->signature(trMemory()), sig, strlen(sig)) == 0) &&
+            if ((strncmp(m->signature(comp()->trMemory()), sig, strlen(sig)) == 0) &&
                 (strncmp(m->signatureChars(), "([CII)", 6)==0))
                {
                if (!firstChild->getFirstChild()->getByteCodeInfo().doNotProfile())

@@ -128,7 +128,7 @@ TR_J9ByteCodeIlGenerator::TR_J9ByteCodeIlGenerator(
        && !comp->isPeekingMethod()
        && comp->isOSRTransitionTarget(TR::postExecutionOSR)
        && !_cannotAttemptOSR)
-      _processedOSRNodes = new (trStackMemory()) TR::NodeChecklist(comp);
+      _processedOSRNodes = new (comp->trStackMemory()) TR::NodeChecklist(comp);
    }
 
 bool
@@ -137,7 +137,7 @@ TR_J9ByteCodeIlGenerator::genIL()
    if (comp()->isOutermostMethod())
       comp()->reportILGeneratorPhase();
 
-   TR::StackMemoryRegion stackMemoryRegion(*trMemory());
+   TR::StackMemoryRegion stackMemoryRegion(*comp()->trMemory());
 
    comp()->setCurrentIlGenerator(this);
 
@@ -192,7 +192,7 @@ TR_J9ByteCodeIlGenerator::genIL()
 
 bool TR_J9ByteCodeIlGenerator::internalGenIL()
    {
-   _stack = new (trStackMemory()) TR_Stack<TR::Node *>(trMemory(), 20, false, stackAlloc);
+   _stack = new (comp()->trStackMemory()) TR_Stack<TR::Node *>(comp()->trMemory(), 20, false, stackAlloc);
 
    bool success = false;
 
@@ -359,11 +359,11 @@ TR_J9ByteCodeIlGenerator::genILFromByteCodes()
    // Allocate zero-length bit vectors before walker so that the bit vectors can grow on the right
    // stack memory region
    //
-   _methodHandleInvokeCalls = new (trStackMemory()) TR_BitVector(0, trMemory(), stackAlloc, growable);
-   _invokeHandleCalls = new (trStackMemory()) TR_BitVector(0, trMemory(), stackAlloc, growable);
-   _invokeHandleGenericCalls = new (trStackMemory()) TR_BitVector(0, trMemory(), stackAlloc, growable);
-   _invokeDynamicCalls = new (trStackMemory()) TR_BitVector(0, trMemory(), stackAlloc, growable);
-   _ilGenMacroInvokeExactCalls = new (trStackMemory()) TR_BitVector(0, trMemory(), stackAlloc, growable);
+   _methodHandleInvokeCalls = new (comp()->trStackMemory()) TR_BitVector(0, comp()->trMemory(), stackAlloc, growable);
+   _invokeHandleCalls = new (comp()->trStackMemory()) TR_BitVector(0, comp()->trMemory(), stackAlloc, growable);
+   _invokeHandleGenericCalls = new (comp()->trStackMemory()) TR_BitVector(0, comp()->trMemory(), stackAlloc, growable);
+   _invokeDynamicCalls = new (comp()->trStackMemory()) TR_BitVector(0, comp()->trMemory(), stackAlloc, growable);
+   _ilGenMacroInvokeExactCalls = new (comp()->trStackMemory()) TR_BitVector(0, comp()->trMemory(), stackAlloc, growable);
 
    TR::Block * lastBlock = walker(0);
 
@@ -1324,7 +1324,7 @@ TR_J9ByteCodeIlGenerator::genJNIIL()
       }
 
    if (debug("traceInfo"))
-      diagnostic("Compiling JNI virtual thunk for %s.\n", method()->signature(trMemory()));
+      diagnostic("Compiling JNI virtual thunk for %s.\n", method()->signature(comp()->trMemory()));
 
    createGeneratedFirstBlock();
 
@@ -1559,7 +1559,7 @@ TR_J9ByteCodeIlGenerator::genNewInstanceImplThunk()
    // message is sent, an IllegalAccessException is thrown.
    //
    if (debug("traceInfo"))
-      diagnostic("Compiling newInstanceImpl thunk: %s.\n", method()->signature(trMemory()));
+      diagnostic("Compiling newInstanceImpl thunk: %s.\n", method()->signature(comp()->trMemory()));
 
    if (comp()->getRecompilationInfo())
       {
@@ -1573,7 +1573,7 @@ TR_J9ByteCodeIlGenerator::genNewInstanceImplThunk()
 
    TR_OpaqueClassBlock *classId = method()->classOfMethod(); // will never be java.lang.Class (unless we are in a hacky world, e.g. JarTester?)
 
-   TR_ResolvedMethod *ctor = fej9()->getDefaultConstructor(trMemory(), classId);
+   TR_ResolvedMethod *ctor = fej9()->getDefaultConstructor(comp()->trMemory(), classId);
    if (!ctor || TR::Compiler->cls.isAbstractClass(comp(), classId)) return false;
 
    TR::Block * firstBlock, * initBlock, * catchAllBlock;
@@ -2204,7 +2204,7 @@ bool TR_J9ByteCodeIlGenerator::replaceMethods(TR::TreeTop *tt, TR::Node *node)
    if (node->getSymbolReference()->getSymbol()->castToMethodSymbol()->isHelper()) return true;
    TR::Method * method = node->getSymbolReference()->getSymbol()->castToMethodSymbol()->getMethod();
    //I use heapAlloc because this function is called many times for a small set of methods.
-   const char* nodeName = method->signature(trMemory(), heapAlloc);
+   const char* nodeName = method->signature(comp()->trMemory(), heapAlloc);
    for (int i = 0; i < _numDecFormatRenames; i++)
       {
       if (!strcmp(nodeName, _decFormatRenames[i].srcMethodSignature))
@@ -2271,10 +2271,10 @@ bool TR_J9ByteCodeIlGenerator::replaceField(TR::Node* node, char* destClass,
     fej9()->getObjectHeaderSizeInBytes();
 
       TR::DataType type = node->getDataType();
-      TR::Symbol * sym = TR::Symbol::createShadow(trHeapMemory(), type);
+      TR::Symbol * sym = TR::Symbol::createShadow(comp()->trHeapMemory(), type);
       sym->setPrivate();
       TR::SymbolReference* symRef =
-    new (trHeapMemory()) TR::SymbolReference(comp()->getSymRefTab(), sym,
+    new (comp()->trHeapMemory()) TR::SymbolReference(comp()->getSymRefTab(), sym,
                    comp()->getMethodSymbol()->getResolvedMethodIndex(),
                    -1, 0);
       comp()->getSymRefTab()->checkUserField(symRef);

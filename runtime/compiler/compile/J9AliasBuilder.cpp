@@ -42,7 +42,7 @@ J9::AliasBuilder::AliasBuilder(TR::SymbolReferenceTable *symRefTab, size_t sizeH
       _methodTypeTableEntrySymRefs(sizeHint, c->trMemory(), heapAlloc, growable)
    {
    for (int32_t i = 0; i < _numNonUserFieldClasses; i++)
-      _userFieldSymRefNumbers[i] = new (trHeapMemory()) TR_BitVector(sizeHint, c->trMemory(), heapAlloc, growable);
+      _userFieldSymRefNumbers[i] = new (c->trHeapMemory()) TR_BitVector(sizeHint, c->trMemory(), heapAlloc, growable);
    }
 
 
@@ -149,7 +149,7 @@ J9::AliasBuilder::methodAliases(TR::SymbolReference *symRef)
 void
 J9::AliasBuilder::createAliasInfo()
    {
-   TR::StackMemoryRegion stackMemoryRegion(*trMemory());
+   TR::StackMemoryRegion stackMemoryRegion(*comp()->trMemory());
    self()->unresolvedShadowSymRefs().pack();
    addressShadowSymRefs().pack();
    genericIntShadowSymRefs().pack();
@@ -230,14 +230,14 @@ J9::AliasBuilder::createAliasInfo()
 
    for (i = 0; i < _numImmutableClasses; i++)
       {
-      immutableConstructorDefAliases()[i] = new (trHeapMemory()) TR_BitVector(symRefTab()->getNumSymRefs(), comp()->trMemory(), heapAlloc, growable);
+      immutableConstructorDefAliases()[i] = new (comp()->trHeapMemory()) TR_BitVector(symRefTab()->getNumSymRefs(), comp()->trMemory(), heapAlloc, growable);
       *(immutableConstructorDefAliases()[i]) = defaultMethodDefAliasesWithoutImmutable();
       *(immutableConstructorDefAliases()[i]) |= *(symRefTab()->immutableSymRefNumbers()[i]);
       }
 
    for (i = 0; i < _numNonUserFieldClasses; i++)
       {
-      userFieldMethodDefAliases()[i] = new (trHeapMemory()) TR_BitVector(symRefTab()->getNumSymRefs(), comp()->trMemory(), heapAlloc, growable);
+      userFieldMethodDefAliases()[i] = new (comp()->trHeapMemory()) TR_BitVector(symRefTab()->getNumSymRefs(), comp()->trMemory(), heapAlloc, growable);
       *(userFieldMethodDefAliases()[i]) = defaultMethodDefAliasesWithoutUserField();
       }
 
@@ -245,7 +245,7 @@ J9::AliasBuilder::createAliasInfo()
    while (immutableClassInfoElem)
       {
       TR_ImmutableInfo *immutableClassInfo = immutableClassInfoElem->getData();
-      immutableClassInfo->_immutableConstructorDefAliases = new (trHeapMemory()) TR_BitVector(symRefTab()->getNumSymRefs(), comp()->trMemory(), heapAlloc, growable);
+      immutableClassInfo->_immutableConstructorDefAliases = new (comp()->trHeapMemory()) TR_BitVector(symRefTab()->getNumSymRefs(), comp()->trMemory(), heapAlloc, growable);
       *(immutableClassInfo->_immutableConstructorDefAliases) = defaultMethodDefAliasesWithoutImmutable();
       *(immutableClassInfo->_immutableConstructorDefAliases) |= *(immutableClassInfo->_immutableSymRefNumbers);
       immutableClassInfoElem = immutableClassInfoElem->getNextElement();

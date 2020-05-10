@@ -583,8 +583,8 @@ TR::Block * TR_J9ByteCodeIlGenerator::walker(TR::Block * prevBlock)
          {
          TR::StackMemoryRegion stackMemoryRegion(*comp()->trMemory());
 
-         TR_BitVector beforeTreesInserted(comp()->getNodeCount(), trMemory(), stackAlloc, growable);
-         TR_BitVector afterTreesInserted (comp()->getNodeCount(), trMemory(), stackAlloc, growable);
+         TR_BitVector beforeTreesInserted(comp()->getNodeCount(), comp()->trMemory(), stackAlloc, growable);
+         TR_BitVector afterTreesInserted (comp()->getNodeCount(), comp()->trMemory(), stackAlloc, growable);
 
          comp()->getDebug()->saveNodeChecklist(beforeTreesInserted);
          printTrees(comp(), traceStart->getNextTreeTop(), traceStop, "trees inserted");
@@ -917,7 +917,7 @@ char *TR_J9ByteCodeIlGenerator::vartificialSignature(TR_AllocationKind allocKind
 
    // Produce formatted signature
    //
-   char *result = (char*)trMemory()->allocateMemory(resultLength+1, allocKind);
+   char *result = (char*)comp()->trMemory()->allocateMemory(resultLength+1, allocKind);
    processArtificialSignature(result, format, args);
    return result;
    }
@@ -1067,7 +1067,7 @@ TR_J9ByteCodeIlGenerator::genNodeAndPopChildren(TR::ILOpCodes opcode, int32_t nu
 
          TR::StackMemoryRegion stackMemoryRegion(*comp()->trMemory());
 
-         TR_BitVector before(comp()->getNodeCount(), trMemory(), stackAlloc, growable);
+         TR_BitVector before(comp()->getNodeCount(), comp()->trMemory(), stackAlloc, growable);
          printStack(comp(), _stack, "stack after expandPlaceholderCalls");
          comp()->getDebug()->restoreNodeChecklist(before);
          }
@@ -1348,7 +1348,7 @@ TR_J9ByteCodeIlGenerator::saveStack(int32_t targetIndex, bool anchorLoads)
    bool loadPP = !disallowOSRPPS2 && comp()->getOption(TR_EnableOSR) && !comp()->isOSRTransitionTarget(TR::postExecutionOSR);
    bool createTargetStack = (targetIndex >= 0 && !_stacks[targetIndex]);
    if (createTargetStack)
-      _stacks[targetIndex] = new (trStackMemory()) ByteCodeStack(trMemory(), std::max<uint32_t>(20, _stack->size()));
+      _stacks[targetIndex] = new (comp()->trStackMemory()) ByteCodeStack(comp()->trMemory(), std::max<uint32_t>(20, _stack->size()));
 
    int32_t i;
    int32_t tempIndex = 0;
@@ -1698,7 +1698,7 @@ TR_J9ByteCodeIlGenerator::stashPendingPushLivenessForOSR(int32_t offset)
          livePP->set(symRef->getReferenceNumber());
       else
          {
-         livePP = new (trHeapMemory()) TR_BitVector(0, trMemory(), heapAlloc);
+         livePP = new (comp()->trHeapMemory()) TR_BitVector(0, comp()->trMemory(), heapAlloc);
          livePP->set(symRef->getReferenceNumber());
          osrData->addPendingPushLivenessInfo(_bcIndex + offset, livePP);
          }
@@ -2454,7 +2454,7 @@ TR_J9ByteCodeIlGenerator::genNullCheck(TR::Node * first)
                grandChild->getSymbolReference()->getSymbol()->getRecognizedField() == TR::Symbol::Java_lang_String_value)
          {
          if (trace())
-            traceMsg(comp(), "Skipping NULLCHK (node %p) on String.value field : %s -> %s\n", grandChild, comp()->signature(), _methodSymbol->signature(trMemory()));
+            traceMsg(comp(), "Skipping NULLCHK (node %p) on String.value field : %s -> %s\n", grandChild, comp()->signature(), _methodSymbol->signature(comp()->trMemory()));
          }
       else
          {
@@ -2986,7 +2986,7 @@ TR_J9ByteCodeIlGenerator::genInvokeSpecial(int32_t cpIndex)
    if (_invokeSpecialInterfaceCalls == NULL) // lazily allocated
       {
       _invokeSpecialInterfaceCalls =
-         new (trHeapMemory()) TR_BitVector(_maxByteCodeIndex + 1, trMemory());
+         new (comp()->trHeapMemory()) TR_BitVector(_maxByteCodeIndex + 1, comp()->trMemory());
       }
 
    _invokeSpecialInterfaceCalls->set(bcIndex);
@@ -3157,7 +3157,7 @@ TR_J9ByteCodeIlGenerator::genInvokeDynamic(int32_t callSiteIndex)
    TR_ResolvedMethod * owningMethod = _methodSymbol->getResolvedMethod();
    if (!owningMethod->isUnresolvedCallSiteTableEntry(callSiteIndex))
       {
-      TR_ResolvedMethod *specimen = fej9()->createMethodHandleArchetypeSpecimen(trMemory(), (uintptr_t*)owningMethod->callSiteTableEntryAddress(callSiteIndex), owningMethod);
+      TR_ResolvedMethod *specimen = fej9()->createMethodHandleArchetypeSpecimen(comp()->trMemory(), (uintptr_t*)owningMethod->callSiteTableEntryAddress(callSiteIndex), owningMethod);
       if (specimen)
          symRef = symRefTab()->findOrCreateMethodSymbol(_methodSymbol->getResolvedMethodIndex(), -1, specimen, TR::MethodSymbol::ComputedVirtual);
       }
@@ -3454,7 +3454,7 @@ TR_J9ByteCodeIlGenerator::genInvoke(TR::SymbolReference * symRef, TR::Node *indi
 
    if (opcode != TR::BadILOp)
       {
-      performTransformation(comp(), "O^O BIT OPCODE: convert call to method %s to bit opcode\n",calledMethod->signature(trMemory()));
+      performTransformation(comp(), "O^O BIT OPCODE: convert call to method %s to bit opcode\n",calledMethod->signature(comp()->trMemory()));
       TR::Node * node = TR::Node::create(opcode, 1);
       node->setAndIncChild(0, pop());
       push(node);
@@ -4004,8 +4004,8 @@ break
                   }
 
                // Find the equivalent call in BigDecimal class, and redirect this call there.
-               TR_ScratchList<TR_ResolvedMethod> bdMethods(trMemory());
-               fej9()->getResolvedMethods(trMemory(), clazz, &bdMethods);
+               TR_ScratchList<TR_ResolvedMethod> bdMethods(comp()->trMemory());
+               fej9()->getResolvedMethods(comp()->trMemory(), clazz, &bdMethods);
                ListIterator<TR_ResolvedMethod> bdit(&bdMethods);
                TR_ResolvedMethod * method = NULL;
                for (method = bdit.getCurrent(); method; method = bdit.getNext()) {
@@ -4098,7 +4098,7 @@ break
          {
          if (fieldInfo->getNumChars() == len && !memcmp(s, fieldInfo->getClassPointer(), len))
             {
-            if (performTransformation(comp(), "O^O CLASS LOOKAHEAD: Devirtualizing call to method %s on receiver object %p which has type %.*s based on class file examination\n", calledMethod->signature(trMemory()), thisObject, len, s))
+            if (performTransformation(comp(), "O^O CLASS LOOKAHEAD: Devirtualizing call to method %s on receiver object %p which has type %.*s based on class file examination\n", calledMethod->signature(comp()->trMemory()), thisObject, len, s))
                isDirectCall = true;
             }
          }
@@ -4107,7 +4107,7 @@ break
          {
          if (22 == len && !memcmp(s, "Ljava/math/BigDecimal;", len))
             {
-            if (performTransformation(comp(), "O^O CLASS LOOKAHEAD: Devirtualizing call to method %s on receiver object %p which has type %.*s based on class file examination\n", calledMethod->signature(trMemory()), thisObject, len, s))
+            if (performTransformation(comp(), "O^O CLASS LOOKAHEAD: Devirtualizing call to method %s on receiver object %p which has type %.*s based on class file examination\n", calledMethod->signature(comp()->trMemory()), thisObject, len, s))
                isDirectCall = true;
             }
          }
@@ -4116,7 +4116,7 @@ break
          {
          if (22 == len && !memcmp(s, "Ljava/math/BigInteger;", len))
             {
-            if (performTransformation(comp(), "O^O CLASS LOOKAHEAD: Devirtualizing call to method %s on receiver object %p which has type %.*s based on class file examination\n", calledMethod->signature(trMemory()), thisObject, len, s))
+            if (performTransformation(comp(), "O^O CLASS LOOKAHEAD: Devirtualizing call to method %s on receiver object %p which has type %.*s based on class file examination\n", calledMethod->signature(comp()->trMemory()), thisObject, len, s))
                isDirectCall = true;
             }
          }
@@ -4215,7 +4215,7 @@ break
 
 
    if (comp()->getOptions()->getEnableGPU(TR_EnableGPU) &&
-       strcmp(symbol->getMethod()->signature(trMemory()),
+       strcmp(symbol->getMethod()->signature(comp()->trMemory()),
               "java/util/stream/IntStream.forEach(Ljava/util/function/IntConsumer;)V") == 0) // might not be resolved
       {
       //This prevents recompilation at profiled very hot which also prevents the method from reaching scorching
@@ -4243,7 +4243,7 @@ break
        !strncmp(_methodSymbol->getResolvedMethod()->signatureChars(), ORB_CALLER_METHOD_SIG, ORB_CALLER_METHOD_SIG_LEN))
       {
       if (comp()->getOption(TR_TraceILGen))
-         traceMsg(comp(), "handling callNode %p, current method %s\n", callNode, _methodSymbol->getResolvedMethod()->signature(trMemory()));
+         traceMsg(comp(), "handling callNode %p, current method %s\n", callNode, _methodSymbol->getResolvedMethod()->signature(comp()->trMemory()));
 
       TR::Node *receiver = callNode->getFirstArgument();
       if (receiver && receiver->getOpCode().hasSymbolReference() && receiver->getSymbol()->isParm() && !receiver->isThisPointer() &&
@@ -4255,7 +4255,7 @@ break
          TR_OpaqueClassBlock *cl = _methodSymbol->getResolvedMethod()->containingClass();
 
          if (comp()->getOption(TR_TraceILGen))
-            traceMsg(comp(), "called method %s, containing class %p\n", calledMethod->signature(trMemory()), cl);
+            traceMsg(comp(), "called method %s, containing class %p\n", calledMethod->signature(comp()->trMemory()), cl);
 
          bool isClassInitialized = false;
          TR_PersistentClassInfo * classInfo = comp()->getPersistentInfo()->getPersistentCHTable()->findClassInfoAfterLocking(cl, comp());
@@ -4281,8 +4281,8 @@ break
 
             if (orbClass && !fej9()->isClassLoadedBySystemClassLoader(cl))
                {
-               TR_ScratchList<TR_ResolvedMethod> methods(trMemory());
-               fej9()->getResolvedMethods(trMemory(), orbClass, &methods);
+               TR_ScratchList<TR_ResolvedMethod> methods(comp()->trMemory());
+               fej9()->getResolvedMethods(comp()->trMemory(), orbClass, &methods);
                ListIterator<TR_ResolvedMethod> it(&methods);
                TR_ResolvedMethod *replacementMethod;
                for (replacementMethod = it.getCurrent(); replacementMethod; replacementMethod = it.getNext())
@@ -4334,7 +4334,7 @@ break
              !strncmp(receiverSig, JAVA_SERIAL_CLASS_NAME, receiverLen))
             {
             if (comp()->getOption(TR_TraceILGen))
-               traceMsg(comp(), "handling callNode %p, current method %s\n", callNode, _methodSymbol->getResolvedMethod()->signature(trMemory()));
+               traceMsg(comp(), "handling callNode %p, current method %s\n", callNode, _methodSymbol->getResolvedMethod()->signature(comp()->trMemory()));
 
             if ((calledMethod->nameLength() == JAVA_SERIAL_CALLEE_METHOD_NAME_LEN) &&
                 !strncmp(calledMethod->nameChars(), JAVA_SERIAL_CALLEE_METHOD_NAME, JAVA_SERIAL_CALLEE_METHOD_NAME_LEN) &&
@@ -4344,7 +4344,7 @@ break
                TR_OpaqueClassBlock *cl = _methodSymbol->getResolvedMethod()->containingClass();
 
                if (comp()->getOption(TR_TraceILGen))
-                  traceMsg(comp(), "called method %s, containing class %p\n", calledMethod->signature(trMemory()), cl);
+                  traceMsg(comp(), "called method %s, containing class %p\n", calledMethod->signature(comp()->trMemory()), cl);
                bool isClassInitialized = false;
                TR_PersistentClassInfo * classInfo = comp()->getPersistentInfo()->getPersistentCHTable()->findClassInfoAfterLocking(cl, comp());
                if (classInfo && classInfo->isInitialized())
@@ -4358,8 +4358,8 @@ break
                      traceMsg(comp(), "serialClass = %p, serialClassLoader %s systemClassLoader\n", serialClass, (!fej9()->isClassLoadedBySystemClassLoader(cl)) ? "!=" : "==");
                   if (serialClass && !fej9()->isClassLoadedBySystemClassLoader(cl))
                      {
-                     TR_ScratchList<TR_ResolvedMethod> methods(trMemory());
-                     fej9()->getResolvedMethods(trMemory(), serialClass, &methods);
+                     TR_ScratchList<TR_ResolvedMethod> methods(comp()->trMemory());
+                     fej9()->getResolvedMethods(comp()->trMemory(), serialClass, &methods);
                      ListIterator<TR_ResolvedMethod> it(&methods);
                      TR_ResolvedMethod *replacementMethod;
                      for (replacementMethod = it.getCurrent(); replacementMethod; replacementMethod = it.getNext())
@@ -5475,7 +5475,7 @@ TR_J9ByteCodeIlGenerator::loadFromCP(TR::DataType type, int32_t cpIndex)
          break;
       case TR::Double:
          if (!floatInCP)
-            loadConstant(TR::dconst, *(double*)method()->doubleConstant(cpIndex, trMemory()));
+            loadConstant(TR::dconst, *(double*)method()->doubleConstant(cpIndex, comp()->trMemory()));
          else
             loadSymbol(TR::dload, symRefTab()->findOrCreateDoubleSymbol(_methodSymbol, cpIndex));
          break;
@@ -6508,7 +6508,7 @@ TR_J9ByteCodeIlGenerator::genReturn(TR::ILOpCodes nodeop, bool monitorExit)
          //
          genTarget(_bcIndex);
          setupBBStartContext(_bcIndex);
-         //printf("create a separate block for %s being inlined into %s\n", _methodSymbol->signature(trMemory()), comp()->signature());
+         //printf("create a separate block for %s being inlined into %s\n", _methodSymbol->signature(comp()->trMemory()), comp()->signature());
          }
 
       loadMonitorArg();
@@ -7166,7 +7166,7 @@ TR_J9ByteCodeIlGenerator::genTableSwitch()
    TR::Node * caseNode = TR::Node::createCase(0, genTarget(defaultTarget));
    TR::Node * node = TR::Node::create(TR::table, high + 3, first, caseNode);
 
-   TR_Array<TR::Node *> caseTargets(trMemory(), _maxByteCodeIndex + 1, true, stackAlloc);
+   TR_Array<TR::Node *> caseTargets(comp()->trMemory(), _maxByteCodeIndex + 1, true, stackAlloc);
    for (i = 0; i < high + 1; ++i)
       {
       int32_t targetIndex = nextSwitchValue(bcIndex) + _bcIndex;
@@ -7267,7 +7267,7 @@ void TR_J9ByteCodeIlGenerator::performClassLookahead(TR_PersistentClassInfo *cla
    if (comp()->compileRelocatableCode() && !comp()->getOption(TR_UseSymbolValidationManager))
       return;
 
-   _classLookaheadSymRefTab = new (trStackMemory())TR::SymbolReferenceTable(method()->maxBytecodeIndex(), comp());
+   _classLookaheadSymRefTab = new (comp()->trStackMemory())TR::SymbolReferenceTable(method()->maxBytecodeIndex(), comp());
 
    TR::SymbolReferenceTable *callerCurrentSymRefTab = comp()->getCurrentSymRefTab();
    comp()->setCurrentSymRefTab(_classLookaheadSymRefTab);

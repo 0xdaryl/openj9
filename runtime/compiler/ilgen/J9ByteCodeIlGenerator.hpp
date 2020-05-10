@@ -60,11 +60,6 @@ public:
    TR::Compilation * comp() { return _compilation; }
    TR_J9VMBase *      fej9() { return (TR_J9VMBase *)_fe; }
 
-   TR_Memory *               trMemory()                    { return _trMemory; }
-   TR_StackMemory            trStackMemory()               { return _trMemory; }
-   TR_HeapMemory             trHeapMemory()                { return _trMemory; }
-   TR_PersistentMemory *     trPersistentMemory()          { return _trMemory->trPersistentMemory(); }
-
    TR::IlGeneratorMethodDetails & methodDetails()      { return _methodDetails; }
 
    virtual bool    genIL();

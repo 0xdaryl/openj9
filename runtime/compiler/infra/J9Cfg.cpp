@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2019 IBM Corp. and others
+ * Copyright (c) 2000, 2020 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -232,7 +232,7 @@ J9::CFG::setBlockAndEdgeFrequenciesBasedOnJITProfiler()
    int32_t *nodeFrequencies = NULL;
    if (_maxFrequency < 0)
       {
-      nodeFrequencies = (int32_t*) trMemory()->allocateStackMemory(sizeof(int32_t) * self()->getNextNodeNumber());
+      nodeFrequencies = (int32_t*) comp()->trMemory()->allocateStackMemory(sizeof(int32_t) * self()->getNextNodeNumber());
       for (node = getFirstNode(); node; node = node->getNext())
          {
          int32_t nodeNumber = toBlock(node)->getNumber();
@@ -443,7 +443,7 @@ J9::CFG::setBlockAndEdgeFrequenciesBasedOnJITProfiler()
               if (!isGuardedBlock)
                  {
                  if (!nodesToBeNormalized)
-                    nodesToBeNormalized = new (trStackMemory()) TR_BitVector(getNextNodeNumber(), trMemory(), stackAlloc);
+                    nodesToBeNormalized = new (comp()->trStackMemory()) TR_BitVector(getNextNodeNumber(), comp()->trMemory(), stackAlloc);
 
                  nodesToBeNormalized->set(node->getNumber());
                  //dumpOptDetails(comp(),"NOT normalized %d freq %d\n", node->getNumber(), frequency);
@@ -765,7 +765,7 @@ J9::CFG::setBlockAndEdgeFrequenciesBasedOnJITProfiler()
          if (frequency > origMaxFrequency)
             {
             if (!nodesToBeNormalized)
-               nodesToBeNormalized = new (trStackMemory()) TR_BitVector(getNextNodeNumber(), trMemory(), stackAlloc);
+               nodesToBeNormalized = new (comp()->trStackMemory()) TR_BitVector(getNextNodeNumber(), comp()->trMemory(), stackAlloc);
 
             nodesToBeNormalized->set(node->getNumber());
             //dumpOptDetails(comp(),"NOT normalized %d freq %d\n", node->getNumber(), frequency);
@@ -833,12 +833,12 @@ static int32_t summarizeFrequencyFromPredecessors(TR::CFGNode *node, TR::CFG *cf
 void
 J9::CFG::setBlockFrequenciesBasedOnInterpreterProfiler()
    {
-   TR::StackMemoryRegion stackMemoryRegion(*trMemory());
+   TR::StackMemoryRegion stackMemoryRegion(*comp()->trMemory());
    int32_t numBlocks = getNextNodeNumber();
 
-   TR_BitVector *_seenNodes = new (trStackMemory()) TR_BitVector(numBlocks, trMemory(), stackAlloc, notGrowable);
-   TR_BitVector *_seenNodesInCycle = new (trStackMemory()) TR_BitVector(numBlocks, trMemory(), stackAlloc, notGrowable);
-   _frequencySet = new (trHeapMemory()) TR_BitVector(numBlocks, trMemory(), heapAlloc, notGrowable);
+   TR_BitVector *_seenNodes = new (comp()->trStackMemory()) TR_BitVector(numBlocks, comp()->trMemory(), stackAlloc, notGrowable);
+   TR_BitVector *_seenNodesInCycle = new (comp()->trStackMemory()) TR_BitVector(numBlocks, comp()->trMemory(), stackAlloc, notGrowable);
+   _frequencySet = new (comp()->trHeapMemory()) TR_BitVector(numBlocks, comp()->trMemory(), heapAlloc, notGrowable);
    int32_t startFrequency = AVG_FREQ;
    int32_t taken          = AVG_FREQ;
    int32_t nottaken       = AVG_FREQ;
@@ -848,7 +848,7 @@ J9::CFG::setBlockFrequenciesBasedOnInterpreterProfiler()
    // Walk until we find if or switch statement
    TR::CFGNode *start = getStart();
    TR::CFGNode *temp  = start;
-   TR_ScratchList<TR::CFGNode> upStack(trMemory());
+   TR_ScratchList<TR::CFGNode> upStack(comp()->trMemory());
 
    bool backEdgeExists = false;
    TR::TreeTop *methodScanEntry = NULL;
@@ -987,7 +987,7 @@ J9::CFG::setBlockFrequenciesBasedOnInterpreterProfiler()
 
    // Walk reverse post-order
    // we start at the first if or switch statement
-   TR_ScratchList<TR::CFGNode> stack(trMemory());
+   TR_ScratchList<TR::CFGNode> stack(comp()->trMemory());
    stack.add(start);
 
    while (!stack.isEmpty())
@@ -1195,7 +1195,7 @@ J9::CFG::setBlockFrequenciesBasedOnInterpreterProfiler()
                if (succ->getSuccessors().size() == 1)
                   {
                   TR::CFGNode *tempNode = succ->getSuccessors().front()->getTo();
-                  TR_BitVector *_seenGotoNodes = new (trStackMemory()) TR_BitVector(numBlocks, trMemory(), stackAlloc, notGrowable);
+                  TR_BitVector *_seenGotoNodes = new (comp()->trStackMemory()) TR_BitVector(numBlocks, comp()->trMemory(), stackAlloc, notGrowable);
                    _seenGotoNodes->set(succ->getNumber());
                   while ((tempNode->getSuccessors().size() == 1) &&
                          (tempNode != succ) &&
@@ -1256,7 +1256,7 @@ J9::CFG::setBlockFrequenciesBasedOnInterpreterProfiler()
 
    //scaleEdgeFrequencies();
 
-   TR_BitVector *nodesToBeNormalized = new (trStackMemory()) TR_BitVector(numBlocks, trMemory(), stackAlloc, notGrowable);
+   TR_BitVector *nodesToBeNormalized = new (comp()->trStackMemory()) TR_BitVector(numBlocks, comp()->trMemory(), stackAlloc, notGrowable);
    nodesToBeNormalized->setAll(numBlocks);
    _maxFrequency = -1;
    _maxEdgeFrequency = -1;
@@ -1282,11 +1282,11 @@ J9::CFG::computeInitialBlockFrequencyBasedOnExternalProfiler(TR::Compilation *co
 
    _externalProfiler = profiler;
 
-   TR::StackMemoryRegion stackMemoryRegion(*trMemory());
+   TR::StackMemoryRegion stackMemoryRegion(*comp->trMemory());
    int32_t numBlocks = getNextNodeNumber();
 
-   TR_BitVector *_seenNodes = new (trStackMemory()) TR_BitVector(numBlocks, trMemory(), stackAlloc, notGrowable);
-   _frequencySet = new (trHeapMemory()) TR_BitVector(numBlocks, trMemory(), heapAlloc, notGrowable);
+   TR_BitVector *_seenNodes = new (comp->trStackMemory()) TR_BitVector(numBlocks, comp->trMemory(), stackAlloc, notGrowable);
+   _frequencySet = new (comp->trHeapMemory()) TR_BitVector(numBlocks, comp->trMemory(), heapAlloc, notGrowable);
    int32_t startFrequency = AVG_FREQ;
    int32_t taken          = AVG_FREQ;
    int32_t nottaken       = AVG_FREQ;

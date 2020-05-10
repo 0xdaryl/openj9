@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2019 IBM Corp. and others
+ * Copyright (c) 2000, 2020 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -232,7 +232,7 @@ class TR_RecompilationProfiler : public TR_Link<TR_RecompilationProfiler>
    public:
 
    TR_RecompilationProfiler(TR::Compilation * c, TR::Recompilation * r, bool initialComp = false)
-      : _compilation(c), _recompilation(r), _trMemory(c->trMemory()) { }
+      : _compilation(c), _recompilation(r) { }
 
    virtual void modifyTrees() { }
    virtual void removeTrees() { }
@@ -250,14 +250,8 @@ class TR_RecompilationProfiler : public TR_Link<TR_RecompilationProfiler>
 
    TR::Compilation   * _compilation;
    TR::Recompilation * _recompilation;
-   TR_Memory        * _trMemory;
 
    TR::Compilation *          comp()                        { return _compilation; }
-
-   TR_Memory *               trMemory()                    { return _trMemory; }
-   TR_StackMemory            trStackMemory()               { return _trMemory; }
-   TR_HeapMemory             trHeapMemory()                { return _trMemory; }
-   TR_PersistentMemory *     trPersistentMemory()          { return _trMemory->trPersistentMemory(); }
 
    enum
       {
