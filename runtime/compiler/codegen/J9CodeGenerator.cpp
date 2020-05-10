@@ -1603,7 +1603,7 @@ J9::CodeGenerator::doInstructionSelection()
 
          liveLocalSyms = (TR::SymbolReference **)comp->trMemory()->allocateStackMemory((maxLiveLocalIndex+1)*sizeof(TR::SymbolReference *));
          memset(liveLocalSyms, 0, (maxLiveLocalIndex+1)*sizeof(TR::SymbolReference *));
-         unsharedSymsBitVector = new (self()->trStackMemory()) TR_BitVector(maxLiveLocalIndex+1, comp->trMemory(), stackAlloc);
+         unsharedSymsBitVector = new (comp->trStackMemory()) TR_BitVector(maxLiveLocalIndex+1, comp->trMemory(), stackAlloc);
 
          ListIterator<TR::SymbolReference> participatingLocalsIt(&participatingLocals);
          for (autoSymRef = participatingLocalsIt.getFirst(); autoSymRef; autoSymRef = participatingLocalsIt.getNext())
@@ -1704,7 +1704,7 @@ J9::CodeGenerator::doInstructionSelection()
          //
          else if (liveLocals && debug("checkBlockEntryLiveLocals"))
             {
-            TR_BitVector *extendedBlockLocals = new (self()->trStackMemory()) TR_BitVector(*(block->getLiveLocals()));
+            TR_BitVector *extendedBlockLocals = new (comp->trStackMemory()) TR_BitVector(*(block->getLiveLocals()));
             *extendedBlockLocals -= *(liveLocals);
 
             TR_ASSERT(extendedBlockLocals->isEmpty(),
