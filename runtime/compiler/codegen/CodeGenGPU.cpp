@@ -815,7 +815,9 @@ static const char * nvvmOpCodeNames[] =
    NULL,          // TR::lnolz,
    NULL,          // TR::lnotz,
    NULL,          // TR::lpopcnt,
+   NULL,          // TR::sbyteswap,
    NULL,          // TR::ibyteswap,
+   NULL,          // TR::lbyteswap,
 
    NULL,          // TR::bbitpermute,
    NULL,          // TR::sbitpermute,
@@ -2608,7 +2610,7 @@ J9::CodeGenerator::printNVVMIR(
                    isLongMul ? "i64" : "i32");
       }
    else if (node->getOpCodeValue() == TR::bneg || node->getOpCodeValue() == TR::sneg ||
-            node->getOpCodeValue() == TR::ineg || node->getOpCodeValue() == TR::lneg || 
+            node->getOpCodeValue() == TR::ineg || node->getOpCodeValue() == TR::lneg ||
             node->getOpCodeValue() == TR::fneg || node->getOpCodeValue() == TR::dneg)
       {
       getNodeName(node->getChild(0), name0, self()->comp());
