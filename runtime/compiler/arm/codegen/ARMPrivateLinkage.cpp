@@ -1165,3 +1165,12 @@ int32_t J9::ARM::HelperLinkage::buildArgs(TR::Node                            *c
    TR_ASSERT(!isVirtual, "virtual helper calls not supported");
    return buildARMLinkageArgs(callNode, dependencies, vftReg, TR_Helper, isVirtual);
    }
+
+intptr_t
+J9::ARM::PrivateLinkage::entryPointFromCompiledMethod()
+   {
+   uint8_t *methodEntry = cg()->getCodeStart();
+   methodEntry += J9::PrivateLinkage::LinkageInfo::get(methodEntry-4)->getReservedWord();
+   return reinterpret_cast<intptr_t>(methodEntry);
+   }
+

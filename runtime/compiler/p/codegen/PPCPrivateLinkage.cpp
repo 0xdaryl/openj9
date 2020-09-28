@@ -2911,3 +2911,13 @@ TR::MemoryReference *J9::Power::PrivateLinkage::getOutgoingArgumentMemRef(int32_
    memArg.opCode = opCode;
    return(result);
    }
+
+
+intptr_t
+J9::Power::PrivateLinkage::entryPointFromCompiledMethod()
+   {
+   uint8_t *methodEntry = cg()->getCodeStart();
+   methodEntry += J9::PrivateLinkage::LinkageInfo::get(methodEntry-4)->getReservedWord();
+   return reinterpret_cast<intptr_t>(methodEntry);
+   }
+

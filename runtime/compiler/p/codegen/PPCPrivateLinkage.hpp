@@ -91,6 +91,11 @@ class PrivateLinkage : public J9::PrivateLinkage
          TR::RegisterDependencyConditions *dependencies,
          uint32_t sizeOfArguments);
 
+   /**
+    * @brief J9 Power private linkage override
+    */
+   virtual intptr_t entryPointFromCompiledMethod();
+
    protected:
 
    TR::PPCLinkageProperties _properties;

@@ -3519,3 +3519,13 @@ J9::Z::JNILinkage::JNILinkage(TR::CodeGenerator * cg, TR_S390LinkageConventions 
    :J9::Z::PrivateLinkage(cg, elc, lc)
    {
    }
+
+
+intptr_t
+J9::Z::PrivateLinkage::entryPointFromCompiledMethod()
+   {
+   uint8_t *methodEntry = cg()->getCodeStart();
+   methodEntry += J9::PrivateLinkage::LinkageInfo::get(methodEntry-4)->getReservedWord();
+   return reinterpret_cast<intptr_t>(methodEntry);
+   }
+

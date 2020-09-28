@@ -74,6 +74,12 @@ class PrivateLinkage : public J9::PrivateLinkage
 
    virtual TR::Register *buildDirectDispatch(TR::Node *callNode);
    virtual TR::Register *buildIndirectDispatch(TR::Node *callNode);
+
+   /**
+    * @brief J9 ARM private linkage override
+    */
+   virtual intptr_t entryPointFromCompiledMethod();
+
    };
 
 

@@ -106,6 +106,11 @@ public:
                                              int32_t &rsd,
                                              int32_t &numInts, int32_t &numFloats);
 
+   /**
+    * @brief J9 Z private linkage override
+    */
+   virtual intptr_t entryPointFromCompiledMethod();
+
 protected:
 
    virtual TR::Register * buildIndirectDispatch(TR::Node * callNode);
