@@ -55,6 +55,8 @@ protected:
    CodeGenerator(TR::Compilation *comp) :
       J9::X86::CodeGenerator(comp) {}
 
+public:
+
    CodeGenerator() {}
 
 public:

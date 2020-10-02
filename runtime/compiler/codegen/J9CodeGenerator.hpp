@@ -68,6 +68,8 @@ protected:
 
    CodeGenerator(TR::Compilation *comp);
 
+public:
+
    CodeGenerator() {}
 
 public:
