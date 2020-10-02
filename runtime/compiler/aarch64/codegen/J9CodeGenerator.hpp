@@ -52,12 +52,9 @@ protected:
 
    CodeGenerator(TR::Compilation *comp);
 
-public:
+   CodeGenerator() {}
 
-   /**
-    * @brief Constructor
-    */
-   CodeGenerator();
+public:
 
    void initialize();
 

@@ -68,9 +68,9 @@ protected:
 
    CodeGenerator(TR::Compilation *comp);
 
-public:
+   CodeGenerator() {}
 
-   CodeGenerator();
+public:
 
    void initialize();
 
