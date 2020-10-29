@@ -88,6 +88,7 @@ JIT_PRODUCT_BACKEND_SOURCES+=\
     omr/compiler/codegen/OMRPeephole.cpp \
     omr/compiler/codegen/OMRRealRegister.cpp \
     omr/compiler/codegen/OMRRegister.cpp \
+    omr/compiler/codegen/OMRRegisterDependencyGroup.cpp \
     omr/compiler/codegen/OMRRegisterPair.cpp \
     omr/compiler/codegen/OMRSnippet.cpp \
     omr/compiler/codegen/OMRSnippetGCMap.cpp \
