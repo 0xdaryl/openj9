@@ -93,6 +93,7 @@ static const OptimizationStrategy J9EarlyGlobalOpts[] =
    { OMR::inlining                             },
    { OMR::methodHandleInvokeInliningGroup,  OMR::IfEnabled },
    { OMR::staticFinalFieldFolding,             },
+   { OMR::recognizedCallTransformer,        OMR::MarkLastRun },
    { OMR::osrGuardInsertion,                OMR::MustBeDone       },
    { OMR::osrExceptionEdgeRemoval                       }, // most inlining is done by now
    { OMR::jProfilingBlock                      },
@@ -261,6 +262,7 @@ static const OptimizationStrategy coldStrategyOpts[] =
    { OMR::stringBuilderTransformer,                  OMR::IfNotQuickStart            },
    { OMR::stringPeepholes,                           OMR::IfNotQuickStart            }, // need stringpeepholes to catch bigdecimal patterns
    { OMR::trivialInlining                                                       },
+   { OMR::recognizedCallTransformer,                 OMR::MarkLastRun           },
    { OMR::jProfilingBlock                                                       },
    { OMR::virtualGuardTailSplitter                                              },
    { OMR::recompilationModifier,                     OMR::IfEnabled                  },
@@ -395,6 +397,7 @@ static const OptimizationStrategy warmStrategyOpts[] =
 static const OptimizationStrategy reducedWarmStrategyOpts[] =
    {
    { OMR::inlining                                                              },
+   { OMR::recognizedCallTransformer,                 OMR::MarkLastRun           },
    { OMR::staticFinalFieldFolding,                                              },
    { OMR::osrGuardInsertion,                         OMR::MustBeDone       },
    { OMR::osrExceptionEdgeRemoval                                               }, // most inlining is done by now
@@ -661,6 +664,7 @@ static const OptimizationStrategy cheapWarmStrategyOpts[] =
    { OMR::stringPeepholes                                                       }, // need stringpeepholes to catch bigdecimal patterns
    { OMR::inlining                                                              },
    { OMR::methodHandleInvokeInliningGroup,           OMR::IfEnabled             },
+   { OMR::recognizedCallTransformer,                 OMR::MarkLastRun           },
    { OMR::staticFinalFieldFolding,                                              },
    { OMR::osrGuardInsertion,                         OMR::MustBeDone        },
    { OMR::osrExceptionEdgeRemoval                                               }, // most inlining is done by now

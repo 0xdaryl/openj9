@@ -935,6 +935,58 @@ InterpreterEmulator::getReturnValue(TR_ResolvedMethod *callee)
       case TR::java_lang_invoke_ILGenMacros_isShareableThunk:
          result = new (trStackMemory()) IconstOperand(0);
          break;
+
+      case TR::java_lang_invoke_DelegatingMethodHandle_getTarget:
+         {
+         TR::KnownObjectTable::Index dmhIndex = top()->getKnownObjectIndex();
+         if (dmhIndex == TR::KnownObjectTable::UNKNOWN)
+            return NULL;
+
+         const char * const cwClassName =
+            "java/lang/invoke/MethodHandleImpl$CountingWrapper";
+
+         const int cwClassNameLen = (int)strlen(cwClassName);
+         TR_OpaqueClassBlock *cwClass =
+            fe()->getSystemClassFromClassName(cwClassName, cwClassNameLen, true);
+
+         debugTrace(
+            tracer(),
+            "delegating method handle target: delegating mh obj%d(*%p) CountingWrapper %p",
+            dmhIndex,
+            knot->getPointerLocation(dmhIndex),
+            cwClass);
+
+         if (cwClass == NULL)
+            {
+            debugTrace(tracer(), "failed to find CountingWrapper");
+            return NULL;
+            }
+
+         TR_OpaqueClassBlock *dmhType =
+            fe()->getObjectClassFromKnownObjectIndex(comp(), dmhIndex);
+
+         if (dmhType == NULL)
+            {
+            debugTrace(tracer(), "failed to determine concrete DelegatingMethodHandle type");
+            return NULL;
+            }
+         else if (fe()->isInstanceOf(dmhType, cwClass, true) != TR_yes)
+            {
+            debugTrace(tracer(), "not a CountingWrapper");
+            return NULL;
+            }
+
+         // TODO: JITServer
+         TR::VMAccessCriticalSection dereferenceKnownObjectField(comp()->fej9());
+         int32_t targetFieldOffset = comp()->fej9()->getInstanceFieldOffset(
+            cwClass, "target", "Ljava/lang/invoke/MethodHandle;");
+
+         uintptr_t dmh = knot->getPointer(dmhIndex);
+         uintptr_t fieldAddress = comp()->fej9()->getReferenceFieldAt(dmh, targetFieldOffset);
+         result = new (trStackMemory()) KnownObjOperand(knot->getOrCreateIndex(fieldAddress));
+         break;
+         }
+
       case TR::java_lang_invoke_MutableCallSite_getTarget:
       case TR::java_lang_invoke_Invokers_getCallSiteTarget:
          {
