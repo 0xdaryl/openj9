@@ -1260,6 +1260,23 @@ J9::SymbolReferenceTable::findOrCreateJ9MethodExtraFieldSymbolRef(intptr_t offse
    return result;
    }
 
+TR::SymbolReference *
+J9::SymbolReferenceTable::findOrCreateJ9JNIMethodIDvTableIndexFieldSymbol(intptr_t offset)
+   {
+   if (!element(J9JNIMethodIDvTableIndexFieldSymbol))
+      {
+      TR::Symbol * sym;
+      if (self()->comp()->target().is64Bit())
+         sym = TR::Symbol::createShadow(trHeapMemory(),TR::Int64);
+      else
+         sym = TR::Symbol::createShadow(trHeapMemory(),TR::Int32);
+
+      element(J9JNIMethodIDvTableIndexFieldSymbol) = new (trHeapMemory()) TR::SymbolReference(self(), J9JNIMethodIDvTableIndexFieldSymbol, sym);
+      element(J9JNIMethodIDvTableIndexFieldSymbol)->setOffset(offset);
+      }
+   return element(J9JNIMethodIDvTableIndexFieldSymbol);
+   }
+
 
 TR::SymbolReference *
 J9::SymbolReferenceTable::findOrCreateStartPCLinkageInfoSymbolRef(intptr_t offset)
@@ -1291,6 +1308,17 @@ J9::SymbolReferenceTable::findOrCreatePerCodeCacheHelperSymbolRef(TR_CCPreLoaded
    return element(index);
    }
 
+TR::SymbolReference *
+J9::SymbolReferenceTable::findOrCreateComputedStaticCallSymbol()
+   {
+   if (!element(computedStaticCallSymbol))
+      {
+      TR::MethodSymbol * sym = TR::MethodSymbol::create(trHeapMemory(), TR_Private);
+      sym->setMethodKind(TR::MethodSymbol::ComputedStatic);
+      element(computedStaticCallSymbol) = new (trHeapMemory()) TR::SymbolReference(self(), computedStaticCallSymbol, sym);
+      }
+   return element(computedStaticCallSymbol);
+   }
 
 TR::SymbolReference *
 J9::SymbolReferenceTable::findOrCreateANewArraySymbolRef(TR::ResolvedMethodSymbol *)

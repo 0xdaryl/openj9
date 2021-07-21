@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2017, 2020 IBM Corp. and others
+* Copyright (c) 2017, 2021 IBM Corp. and others
 *
 * This program and the accompanying materials are made available under
 * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -355,6 +355,351 @@ void J9::RecognizedCallTransformer::processUnsafeAtomicCall(TR::TreeTop* treetop
    unsafeCall->removeChild(1); // remove object node
    unsafeCall->setSymbolReference(comp()->getSymRefTab()->findOrCreateCodeGenInlinedHelper(helper));
    }
+//#if defined(J9VM_OPT_OPENJDK_METHODHANDLE)
+void J9::RecognizedCallTransformer::process_java_lang_invoke_MethodHandle_invokeBasic(TR::TreeTop * treetop, TR::Node* node)
+   {
+   TR_J9VMBase* fej9 = static_cast<TR_J9VMBase*>(comp()->fe());
+   TR::TransformUtil::separateNullCheck(comp(), treetop, true);
+   TR::Node * inlCallNode = node->duplicateTree(false);
+   TR::list<TR::SymbolReference *>* argsList = new (comp()->trStackMemory()) TR::list<TR::SymbolReference*>(getTypedAllocator<TR::SymbolReference*>(comp()->allocator()));
+   for (int i = 0; i < node->getNumChildren(); i++)
+      {
+      TR::Node * currentChild = node->getChild(i);
+      TR::SymbolReference *newSymbolReference = comp()->getSymRefTab()->createTemporary(comp()->getMethodSymbol(), currentChild->getDataType());
+      argsList->push_back(newSymbolReference);
+      TR::Node * storeNode = TR::Node::createStore(node, newSymbolReference, currentChild);
+      treetop->insertBefore(TR::TreeTop::create(comp(),storeNode));
+      inlCallNode->setAndIncChild(i, TR::Node::createLoad(node, newSymbolReference));
+      currentChild->recursivelyDecReferenceCount();
+      }
+
+   TR::Node* mhNode = TR::Node::createLoad(node, argsList->front()); // the first arg of invokeBasic call is the receiver MethodHandle object
+   // load MethodHandle.form, which is the LambdaForm object
+   uint32_t offset = fej9->getInstanceFieldOffsetIncludingHeader("Ljava/lang/invoke/MethodHandle;", "form", "Ljava/lang/invoke/LambdaForm;", comp()->getCurrentMethod());
+   TR::SymbolReference * lambdaFormSymRef = comp()->getSymRefTab()->findOrFabricateShadowSymbol(comp()->getMethodSymbol(),
+                                                                                                TR::Symbol::Java_lang_invoke_MethodHandle_form,
+                                                                                                TR::Address,
+                                                                                                offset,
+                                                                                                false,
+                                                                                                false,
+                                                                                                true,
+                                                                                                "java/lang/invoke/MethodHandle.form Ljava/lang/invoke/LambdaForm;");
+   TR::Node * lambdaFormNode = TR::Node::createWithSymRef(node, comp()->il.opCodeForIndirectLoad(TR::Address), 1 , mhNode, lambdaFormSymRef);
+   lambdaFormNode->setIsNonNull(true);
+   // load from lambdaForm.vmEntry, which is the MemberName object
+   offset = fej9->getInstanceFieldOffsetIncludingHeader("Ljava/lang/invoke/LambdaForm;", "vmentry", "Ljava/lang/invoke/MemberName;", comp()->getCurrentMethod());
+   TR::SymbolReference * memberNameSymRef = comp()->getSymRefTab()->findOrFabricateShadowSymbol(comp()->getMethodSymbol(),
+                                                                                                TR::Symbol::Java_lang_invoke_LambdaForm_vmentry,
+                                                                                                TR::Address,
+                                                                                                offset,
+                                                                                                false,
+                                                                                                false,
+                                                                                                true,
+                                                                                                "java/lang/invoke/LambdaForm.vmentry Ljava/lang/invoke/MemberName;");
+   TR::Node * memberNameNode = TR::Node::createWithSymRef(node, comp()->il.opCodeForIndirectLoad(TR::Address), 1, lambdaFormNode, memberNameSymRef);
+   // load from membername.vmTarget, which is the J9Method
+   TR::SymbolReference * vmTargetSymRef = comp()->getSymRefTab()->findOrFabricateShadowSymbol(comp()->getMethodSymbol(),
+                                                                                                TR::Symbol::Java_lang_invoke_MemberName_vmtarget,
+                                                                                                TR::Address,
+                                                                                                fej9->getCurrentVMThread()->javaVM->vmtargetOffset,
+                                                                                                false,
+                                                                                                false,
+                                                                                                true,
+                                                                                                "java/lang/invoke/MemberName.vmtarget J");
+   vmTargetSymRef->getSymbol()->setNotCollected();
+   TR::Node * vmTargetNode = TR::Node::createWithSymRef(node, TR::aloadi, 1, memberNameNode, vmTargetSymRef);
+   processVMInternalNativeFunction(treetop, node, vmTargetNode, argsList, inlCallNode, /* hasMethodHandleReceiver*/ true);
+   }
+
+void J9::RecognizedCallTransformer::process_java_lang_invoke_MethodHandle_linkToStaticSpecial(TR::TreeTop* treetop, TR::Node* node)
+   {
+   TR_J9VMBase* fej9 = static_cast<TR_J9VMBase*>(comp()->fe());
+   TR::TransformUtil::separateNullCheck(comp(), treetop, true);
+   TR::Node * inlCallNode = node->duplicateTree(false);
+   TR::list<TR::SymbolReference *>* argsList = new (comp()->trStackMemory()) TR::list<TR::SymbolReference*>(getTypedAllocator<TR::SymbolReference*>(comp()->allocator()));
+   for (int i = 0; i < node->getNumChildren(); i++)
+      {
+      TR::Node * currentChild = node->getChild(i);
+      TR::SymbolReference *newSymbolReference = comp()->getSymRefTab()->createTemporary(comp()->getMethodSymbol(), currentChild->getDataType());
+      argsList->push_back(newSymbolReference);
+      TR::Node * storeNode = TR::Node::createStore(node, newSymbolReference, currentChild);
+      treetop->insertBefore(TR::TreeTop::create(comp(),storeNode));
+      inlCallNode->setAndIncChild(i, TR::Node::createLoad(node, newSymbolReference));
+      currentChild->recursivelyDecReferenceCount();
+      }
+   // load from membername.vmTarget, which is the J9Method
+   TR::Node* mnNode = TR::Node::createLoad(node, argsList->back());
+   TR::SymbolReference * vmTargetSymRef = comp()->getSymRefTab()->findOrFabricateShadowSymbol(comp()->getMethodSymbol(),
+                                                                                                TR::Symbol::Java_lang_invoke_MemberName_vmtarget,
+                                                                                                TR::Address,
+                                                                                                fej9->getCurrentVMThread()->javaVM->vmtargetOffset,
+                                                                                                false,
+                                                                                                false,
+                                                                                                true,
+                                                                                                "java/lang/invoke/MemberName.vmtarget J");
+   vmTargetSymRef->getSymbol()->setNotCollected();
+   TR::Node * vmTargetNode = TR::Node::createWithSymRef(node, TR::aloadi, 1, mnNode, vmTargetSymRef);
+   argsList->pop_back(); // MemberName is not required when dispatching directly to the jitted method address
+   processVMInternalNativeFunction(treetop, node, vmTargetNode, argsList, inlCallNode, /* hasMethodHandleReceiver*/ false);
+   }
+
+void J9::RecognizedCallTransformer::processVMInternalNativeFunction(TR::TreeTop* treetop, TR::Node* node, TR::Node* vmTargetNode, TR::list<TR::SymbolReference *>* argsList, TR::Node* inlCallNode, bool hasMethodHandleReceiver)
+   {
+   TR::SymbolReference *extraField = comp()->getSymRefTab()->findOrCreateJ9MethodExtraFieldSymbolRef(offsetof(struct J9Method, extra));
+   TR::Node *extra = TR::Node::createWithSymRef(node, comp()->il.opCodeForIndirectLoad(extraField->getSymbol()->getDataType()), 1, vmTargetNode, extraField);
+   TR::SymbolReference *extraTempSlotSymRef = comp()->getSymRefTab()->createTemporary(comp()->getMethodSymbol(),extraField->getSymbol()->getDataType());
+   treetop->insertBefore(TR::TreeTop::create(comp(), TR::Node::createStore(node, extraTempSlotSymRef, extra)));
+
+   TR::ILOpCodes xcmpne = comp()->target().is64Bit()? TR::iflcmpne : TR::ificmpne;
+   TR::ILOpCodes xand   = comp()->target().is64Bit()? TR::land   : TR::iand;
+   TR::Node *zero = comp()->target().is64Bit()? TR::Node::lconst(node, 0) : TR::Node::iconst(node, 0);
+   TR::Node *mask = comp()->target().is64Bit()? TR::Node::lconst(node, J9_STARTPC_NOT_TRANSLATED) : TR::Node::iconst(node, J9_STARTPC_NOT_TRANSLATED);
+
+   TR::Node* isCompiledNode = TR::Node::createif(xcmpne,
+         TR::Node::create(xand, 2, TR::Node::createLoad(node, extraTempSlotSymRef), mask),
+         zero,
+         NULL);
+   isCompiledNode->copyByteCodeInfo(node);
+   TR::TreeTop * cmpCheckTreeTop = TR::TreeTop::create(self()->comp(), isCompiledNode);
+
+   TR::Node *jitAddress;
+   if (comp()->target().cpu.isI386())
+      {
+      jitAddress = TR::Node::create(TR::i2l, 1, TR::Node::createLoad(node, extraTempSlotSymRef));
+      }
+   else
+      {
+      TR::SymbolReference *linkageInfoSymRef = comp()->getSymRefTab()->findOrCreateStartPCLinkageInfoSymbolRef(-4);
+      TR::ILOpCodes x2a = comp()->target().is64Bit()? TR::l2a : TR::i2a;
+      TR::Node *linkageInfo    = TR::Node::createWithSymRef(TR::iloadi, 1, 1, TR::Node::create(x2a, 1, TR::Node::createLoad(node, extraTempSlotSymRef)), linkageInfoSymRef);
+      TR::Node *jitEntryOffset = TR::Node::create(TR::ishr,   2, linkageInfo, TR::Node::iconst(node, 16));
+      if (comp()->target().is64Bit())
+         jitAddress = TR::Node::create(TR::ladd, 2, TR::Node::createLoad(node, extraTempSlotSymRef), TR::Node::create(TR::i2l, 1, jitEntryOffset));
+      else
+         jitAddress = TR::Node::create(TR::iadd, 2, TR::Node::createLoad(node, extraTempSlotSymRef), jitEntryOffset);
+      }
+
+   TR::SymbolReference * computedCallSymbol = comp()->getSymRefTab()->findOrCreateComputedStaticCallSymbol();
+   uint32_t numComputedCallArgs = argsList->size() + 1; //hasMethodHandleReceiver ? node->getNumChildren()+1 : node->getNumChildren();
+   TR::Node * computedCallNode = TR::Node::createWithSymRef(node, node->getSymbol()->castToMethodSymbol()->getMethod()->indirectCallOpCode(),numComputedCallArgs, computedCallSymbol);
+   computedCallNode->setAndIncChild(0,jitAddress); // first arguments of computed calls is the method address to jump to
+   int32_t child_i = 1;
+   for (auto symRefIt = argsList->begin(); symRefIt != argsList->end(); ++symRefIt)
+      {
+      TR::SymbolReference * currentArg = *symRefIt;
+      computedCallNode->setAndIncChild(child_i, TR::Node::createLoad(node, currentArg));
+      child_i++;
+      }
+   TR::TreeTop * computedCallTreeTop = TR::TreeTop::create(comp(), TR::Node::create(node, TR::treetop, 1, computedCallNode));
+   TR::TreeTop * inlCallTreeTop = TR::TreeTop::create(comp(), TR::Node::create(node, TR::treetop, 1, inlCallNode)); // original treetop gets deleted by createDiamondForCall
+   TR::TransformUtil::createDiamondForCall(this, treetop, cmpCheckTreeTop, inlCallTreeTop, computedCallTreeTop, false, false);
+   _processedINLCalls->set(inlCallNode->getGlobalIndex());
+   }
+
+// todo
+static char *
+getSignatureForLinkToStatic(
+   const char * const extraParamsBefore,
+   const char * const extraParamsAfter,
+   TR::Compilation* comp,
+   const char * const origSignature,
+   int32_t &signatureLength)
+   {
+   const size_t extraParamsLength = strlen(extraParamsBefore) + strlen(extraParamsAfter);
+
+   // = utf8Data(romMethodSignature);
+   const int origSignatureLength = strlen(origSignature);
+   signatureLength = origSignatureLength + extraParamsLength;
+
+   const int32_t signatureAllocSize = signatureLength + 28; // +1 for NUL terminator
+   char * linkToStaticSignature =
+      (char *)comp->trMemory()->allocateMemory(signatureAllocSize, heapAlloc);
+
+
+   // Can't simply strchr() for ')' because that can appear within argument
+   // types, in particular within class names. It's necessary to parse the
+   // signature.
+   const char * const paramsStart = origSignature + 1;
+   const char * paramsEnd = paramsStart;
+   const char * previousParam = paramsEnd;
+   while (*paramsEnd != ')')
+      {
+      paramsEnd = nextSignatureArgument(paramsEnd);
+      if (!strncmp(paramsEnd, "Ljava/lang/invoke/MemberName;", 29))
+         break;
+      }
+      
+   
+
+   const char * const returnType = nextSignatureArgument(paramsEnd) + 1; // if paramsend == ')' then dont get next sig
+   const char * const returnTypeEnd = nextSignatureArgument(returnType);
+
+   // Check that the parsed length is sensible. This also ensures that it's
+   // safe to truncate the lengths of the params and the return type to int
+   // (since they'll be less than parsedLength).
+   //const ptrdiff_t parsedLength = returnTypeEnd - origSignature;
+
+   // Put together the new signature.
+   const int formattedLength = snprintf(
+      linkToStaticSignature,
+      signatureAllocSize,
+      "(%s%.*s%s)%.*s",
+      extraParamsBefore,
+      (int)(paramsEnd - paramsStart),
+      paramsStart,
+      extraParamsAfter,
+      (int)(returnTypeEnd - returnType),
+      returnType);
+
+   // This condition implies that (formattedLength < signatureAllocSize), so
+   // given that the assertion passes, we can be sure that the signature was
+   // not truncated.
+
+   return linkToStaticSignature;
+   }
+
+
+void J9::RecognizedCallTransformer::process_java_lang_invoke_MethodHandle_linkToVirtual(TR::TreeTop * treetop, TR::Node * node)
+   {
+   TR_J9VMBase* fej9 = static_cast<TR_J9VMBase*>(comp()->fe());
+   TR::Node * inlCallNode = node->duplicateTree(false);
+   TR::Node* newInlCall = node->duplicateTree(false);
+   TR::list<TR::SymbolReference *>* argsList = new (comp()->trStackMemory()) TR::list<TR::SymbolReference*>(getTypedAllocator<TR::SymbolReference*>(comp()->allocator()));
+   for (int i = 0; i < node->getNumChildren(); i++)
+      {
+      TR::Node * currentChild = node->getChild(i);
+      TR::SymbolReference *newSymbolReference = comp()->getSymRefTab()->createTemporary(comp()->getMethodSymbol(), currentChild->getDataType());
+      argsList->push_back(newSymbolReference);
+      TR::Node * storeNode = TR::Node::createStore(node, newSymbolReference, currentChild);
+      treetop->insertBefore(TR::TreeTop::create(comp(),storeNode));
+      inlCallNode->setAndIncChild(i, TR::Node::createLoad(node, newSymbolReference));
+      newInlCall->setAndIncChild(i, TR::Node::createLoad(node, newSymbolReference));
+      currentChild->recursivelyDecReferenceCount();
+      }
+   TR::SymbolReference *mhSymRef = argsList->front();
+   TR::SymbolReference *mnSymRef = argsList->back();
+
+   // path if vmIndex > 0
+   // get JIT Vtable index from membername.vmindex
+   TR::SymbolReference* vmindexSymRef = comp()->getSymRefTab()->findOrFabricateShadowSymbol(comp()->getMethodSymbol(),
+                                                                              TR::Symbol::Java_lang_invoke_MemberName_vmindex,
+                                                                              TR::Address,
+                                                                              fej9->getCurrentVMThread()->javaVM->vmindexOffset,
+                                                                              false,
+                                                                              false,
+                                                                              true,
+                                                                              "java/lang/invoke/MemberName.vmindex J");
+   vmindexSymRef->getSymbol()->setNotCollected();
+
+   // check if vtable index is zero (NOT MemberName.vmindex, but MN.vmindex.vtableindex). if zero, then treat this like invokeBasic.
+
+   
+   TR::Node * j9JNIMethodIdNode = TR::Node::createWithSymRef(node, TR::aloadi, 1, TR::Node::createLoad(node, mnSymRef), vmindexSymRef);
+   TR::SymbolReference* vtableIndexSymRef = comp()->getSymRefTab()->findOrCreateJ9JNIMethodIDvTableIndexFieldSymbol(offsetof(struct J9JNIMethodID, vTableIndex));
+   vtableIndexSymRef->getSymbol()->setNotCollected();
+   TR::Node* vtableIndexNode = TR::Node::createWithSymRef(node, comp()->il.opCodeForIndirectLoad(vtableIndexSymRef->getSymbol()->getDataType()), 1, j9JNIMethodIdNode , vtableIndexSymRef);
+   TR::SymbolReference* vtableOffsetTempSlotSymRef = comp()->getSymRefTab()->createTemporary(comp()->getMethodSymbol(),vtableIndexNode->getSymbol()->getDataType());
+   treetop->insertBefore(TR::TreeTop::create(comp(), TR::Node::createStore(node, vtableOffsetTempSlotSymRef, vtableIndexNode)));
+   
+   TR::ILOpCodes xcmpne = comp()->target().is64Bit()? TR::iflcmpne : TR::ificmpne;
+   TR::Node *zero = comp()->target().is64Bit()? TR::Node::lconst(node, 0) : TR::Node::iconst(node, 0);
+
+   TR::Node* vTableOffsetIsNotZero = TR::Node::createif(xcmpne,
+                                                         TR::Node::createLoad(node, vtableOffsetTempSlotSymRef),
+                                                         zero,
+                                                         NULL);
+   TR::TreeTop* vtableOffsetIsNotZeroTreeTop = TR::TreeTop::create(comp(), vTableOffsetIsNotZero);
+
+
+
+   // construct the dummy invoke:
+   // get signature
+   TR_OpaqueMethodBlock *dummyInvoke = fej9->getMethodFromName("com/ibm/jit/JITHelpers", "dispatchVirtual", "()V");
+   int signatureLength;
+   char * signature = getSignatureForLinkToStatic(
+      "JJ",
+      "",
+      comp(),
+      node->getSymbol()->castToMethodSymbol()->getMethod()->signatureChars(),
+      signatureLength);
+
+
+   // construct a dummy resolved method
+   TR::ResolvedMethodSymbol * owningMethodSymbol = node->getSymbolReference()->getOwningMethodSymbol(comp());
+   TR_ResolvedMethod * dummyMethod = fej9->createResolvedMethodWithSignature(comp()->trMemory(),dummyInvoke, NULL, signature, signatureLength, owningMethodSymbol->getResolvedMethod());
+   //TR_ResolvedJ9Method * dummyJ9Method =
+   //   static_cast<TR_ResolvedJ9Method*>(dummyMethod);
+   //dummyJ9Method->setRecognizedMethodInfo(TR::java_lang_invoke_ComputedCalls_dispatchVirtual);
+
+   TR::SymbolReference * methodSymRef = comp()->getSymRefTab()->findOrCreateMethodSymbol(owningMethodSymbol->getResolvedMethodIndex(), -1, dummyMethod, TR::MethodSymbol::ComputedStatic);
+
+   // get equivalent of vtableOffset(Ljava/lang/Object;)J
+   TR::Node* vtableOffset  =  TR::Node::create(TR::lsub, 2, TR::Node::createLoad(node, vtableOffsetTempSlotSymRef), TR::Node::lconst(node, sizeof(J9Class)));
+
+   // get vft address
+   TR::SymbolReference * vftSymRef = comp()->getSymRefTab()->findOrCreateVftSymbolRef();
+   TR::Node * vftNode = TR::Node::createWithSymRef(node, TR::aloadi, 1, TR::Node::createLoad(node, mhSymRef), vftSymRef);
+   //TR::Node * javaLangClassFromClassNode = TR::Node::createWithSymRef(node, TR::aloadi, 1, vftNode, javaLangClassFromClassSymRef);
+   //TR::Node* j9ClassFromClassNode = TR::Node::createWithSymRef(node, comp()->il.opCodeForIndirectLoad(j9ClassFromClassAsPrimitiveSymRef->getSymbol()->getDataType()), 1, javaLangClassFromClassNode, j9ClassFromClassAsPrimitiveSymRef);
+   TR::ILOpCodes subOp = comp()->target().is64Bit() ? TR::lsub : TR::isub;
+   TR::ILOpCodes x2a = comp()->target().is64Bit() ? TR::l2a : TR::i2a;
+   //TR::Node * jittedMethodAddressNode = TR::Node::create(x2a, 1, TR::Node::create(subOp, 2, j9ClassFromClassNode, vtableOffset));
+   TR::Node * jittedMethodAddressNode = TR::Node::create(x2a, 1, TR::Node::create(subOp, 2, vftNode, vtableOffset));
+   TR::SymbolReference *tSymRef = comp()->getSymRefTab()->findOrCreateGenericIntShadowSymbolReference(0);
+   tSymRef->getSymbol()->setNotCollected();
+   TR::ILOpCodes loadOp = comp()->target().is64Bit() ? TR::lloadi : TR::iloadi;
+   TR::Node * jittedMethodAddressLoadNode = TR::Node::createWithSymRef(loadOp, 1, 1, jittedMethodAddressNode,tSymRef);
+   TR::ILOpCodes mulOp = comp()->target().is64Bit() ? TR::lmul : TR::imul;
+
+   // set up arg1 ---> vtable slot
+   TR::Node* vtableSlot = TR::Node::create(node, mulOp, 2, vtableOffset, TR::Node::lconst(node, -1));
+
+   uint32_t numChildren = node->getNumChildren() + 1;
+   //prepareToReplaceNode(node);
+   TR::Node * dispatchVirtualCallNode = TR::Node::createWithSymRef(node, node->getSymbol()->castToMethodSymbol()->getMethod()->indirectCallOpCode(), node->getNumChildren() + 1, methodSymRef);
+
+   dispatchVirtualCallNode->setAndIncChild(0, jittedMethodAddressLoadNode);
+   dispatchVirtualCallNode->setAndIncChild(1, vtableSlot);
+   argsList->pop_back(); //remove mn
+   int32_t child_i = 2;
+   for (auto symRefIt = argsList->begin(); symRefIt != argsList->end(); ++symRefIt)
+      {
+      TR::SymbolReference * currentArg = *symRefIt;
+      dispatchVirtualCallNode->setAndIncChild(child_i, TR::Node::createLoad(node, currentArg));
+      child_i++;
+      }
+
+   TR::TreeTop * dispatchVirtualTreeTop = TR::TreeTop::create(comp(), TR::Node::create(node, TR::treetop, 1, dispatchVirtualCallNode));
+   TR::TreeTop * inlCallTreeTop = TR::TreeTop::create(comp(), TR::Node::create(node, TR::treetop, 1, inlCallNode));
+
+   TR::TransformUtil::createDiamondForCall(this, treetop, vtableOffsetIsNotZeroTreeTop, dispatchVirtualTreeTop, inlCallTreeTop, false, false);
+
+   //traceMsg(comp(), "trees after creating the first diamond for call\n");
+   //comp()->dumpMethodTrees("trees after creating the first diamond for call\n");
+   // path if vmIndex == 0
+   // now let's work with just INL call as the main node. the original treetop got removed.
+   treetop = inlCallTreeTop;
+   node = treetop->getNode()->getFirstChild();
+
+   
+
+   TR::SymbolReference * vmtargetSymRef = comp()->getSymRefTab()->findOrFabricateShadowSymbol(comp()->getMethodSymbol(),
+                                                                                                TR::Symbol::Java_lang_invoke_MemberName_vmtarget,
+                                                                                                TR::Address,
+                                                                                                fej9->getCurrentVMThread()->javaVM->vmtargetOffset,
+                                                                                                false,
+                                                                                                false,
+                                                                                                true,
+                                                                                                "java/lang/invoke/MemberName.vmtarget J");
+   vmtargetSymRef->getSymbol()->setNotCollected();
+   TR::Node * vmTargetNode = TR::Node::createWithSymRef(node, TR::aloadi, 1, /* memberName */ TR::Node::createLoad(node, mnSymRef), vmtargetSymRef);
+   //argsList->pop_back(); // remove memberName for computed call
+   processVMInternalNativeFunction(treetop, node, vmTargetNode, argsList, newInlCall, /* hasMethodHandleReceiver*/ false);
+   //comp()->dumpMethodTrees("trees after creating the second diamond for call\n");
+
+
+   }
+//#endif // J9VM_OPT_OPENJDK_METHODHANDLE
 
 bool J9::RecognizedCallTransformer::isInlineable(TR::TreeTop* treetop)
    {
@@ -401,6 +746,26 @@ bool J9::RecognizedCallTransformer::isInlineable(TR::TreeTop* treetop)
       case TR::java_lang_Integer_reverseBytes:
       case TR::java_lang_Long_reverseBytes:
          return comp()->cg()->supportsByteswap();
+#if defined(J9VM_OPT_OPENJDK_METHODHANDLE)
+      case TR::java_lang_invoke_MethodHandle_invokeBasic:
+         if (_processedINLCalls->get(node->getGlobalIndex()))
+            return false;
+         else
+            return true;
+      case TR::java_lang_invoke_MethodHandle_linkToStatic:
+      case TR::java_lang_invoke_MethodHandle_linkToSpecial:
+         // linkToStatic calls are also used for unresolved invokedynamic/invokehandle, which we can not
+         // bypass as we may push null appendix object that we can not check at compile time
+         if (_processedINLCalls->get(node->getGlobalIndex()) || node->getSymbolReference()->getSymbol()->isDummyResolvedMethod())
+            return false;
+         else
+            return true;
+      case TR::java_lang_invoke_MethodHandle_linkToVirtual:
+          if (_processedINLCalls->get(node->getGlobalIndex()))
+            return false;
+         else
+            return true;
+#endif
       default:
          return false;
       }
@@ -490,6 +855,18 @@ void J9::RecognizedCallTransformer::transform(TR::TreeTop* treetop)
       case TR::java_lang_Long_reverseBytes:
          processIntrinsicFunction(treetop, node, TR::lbyteswap);
          break;
+#if defined(J9VM_OPT_OPENJDK_METHODHANDLE)
+      case TR::java_lang_invoke_MethodHandle_invokeBasic:
+         process_java_lang_invoke_MethodHandle_invokeBasic(treetop, node);
+         break;
+      case TR::java_lang_invoke_MethodHandle_linkToStatic:
+      case TR::java_lang_invoke_MethodHandle_linkToSpecial:
+         process_java_lang_invoke_MethodHandle_linkToStaticSpecial(treetop, node);
+         break;
+      case TR::java_lang_invoke_MethodHandle_linkToVirtual:
+         process_java_lang_invoke_MethodHandle_linkToVirtual(treetop, node);
+         break;
+#endif
       default:
          break;
       }
