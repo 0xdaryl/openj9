@@ -1359,7 +1359,7 @@ InterpreterEmulator::visitInvokedynamic()
                                                                         -1, -1, _currentCallMethod,
                                                                         resolvedSymbol, isIndirectCall, isInterface, *_newBCInfo, comp(),
                                                                         _recursionDepth, allconsts);
-
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), "ZZZZZ : IE 1 : TR_J9MethodHandleCallSite : callsite %p\n", callsite); }
       findTargetAndUpdateInfoForCallsite(callsite);
       }
 #endif //J9VM_OPT_OPENJDK_METHODHANDLE
@@ -1408,7 +1408,7 @@ InterpreterEmulator::updateKnotAndCreateCallSiteUsingInvokeCacheArray(TR_Resolve
                                                                         -1, cpIndex, targetMethod,
                                                                         resolvedSymbol, isIndirectCall, isInterface, *_newBCInfo, comp(),
                                                                         _recursionDepth, allconsts);
-
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), "ZZZZZ : IE 2 : TR_DirectCallSite : callsite %p\n", callsite); }
    findTargetAndUpdateInfoForCallsite(callsite);
    }
 
@@ -1556,6 +1556,7 @@ InterpreterEmulator::visitInvokevirtual()
                                                                         -1, cpIndex, _currentCallMethod,
                                                                         resolvedSymbol, isIndirectCall, isInterface, *_newBCInfo, comp(),
                                                                         _recursionDepth, allconsts);
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), "ZZZZZ : IE 3 : TR_J9MethodHandleCallSite : callsite %p\n", callsite); }
          }
       else if (_currentCallMethod->getRecognizedMethod() == TR::java_lang_invoke_MethodHandle_invokeExact
                || (_currentCallMethod->getRecognizedMethod() == TR::java_lang_invoke_MethodHandle_invokeBasic
@@ -1566,6 +1567,8 @@ InterpreterEmulator::visitInvokevirtual()
                                                       (int32_t) _currentCallMethod->virtualCallSelector(cpIndex), cpIndex, _currentCallMethod,
                                                       resolvedSymbol, isIndirectCall, isInterface, *_newBCInfo, comp(),
                                                       _recursionDepth, allconsts);
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), "ZZZZZ : IE 4 : TR_J9MutableCallSite : callsite %p\n", inlinerMcs); }
+
          if (_currentCallMethod->getRecognizedMethod() == TR::java_lang_invoke_MethodHandle_invokeBasic)
             {
             // Set the MCS reference location so that TR_J9MutableCallSite
@@ -1596,7 +1599,7 @@ InterpreterEmulator::visitInvokevirtual()
                                                                         (int32_t) _currentCallMethod->virtualCallSelector(cpIndex), cpIndex, _currentCallMethod,
                                                                         resolvedSymbol, isIndirectCall, isInterface, *_newBCInfo, comp(),
                                                                         _recursionDepth, allconsts);
-
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), "ZZZZZ : IE 5 : TR_J9VirtualCallSite : callsite %p\n", callsite); }
          }
       else
          {
@@ -1605,7 +1608,7 @@ InterpreterEmulator::visitInvokevirtual()
                                                                         -1, cpIndex, _currentCallMethod,
                                                                         resolvedSymbol, isIndirectCall, isInterface, *_newBCInfo, comp(),
                                                                         _recursionDepth, allconsts);
-
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), "ZZZZZ : IE 6 : TR_DirectCallSite : callsite %p\n", callsite); }
          }
 
       if(tracer()->debugLevel())
@@ -1644,6 +1647,7 @@ InterpreterEmulator::visitInvokespecial()
                                                                         callNode, interfaceMethod, _currentCallMethod->classOfMethod(), -1, cpIndex,
                                                                         _currentCallMethod, resolvedSymbol, isIndirectCall, isInterface, *_newBCInfo, comp(),
                                                                         _recursionDepth, allconsts);
+      if (comp()->trace(OMR::inlining)) { traceMsg( comp(), "ZZZZZ : IE 7 : TR_DirectCallSite : callsite %p\n", callsite); }
       findTargetAndUpdateInfoForCallsite(callsite);
       }
    }
@@ -1690,6 +1694,7 @@ InterpreterEmulator::visitInvokestatic()
                -1, cpIndex, _currentCallMethod,
                resolvedSymbol, isIndirectCall, isInterface, *_newBCInfo, comp(),
                _recursionDepth, allconsts);
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), "ZZZZZ : IE 8 : TR_J9MethodHandleCallSite : callsite %p\n", callsite); }
          }
       else if (_currentCallMethod->convertToMethod()->isArchetypeSpecimen() &&
             _currentCallMethod->getMethodHandleLocation() &&
@@ -1700,6 +1705,7 @@ InterpreterEmulator::visitInvokestatic()
                (int32_t) _currentCallMethod->virtualCallSelector(cpIndex), cpIndex, _currentCallMethod,
                resolvedSymbol, isIndirectCall, isInterface, *_newBCInfo, comp(),
                _recursionDepth, allconsts);
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), "ZZZZZ : IE 9 : TR_J9MutableCallSite : callsite %p\n", mcs); }
          if (mcsIndex != TR::KnownObjectTable::UNKNOWN)
             {
             if (comp()->getKnownObjectTable())
@@ -1714,6 +1720,7 @@ InterpreterEmulator::visitInvokestatic()
                interfaceMethod, _currentCallMethod->classOfMethod(), (int32_t) _currentCallMethod->virtualCallSelector(cpIndex), cpIndex,
                _currentCallMethod, resolvedSymbol, isIndirectCall, isInterface,
                *_newBCInfo, comp(), _recursionDepth, allconsts);
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), "ZZZZZ : IE 10 : TR_J9VirtualCallSite : callsite %p\n", callsite); }
          }
       else
          {
@@ -1721,6 +1728,7 @@ InterpreterEmulator::visitInvokestatic()
                _currentCallMethod->classOfMethod(), -1, cpIndex, _currentCallMethod, resolvedSymbol,
                isIndirectCall, isInterface, *_newBCInfo, comp(),
                _recursionDepth, allconsts);
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), "ZZZZZ : IE 11 : TR_DirectCallSite : callsite %p\n", callsite); }
          }
       findTargetAndUpdateInfoForCallsite(callsite);
       }
@@ -1772,6 +1780,7 @@ InterpreterEmulator::visitInvokeinterface()
          interfaceMethod, thisClass, -1, cpIndex, _currentCallMethod,
          resolvedSymbol, isIndirectCall, isInterface, *_newBCInfo,
          comp(), _recursionDepth, allconsts);
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), "ZZZZZ : IE 12 : TR_J9InterfaceCallSite : callsite %p\n", callsite); }
       }
    else if (isIndirectCall)
       {
@@ -1780,6 +1789,7 @@ InterpreterEmulator::visitInvokeinterface()
          interfaceMethod, _currentCallMethod->classOfMethod(), (int32_t) _currentCallMethod->virtualCallSelector(cpIndex), cpIndex,
          _currentCallMethod, resolvedSymbol, isIndirectCall, isInterface,
          *_newBCInfo, comp(), _recursionDepth, allconsts);
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), "ZZZZZ : IE 13 : TR_J9VirtualCallSite : callsite %p\n", callsite); }      
       }
    else
       {
@@ -1788,6 +1798,7 @@ InterpreterEmulator::visitInvokeinterface()
          interfaceMethod, _currentCallMethod->classOfMethod(), -1, cpIndex,
          _currentCallMethod, resolvedSymbol, isIndirectCall, isInterface,
          *_newBCInfo, comp(), _recursionDepth, allconsts);
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), "ZZZZZ : IE 14 : TR_DirectCallSite : callsite %p\n", callsite); }
       }
 
    if(tracer()->debugLevel())
@@ -1906,6 +1917,8 @@ InterpreterEmulator::findTargetAndUpdateInfoForCallsite(TR_CallSite *callsite)
    _currentCallSite = callsite;
    callsite->_callerBlock = _currentInlinedBlock;
    callsite->_ecsPrexArgInfo = computePrexInfo(callsite);
+
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), "ZZZZZ : IE : about to isInlineable for callsite %p\n", callsite); }
 
    if (_ecs->isInlineable(_callStack, callsite))
       {

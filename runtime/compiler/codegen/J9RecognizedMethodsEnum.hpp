@@ -1069,6 +1069,10 @@
    java_lang_invoke_VirtualHandle_virtualCall,
    java_lang_invoke_VirtualHandle_invokeExact,
 
+   // OpenJDK MethodHandles
+   java_lang_invoke_MethodHandleImpl_profileBoolean,
+   java_lang_invoke_MethodHandleImpl_isCompileConstant,
+
    // Clone and Deep Copy
    java_lang_J9VMInternals_is32Bit,
    java_lang_J9VMInternals_isClassModifierPublic,

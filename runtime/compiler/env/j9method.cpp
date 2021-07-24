@@ -3869,6 +3869,13 @@ void TR_ResolvedJ9Method::construct()
       {x(TR::java_util_stream_IntPipelineHead_forEach, "forEach", "(Ljava/util/function/IntConsumer;)V")},
       {  TR::unknownMethod}
       };
+   
+   static X JavaLangInvokeMethodHandleImplMethods [] =
+      {
+      {x(TR::java_lang_invoke_MethodHandleImpl_isCompileConstant, "isCompileConstant", "(Ljava/lang/Object;)Z")},
+      {x(TR::java_lang_invoke_MethodHandleImpl_profileBoolean, "profileBoolean", "(Z[I)Z")},
+      {  TR::unknownMethod}
+      };
 
    static X MTTenantContext[] =
       {
@@ -4085,6 +4092,7 @@ void TR_ResolvedJ9Method::construct()
       {
       { "java/util/stream/AbstractPipeline", JavaUtilStreamAbstractPipelineMethods },
       { "java/util/stream/IntPipeline$Head", JavaUtilStreamIntPipelineHeadMethods },
+      { "java/lang/invoke/MethodHandleImpl", JavaLangInvokeMethodHandleImplMethods },
       { 0 }
       };
 

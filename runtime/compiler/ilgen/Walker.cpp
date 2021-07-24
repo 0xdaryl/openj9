@@ -4153,6 +4153,22 @@ break
       return NULL;
       }
 
+   /**
+    * 
+    */
+   if (symbol->getRecognizedMethod() == TR::java_lang_invoke_MethodHandleImpl_profileBoolean)
+      {
+      pop();
+
+      TR::Node *resultNode = _stack->top();
+
+      genTreeTop(resultNode);
+
+//      printf("XXXXX found profileBoolean (numArgs=%d) in %s, resultNode=%p, resultNode->dataType=%d, resultNode->opCode=%d\n", numArgs, comp()->signature(), resultNode, static_cast<int>(resultNode->getDataType()), static_cast<int>(resultNode->getOpCodeValue()));
+
+      return resultNode;
+      }
+
     // Can't use recognized methods since it's not enabled on AOT
     //if (symbol->getRecognizedMethod() == TR::com_ibm_rmi_io_FastPathForCollocated_isVMDeepCopySupported)
     int32_t len = calledMethod->classNameLength();

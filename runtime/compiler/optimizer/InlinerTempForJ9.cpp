@@ -2997,10 +2997,11 @@ TR_MultipleCallTargetInliner::walkCallSites(TR::ResolvedMethodSymbol * callerSym
                //TR_CallSite *callsite = new (trStackMemory()) TR_CallSite (symRef->getOwningMethod(comp()), tt, parent, node, calleeSymbol->getMethod(), 0, (int32_t)symRef->getOffset(), symRef->getCPIndex(), 0, calleeSymbol->getResolvedMethodSymbol(), node->getOpCode().isCallIndirect(), calleeSymbol->isInterface(), node->getByteCodeInfo(), comp());
 
 
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), "ZZZZZ : MTI 2 : about to TR_CallSite::create\n"); }	       
                TR_CallSite *callsite = TR_CallSite::create(tt, parent, node,
                                                             0, symRef, (TR_ResolvedMethod*) 0,
                                                             comp(), trMemory() , stackAlloc);
-
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), "ZZZZZ : MTI 2 : TR_CallSite::create %p, callNode=%p,  indirectCall=%d\n", callsite, node, callsite->isIndirectCall() ); }
 
                debugTrace(tracer(),"**WalkCallSites: Analysing Call at call node %p . Creating callsite %p to encapsulate call.",node,callsite);
                getSymbolAndFindInlineTargets(&callStack, callsite);
@@ -3194,9 +3195,11 @@ bool TR_MultipleCallTargetInliner::inlineCallTargets(TR::ResolvedMethodSymbol *c
                TR::SymbolReference * symRef = node->getSymbolReference();
                TR::MethodSymbol * calleeSymbol = symRef->getSymbol()->castToMethodSymbol();
 
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), "ZZZZZ : MTI 1 : about to TR_CallSite::create\n"); }
                TR_CallSite *callsite = TR_CallSite::create(tt, parent, node,
                                                             0, symRef, (TR_ResolvedMethod*) 0,
                                                             comp(), trMemory() , stackAlloc);
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), "ZZZZZ : MTI 1 :  TR_CallSite::create %p, callNode=%p,  indirectCall=%d\n", callsite, node, callsite->isIndirectCall() ); }
 
                if (prevCallStack==0)
                   {
@@ -4496,6 +4499,27 @@ bool TR_J9InlinerPolicy::shouldRemoveDifferingTargets(TR::Node *callNode)
    TR::RecognizedMethod rm =
       callNode->getSymbol()->castToMethodSymbol()->getRecognizedMethod();
 
+#if 0
+   switch (rm) {
+	   case  TR::java_lang_invoke_MethodHandle_doCustomizationLogic:
+	   case  TR::java_lang_invoke_MethodHandle_asType:
+	   case  TR::java_lang_invoke_MethodHandle_asType_instance:
+	   case  TR::java_lang_invoke_MethodHandle_invoke:
+	   case  TR::java_lang_invoke_MethodHandle_invokeExact:
+	   case  TR::java_lang_invoke_MethodHandle_invokeBasic:
+	   case  TR::java_lang_invoke_MethodHandle_invokeExactTargetAddress:
+	   case  TR::java_lang_invoke_MethodHandle_linkToStatic:
+	   case  TR::java_lang_invoke_MethodHandle_linkToSpecial:
+	   case  TR::java_lang_invoke_MethodHandle_linkToVirtual:
+	   case  TR::java_lang_invoke_MethodHandle_linkToInterface:
+	return false;
+
+default:
+       return true;	
+
+   }
+#endif
+
    return rm != TR::java_lang_invoke_MethodHandle_invokeBasic;
    }
 
@@ -4857,6 +4881,12 @@ isDecimalFormatPattern(TR::Compilation *comp, TR_ResolvedMethod *method)
 TR_InlinerFailureReason
 TR_J9JSR292InlinerPolicy::checkIfTargetInlineable(TR_CallTarget* target, TR_CallSite* callsite, TR::Compilation* comp)
    {
+
+if (comp->trace(OMR::inlining)) {
+   traceMsg( comp, "ZZZZZ : QQQ1 : checkIfTargetInlineable\n");
+}	   
+
+
    // for GPU, skip all the heuristic for JSR292 related methods
    if (comp->hasIntStreamForEach())
       return DontInline_Callee;
@@ -4887,23 +4917,40 @@ TR_J9JSR292InlinerPolicy::checkIfTargetInlineable(TR_CallTarget* target, TR_Call
 TR_InlinerFailureReason
  TR_J9InlinerPolicy::checkIfTargetInlineable(TR_CallTarget* target, TR_CallSite* callsite, TR::Compilation* comp)
    {
+if (comp->trace(OMR::inlining)) {
+   traceMsg( comp, "ZZZZZ : QQQ2 : checkIfTargetInlineable\n");
+}	   
    if (comp->compileRelocatableCode() && comp->getMethodHotness() <= cold)
       {
       // If we are an AOT cold compile, don't inline
+if (comp->trace(OMR::inlining)) { traceMsg( comp, "ZZZZZ : QQQ2 : 1 : checkIfTargetInlineable\n"); }
       return DontInline_Callee;
       }
 
+int32_t methodLen  = target->_calleeMethod->nameLength();
+char   *methodName = target->_calleeMethod->nameChars();
+int32_t classLen  = target->_calleeMethod->classNameLength();
+char   *className = target->_calleeMethod->classNameChars();
+
    TR_ResolvedMethod * resolvedMethod = target->_calleeSymbol ? target->_calleeSymbol->getResolvedMethod():target->_calleeMethod;
+
+if (comp->trace(OMR::inlining)) { traceMsg( comp, "ZZZZZ : QQQ2 : 2 : checkIfTargetInlineable : target->_calleeSymbol=%p : target->_calleeSymbol->getResolvedMethod=%p : target->_calleeMethod=%p\n", target->_calleeSymbol, target->_calleeSymbol ? target->_calleeSymbol->getResolvedMethod() : NULL, target->_calleeMethod); }
+
 
    if (!isInlineableJNI(resolvedMethod,callsite->_callNode) || callsite->isIndirectCall())
       {
-      if (!target->_calleeMethod->isCompilable(comp->trMemory()) || !target->_calleeMethod->isInlineable(comp))
+//      if (!target->_calleeMethod->isCompilable(comp->trMemory()) /* || !target->_calleeMethod->isInlineable(comp) */ )   // DJMDJM
+      if (!target->_calleeMethod->isCompilable(comp->trMemory()) || !target->_calleeMethod->isInlineable(comp)  )   // DJMDJM
          {
+//printf("QQQQQ: NOT COMPILABLE class %.*s and method %.*s\n", classLen, className, methodLen, methodName);
+if (comp->trace(OMR::inlining)) { traceMsg( comp, "ZZZZZ : QQQ2 : 2 : checkIfTargetInlineable : NOT_COMPILABLE : %.*s and method %.*s\n", classLen, className, methodLen, methodName); }
          return Not_Compilable_Callee;
          }
 
       if (target->_calleeMethod->isJNINative())
          {
+//printf("QQQQQ: JNI CALLEE  class %.*s and method %.*s\n", classLen, className, methodLen, methodName);
+if (comp->trace(OMR::inlining)) { traceMsg( comp, "ZZZZZ : QQQ2 : 3 : checkIfTargetInlineable\n"); }
          return JNI_Callee;
          }
       }
@@ -4959,6 +5006,7 @@ TR_InlinerFailureReason
       case TR::java_lang_StringUTF16_putChar:
       case TR::java_lang_StringUTF16_toBytes:
       case TR::java_lang_invoke_MethodHandle_asType:
+if (comp->trace(OMR::inlining)) { traceMsg( comp, "ZZZZZ : QQQ2 : 4 : checkIfTargetInlineable\n"); }
             return DontInline_Callee;
       default:
          break;
@@ -4970,6 +5018,7 @@ TR_InlinerFailureReason
          {
          case TR::java_util_stream_AbstractPipeline_evaluate:
             traceMsg(comp, "Intentionally avoided inlining evaluate\n");
+if (comp->trace(OMR::inlining)) { traceMsg( comp, "ZZZZZ : QQQ2 : 5 : checkIfTargetInlineable\n"); }
             return Recognized_Callee;
             break;
          default:
@@ -4989,6 +5038,7 @@ TR_InlinerFailureReason
          case TR::java_lang_Math_sin:
          case TR::java_lang_Math_cos:
             traceMsg(comp, "Intentionally avoided inlining MathMethod\n");
+if (comp->trace(OMR::inlining)) { traceMsg( comp, "ZZZZZ : QQQ2 : 6 : checkIfTargetInlineable\n"); }	    
             return Recognized_Callee;
          default:
             break;
@@ -4998,6 +5048,7 @@ TR_InlinerFailureReason
 #ifdef J9VM_OPT_JAVA_CRYPTO_ACCELERATION
    if (comp->fej9()->inlineRecognizedCryptoMethod(target, comp))
       {
+if (comp->trace(OMR::inlining)) { traceMsg( comp, "ZZZZZ : QQQ2 : 7 : checkIfTargetInlineable\n"); }
       return Recognized_Callee;
       }
 #endif
@@ -5028,9 +5079,12 @@ TR_InlinerFailureReason
       // the pattern and it got inlined, we would never find the pattern
       isDecimalFormatPattern(comp, target->_calleeMethod))
       {
+if (comp->trace(OMR::inlining)) { traceMsg( comp, "ZZZZZ : QQQ2 : 8 : checkIfTargetInlineable\n"); }
       return Recognized_Callee;
       }
 
+if (comp->trace(OMR::inlining)) { traceMsg( comp, "ZZZZZ : QQQ2 : 9 : checkIfTargetInlineable\n"); }
+//printf("QQQQQ: INLINEABLE  class %.*s and method %.*s\n", classLen, className, methodLen, methodName);
    return InlineableTarget;
    }
 

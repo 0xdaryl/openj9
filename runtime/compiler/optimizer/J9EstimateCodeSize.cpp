@@ -1296,9 +1296,14 @@ TR_J9EstimateCodeSize::realEstimateCodeSize(TR_CallTarget *calltarget, TR_CallSt
                TR_ResolvedMethod* resolvedMethod = callNode->getSymbol()->getResolvedMethodSymbol()->getResolvedMethod();
                TR::RecognizedMethod rm = resolvedMethod->getRecognizedMethod();
 
+
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), "ZZZZZ : about to TR_CallSite::create\n"); }
+
                TR_CallSite *callsite = TR_CallSite::create(tt, parent, callNode,
                                                          resolvedMethod->classOfMethod(), symRef, resolvedMethod,
                                                          comp(), comp()->trMemory() , heapAlloc, calltarget->_calleeMethod, _recursionDepth, false);
+printf("XXXXX TR_CallSite::create %p\n", callsite);
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), "ZZZZZ : TR_CallSite::create %p, callNode=%p,  indirectCall=%d\n", callsite, callNode,  callsite->isIndirectCall() ); }
 
                TR_PrexArgInfo *argInfo = calltarget->_ecsPrexArgInfo;
 
