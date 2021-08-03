@@ -1829,12 +1829,17 @@ InterpreterEmulator::createOperandFromPrexArg(TR_PrexArgument* prexArgument)
 TR_PrexArgument*
 InterpreterEmulator::createPrexArgFromOperand(Operand* operand)
    {
+
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), "ZZZZZ : IE : createPrexArgFromOperand : %p (knownObject=%d)\n", operand, operand->asKnownObject() ); }
+
    if (operand->asKnownObject())
       {
       auto koi = operand->getKnownObjectIndex();
       auto knot = comp()->getOrCreateKnownObjectTable();
-      if (knot && !knot->isNull(koi))
+      if (knot && !knot->isNull(koi)) {
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), "ZZZZZ : IE :    TR_PrexArgument obj %d\n", operand->getKnownObjectIndex()); }
          return new (comp()->trHeapMemory()) TR_PrexArgument(operand->getKnownObjectIndex(), comp());
+      }
       }
    else if (operand->asObjectOperand() && operand->asObjectOperand()->getClass())
       {

@@ -971,6 +971,8 @@ TR_ResolvedJ9MethodBase::_genMethodILForPeeking(TR::ResolvedMethodSymbol *method
 
    TR_ByteCodeInfo bci;
 
+   if (c->trace(OMR::inlining)) { traceMsg( c, "ZZZZZ : _genMethodILForPeeking : PUSH\n"); }
+
    //incInlineDepth is a part of a hack to make InvariantArgumentPreexistence
    //play nicely if getCurrentInlinedCallArgInfo is provided while peeking.
    //If we don't provide either dummy (default is set to NULL) or real argInfo we will end up
@@ -983,6 +985,7 @@ TR_ResolvedJ9MethodBase::_genMethodILForPeeking(TR::ResolvedMethodSymbol *method
    TR::CompileIlGenRequest request(details);
    bool success = methodSymbol->genIL(fej9(), c, newSymRefTab, request);
 
+   if (c->trace(OMR::inlining)) { traceMsg( c, "ZZZZZ : _genMethodILForPeeking : POP\n"); }
    c->getInlinedCallArgInfoStack().pop();
 
    c->setCurrentSymRefTab(oldSymRefTab);

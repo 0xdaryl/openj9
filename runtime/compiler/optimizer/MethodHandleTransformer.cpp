@@ -90,7 +90,9 @@ int32_t TR_MethodHandleTransformer::perform()
       traceMsg(comp(), "Start transforming LambdaForm generated method %s\n", currentMethod->signature(trMemory()));
 
    // Assign local index to parms, autos and temps (including pending push temps)
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), "ZZZZZ : enter assignLocalIndices\n" ); }
    assignLocalIndices();
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), "ZZZZZ : exit assignLocalIndices\n" ); }
    if (_numLocals == 0)
        return 0;
 
@@ -108,7 +110,9 @@ int32_t TR_MethodHandleTransformer::perform()
    //
    //Initialize type info for parms from prex arg for the entry block
    TR::Block *firstBlock = blockIt.currentBlock();
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), "ZZZZZ : enter getMethodEntryObjectInfo\n" ); }
    ObjectInfo* firstBlockObjectInfo = getMethodEntryObjectInfo();
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), "ZZZZZ : exit getMethodEntryObjectInfo\n" ); }
    if (trace())
       {
       traceMsg(comp(), "Entry Block (block_%d) object Info:\n", firstBlock->getNumber());
@@ -132,6 +136,9 @@ int32_t TR_MethodHandleTransformer::perform()
 
       ++blockIt;
       }
+
+
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), "ZZZZZ : DONE MethodHandleTransformer\n" ); }
    return 0;
    }
 
@@ -195,7 +202,7 @@ void TR_MethodHandleTransformer::assignLocalIndices()
       if (p && p->getDataType() == TR::Address)
          {
          if (trace())
-            traceMsg(comp(), "Local #%2d is symbol %p [#%d]\n", _numLocals, p, symRef->getReferenceNumber());
+            traceMsg(comp(), "Local #%2d is symbol %p (slot=%d), [#%d]\n", _numLocals, p, symRef->getCPIndex(), symRef->getReferenceNumber());
          p->setLocalIndex(_numLocals++);
          }
       }
@@ -224,6 +231,11 @@ TR_MethodHandleTransformer::getMethodEntryObjectInfo()
             if (trace())
                traceMsg(comp(), "Local #%2d is parm %d is obj%d\n", p->getLocalIndex(), ordinal, arg->getKnownObjectIndex());
             }
+	 else
+	    {
+            if (trace())
+               traceMsg(comp(), "Local #%2d is parm %d is arg=%p, NOT known object\n", p->getLocalIndex(), ordinal, arg);
+	    }
          }
       }
 
@@ -335,6 +347,10 @@ TR_MethodHandleTransformer::getObjectInfoOfNode(TR::Node* node)
       traceMsg(comp(), "Looking for object info of n%dn\n", node->getGlobalIndex());
       }
 
+char s[256];
+snprintf(s, 256, "ZZZZZ : Looking for object info of n%dn\n", node->getGlobalIndex());
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), s ); }
+
    if (!node->getOpCode().hasSymbolReference())
       return TR::KnownObjectTable::UNKNOWN;
 
@@ -350,8 +366,12 @@ TR_MethodHandleTransformer::getObjectInfoOfNode(TR::Node* node)
    if (node->getOpCode().isLoadDirect() &&
        symbol->isAutoOrParm())
       {
+char s[256];
+snprintf(s, 256, "ZZZZZ : getObjectInfoOfNode n%dn is load from auto or parm, local #%d, symbol=%p\n", node->getGlobalIndex(), symbol->getLocalIndex(), symbol);
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), s ); }
+
       if (trace())
-         traceMsg(comp(), "getObjectInfoOfNode n%dn is load from auto or parm, local #%d\n", node->getGlobalIndex(), symbol->getLocalIndex());
+         traceMsg(comp(), "getObjectInfoOfNode n%dn is load from auto or parm, local #%d, symbol=%p\n", node->getGlobalIndex(), symbol->getLocalIndex(), symbol);
       return (*_currentObjectInfo)[symbol->getLocalIndex()];
       }
 
@@ -366,7 +386,15 @@ TR_MethodHandleTransformer::getObjectInfoOfNode(TR::Node* node)
         case TR::java_lang_invoke_DirectMethodHandle_internalMemberName:
         case TR::java_lang_invoke_DirectMethodHandle_internalMemberNameEnsureInit:
            {
+char s[256];
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), "ZZZZZ : found java_lang_invoke_DirectMethodHandle_internalMemberName\n" ); }
+
            auto mhIndex = getObjectInfoOfNode(node->getFirstArgument());
+
+
+snprintf(s, 256, "ZZZZZ : mhIndex=%d, isKnownObject(mhIndex)=%d, isNull=%d\n", mhIndex, isKnownObject(mhIndex), !knot->isNull(mhIndex) );
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), s ); }
+
            if (knot && isKnownObject(mhIndex) && !knot->isNull(mhIndex))
               {
               auto mnIndex = comp()->fej9()->getMemberNameFieldKnotIndexFromMethodHandleKnotIndex(comp(), mhIndex, "member");
@@ -600,10 +628,19 @@ TR_MethodHandleTransformer::process_java_lang_invoke_MethodHandle_linkTo(TR::Tre
    if (trace())
       traceMsg(comp(), "MemberName is obj%d\n", objIndex);
 
+   char s[256];
    auto knot = comp()->getKnownObjectTable();
    bool transformed = false;
+
+snprintf(s, 256, "ZZZZZ : process_java_lang_invoke_MethodHandle_linkTo : objectIndex=%d, isKnownObject=%d, isNull=%d\n", objIndex, isKnownObject(objIndex), knot->isNull(objIndex));
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), s ); }
+
+
    if (knot && isKnownObject(objIndex) && !knot->isNull(objIndex))
+   {
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), "ZZZZZ : about to refineMethodHandleLinkTo\n" ); }
       transformed = TR::TransformUtil::refineMethodHandleLinkTo(comp(), tt, node, objIndex, trace());
+   }
 
    if (!transformed)
       {

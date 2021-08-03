@@ -436,6 +436,10 @@ bool TR_InlinerBase::inlineCallTarget(TR_CallStack *callStack, TR_CallTarget *ca
 
    TR_InlinerDelimiter delimiter(tracer(),"TR_InlinerBase::inlineCallTarget");
 
+
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), "ZZZZZ : inlineCallTarget : initial argInfo=%p\n", argInfo ); }
+
+
    char *sig = "multiLeafArrayCopy";
    if (strncmp(calltarget->_calleeMethod->nameChars(), sig, strlen(sig)) == 0)
       {
@@ -452,9 +456,13 @@ bool TR_InlinerBase::inlineCallTarget(TR_CallStack *callStack, TR_CallTarget *ca
    // Last chance to improve our prex info
    //
    if (!calltarget->_prexArgInfo)
+   {
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), "ZZZZZ : inlineCallTarget : computePrexInfo\n" ); }
       calltarget->_prexArgInfo = getUtil()->computePrexInfo(calltarget);
+   }
 
    argInfo = TR_PrexArgInfo::enhance(calltarget->_prexArgInfo, argInfo, comp());
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), "ZZZZZ : inlineCallTarget : after enhance : argInfo=%p\n", argInfo ); }
    calltarget->_prexArgInfo = argInfo;
    bool tracePrex = comp()->trace(OMR::inlining) || comp()->trace(OMR::invariantArgumentPreexistence);
    if (tracePrex && argInfo)

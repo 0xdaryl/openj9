@@ -4493,32 +4493,38 @@ bool TR_J9InlinerPolicy::canInlineMethodWhileInstrumenting(TR_ResolvedMethod *me
 
 bool TR_J9InlinerPolicy::shouldRemoveDifferingTargets(TR::Node *callNode)
    {
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), "ZZZZZ : enter shouldRemoveDifferingTargets: callNode=%p\n", callNode); }
+
    if (!OMR_InlinerPolicy::shouldRemoveDifferingTargets(callNode))
+   {
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), "ZZZZZ : shouldRemoveDifferingTargets : OMR reject callNode=%p\n", callNode); }
       return false;
+   }
 
    TR::RecognizedMethod rm =
       callNode->getSymbol()->castToMethodSymbol()->getRecognizedMethod();
 
-#if 0
-   switch (rm) {
-	   case  TR::java_lang_invoke_MethodHandle_doCustomizationLogic:
-	   case  TR::java_lang_invoke_MethodHandle_asType:
-	   case  TR::java_lang_invoke_MethodHandle_asType_instance:
-	   case  TR::java_lang_invoke_MethodHandle_invoke:
-	   case  TR::java_lang_invoke_MethodHandle_invokeExact:
-	   case  TR::java_lang_invoke_MethodHandle_invokeBasic:
-	   case  TR::java_lang_invoke_MethodHandle_invokeExactTargetAddress:
-	   case  TR::java_lang_invoke_MethodHandle_linkToStatic:
-	   case  TR::java_lang_invoke_MethodHandle_linkToSpecial:
-	   case  TR::java_lang_invoke_MethodHandle_linkToVirtual:
-	   case  TR::java_lang_invoke_MethodHandle_linkToInterface:
-	return false;
+   switch (rm)
+      {
+      case TR::java_lang_invoke_MethodHandle_doCustomizationLogic:
+      case TR::java_lang_invoke_MethodHandle_asType:
+      case TR::java_lang_invoke_MethodHandle_asType_instance:
+      case TR::java_lang_invoke_MethodHandle_invoke:
+      case TR::java_lang_invoke_MethodHandle_invokeExact:
+      case TR::java_lang_invoke_MethodHandle_invokeBasic:
+      case TR::java_lang_invoke_MethodHandle_invokeExactTargetAddress:
+      case TR::java_lang_invoke_MethodHandle_linkToStatic:
+      case TR::java_lang_invoke_MethodHandle_linkToSpecial:
+      case TR::java_lang_invoke_MethodHandle_linkToVirtual:
+      case TR::java_lang_invoke_MethodHandle_linkToInterface:
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), "ZZZZZ : shouldRemoveDifferingTargets : reject because OJDK recognized method callNode=%p\n", callNode); }
+         return false;
 
-default:
-       return true;	
+      default:
+         break;
+      }
 
-   }
-#endif
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), "ZZZZZ : shouldRemoveDifferingTargets : rm != invokeBasic, callNode=%p\n", callNode); }
 
    return rm != TR::java_lang_invoke_MethodHandle_invokeBasic;
    }
@@ -4882,9 +4888,7 @@ TR_InlinerFailureReason
 TR_J9JSR292InlinerPolicy::checkIfTargetInlineable(TR_CallTarget* target, TR_CallSite* callsite, TR::Compilation* comp)
    {
 
-if (comp->trace(OMR::inlining)) {
-   traceMsg( comp, "ZZZZZ : QQQ1 : checkIfTargetInlineable\n");
-}	   
+if (comp->trace(OMR::inlining)) { traceMsg( comp, "ZZZZZ : QQQ1 : checkIfTargetInlineable\n"); }	   
 
 
    // for GPU, skip all the heuristic for JSR292 related methods
@@ -4917,9 +4921,7 @@ if (comp->trace(OMR::inlining)) {
 TR_InlinerFailureReason
  TR_J9InlinerPolicy::checkIfTargetInlineable(TR_CallTarget* target, TR_CallSite* callsite, TR::Compilation* comp)
    {
-if (comp->trace(OMR::inlining)) {
-   traceMsg( comp, "ZZZZZ : QQQ2 : checkIfTargetInlineable\n");
-}	   
+if (comp->trace(OMR::inlining)) { traceMsg( comp, "ZZZZZ : QQQ2 : checkIfTargetInlineable\n"); }	   
    if (comp->compileRelocatableCode() && comp->getMethodHotness() <= cold)
       {
       // If we are an AOT cold compile, don't inline
@@ -4932,7 +4934,13 @@ char   *methodName = target->_calleeMethod->nameChars();
 int32_t classLen  = target->_calleeMethod->classNameLength();
 char   *className = target->_calleeMethod->classNameChars();
 
-   TR_ResolvedMethod * resolvedMethod = target->_calleeSymbol ? target->_calleeSymbol->getResolvedMethod():target->_calleeMethod;
+// DJMDJM
+//   TR_ResolvedMethod * resolvedMethod = target->_calleeSymbol ? target->_calleeSymbol->getResolvedMethod():target->_calleeMethod;
+
+   TR_ResolvedMethod * resolvedMethod = target->_calleeMethod;
+   if (!resolvedMethod && target->_calleeSymbol)
+      resolvedMethod = target->_calleeSymbol->getResolvedMethod();
+
 
 if (comp->trace(OMR::inlining)) { traceMsg( comp, "ZZZZZ : QQQ2 : 2 : checkIfTargetInlineable : target->_calleeSymbol=%p : target->_calleeSymbol->getResolvedMethod=%p : target->_calleeMethod=%p\n", target->_calleeSymbol, target->_calleeSymbol ? target->_calleeSymbol->getResolvedMethod() : NULL, target->_calleeMethod); }
 
