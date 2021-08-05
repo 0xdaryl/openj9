@@ -57,7 +57,8 @@ J9::Node::Node(TR::Node *originatingByteCodeNode, TR::ILOpCodes op, uint16_t num
 #ifdef TR_TARGET_S390
      _storageReferenceHint(NULL),
 #endif
-     _unionPropertyB()
+     _unionPropertyB(),
+     _knownObjectIndex(TR::KnownObjectTable::UNKNOWN)
    {
    // check that _unionPropertyA union is disjoint
    TR_ASSERT(
@@ -2608,4 +2609,20 @@ J9::Node::canGCandReturn()
          }
       }
    return OMR::NodeConnector::canGCandReturn();
+   }
+
+
+void
+J9::Node::rememberKnownObjectIndex(TR::KnownObjectTable::Index newKOI)
+   {
+   TR::KnownObjectTable::Index existingKOI = _knownObjectIndex;
+
+   if (existingKOI != TR::KnownObjectTable::UNKNOWN)
+      {
+      TR_ASSERT_FATAL_WITH_NODE(self(), existingKOI == newKOI, "changing known object info on node");
+      }
+   else
+      {
+      _knownObjectIndex = newKOI;
+      }
    }

@@ -335,6 +335,7 @@ void TR_MethodHandleTransformer::mergeObjectInfo(ObjectInfo *first, ObjectInfo *
       }
    }
 
+
 // Given a address type node, try to retrieve or compute its value
 //
 TR::KnownObjectTable::Index
@@ -342,10 +343,12 @@ TR_MethodHandleTransformer::getObjectInfoOfNode(TR::Node* node)
    {
    TR_ASSERT(node->getType() == TR::Address, "Can't have object info on non-address type node n%dn %p", node->getGlobalIndex(), node);
 
+/*
    if (trace())
       {
       traceMsg(comp(), "Looking for object info of n%dn\n", node->getGlobalIndex());
       }
+*/
 
 char s[256];
 snprintf(s, 256, "ZZZZZ : Looking for object info of n%dn\n", node->getGlobalIndex());
@@ -370,9 +373,15 @@ char s[256];
 snprintf(s, 256, "ZZZZZ : getObjectInfoOfNode n%dn is load from auto or parm, local #%d, symbol=%p\n", node->getGlobalIndex(), symbol->getLocalIndex(), symbol);
 if (comp()->trace(OMR::inlining)) { traceMsg( comp(), s ); }
 
+/*
       if (trace())
          traceMsg(comp(), "getObjectInfoOfNode n%dn is load from auto or parm, local #%d, symbol=%p\n", node->getGlobalIndex(), symbol->getLocalIndex(), symbol);
-      return (*_currentObjectInfo)[symbol->getLocalIndex()];
+*/
+
+      TR::KnownObjectTable::Index koi = (*_currentObjectInfo)[symbol->getLocalIndex()];
+      node->rememberKnownObjectIndex(koi);
+
+      return koi;
       }
 
    auto knot = comp()->getKnownObjectTable();
@@ -391,7 +400,6 @@ if (comp()->trace(OMR::inlining)) { traceMsg( comp(), "ZZZZZ : found java_lang_i
 
            auto mhIndex = getObjectInfoOfNode(node->getFirstArgument());
 
-
 snprintf(s, 256, "ZZZZZ : mhIndex=%d, isKnownObject(mhIndex)=%d, isNull=%d\n", mhIndex, isKnownObject(mhIndex), !knot->isNull(mhIndex) );
 if (comp()->trace(OMR::inlining)) { traceMsg( comp(), s ); }
 
@@ -400,6 +408,9 @@ if (comp()->trace(OMR::inlining)) { traceMsg( comp(), s ); }
               auto mnIndex = comp()->fej9()->getMemberNameFieldKnotIndexFromMethodHandleKnotIndex(comp(), mhIndex, "member");
               if (trace())
                  traceMsg(comp(), "Get DirectMethodHandle.member known object %d\n", mnIndex);
+
+	      node->rememberKnownObjectIndex(mnIndex);
+
               return mnIndex;
               }
            }
@@ -411,9 +422,66 @@ if (comp()->trace(OMR::inlining)) { traceMsg( comp(), s ); }
               auto mnIndex = comp()->fej9()->getMemberNameFieldKnotIndexFromMethodHandleKnotIndex(comp(), mhIndex, "initMethod");
               if (trace())
                  traceMsg(comp(), "Get DirectMethodHandle.initMethod known object %d\n", mnIndex);
-              return mnIndex;
+
+	      node->rememberKnownObjectIndex(mnIndex);
+
+	      return mnIndex;
               }
            }
+
+         case TR::java_lang_invoke_DelegatingMethodHandle_getTarget:
+            {
+
+snprintf(s, 256, "MMMMM : node=%d\n", node->getGlobalIndex());
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), s ); }
+
+            auto dmhIndex = getObjectInfoOfNode(node->getFirstChild());
+            if (knot && isKnownObject(dmhIndex) && !knot->isNull(dmhIndex))
+               {
+               const char * const cwClassName = "java/lang/invoke/MethodHandleImpl$CountingWrapper";
+
+               const int cwClassNameLen = (int)strlen(cwClassName);
+               TR_OpaqueClassBlock *cwClass =
+                  comp()->fej9()->getSystemClassFromClassName(cwClassName, cwClassNameLen, true);
+
+               if (trace())
+                  {
+                  traceMsg(comp(), "MHT: delegating method handle target: delegating mh obj%d(*%p) CountingWrapper %p",
+                     dmhIndex,
+                     knot->getPointerLocation(dmhIndex),
+                     cwClass);
+                  }
+
+               if (cwClass == NULL)
+                  {
+                  if (trace()) { traceMsg(comp(), "MHT: failed to find CountingWrapper"); }
+                  break;
+                  }
+
+               TR_OpaqueClassBlock *dmhType = comp()->fej9()->getObjectClassFromKnownObjectIndex(comp(), dmhIndex);
+
+               if (dmhType == NULL)
+                  {
+                  if (trace()) { traceMsg(comp(), "MHT: failed to determine concrete DelegatingMethodHandle type"); }
+                  break;
+                  }
+               else if (fe()->isInstanceOf(dmhType, cwClass, true) != TR_yes)
+                  {
+                  if (trace()) { traceMsg(comp(), "MHT: not a CountingWrapper"); }
+                  break;
+                  }
+
+               // TODO: JITServer
+               TR::VMAccessCriticalSection dereferenceKnownObjectField(comp()->fej9());
+               int32_t targetFieldOffset = comp()->fej9()->getInstanceFieldOffset(
+                 cwClass, "target", "Ljava/lang/invoke/MethodHandle;");
+
+               uintptr_t dmh = knot->getPointer(dmhIndex);
+               uintptr_t fieldAddress = comp()->fej9()->getReferenceFieldAt(dmh, targetFieldOffset);
+               return knot->getOrCreateIndex(fieldAddress);
+               }
+            
+            }
 
          default:
             break;
@@ -459,6 +527,9 @@ void TR_MethodHandleTransformer::visitIndirectLoad(TR::TreeTop* tt, TR::Node* no
       }
 
    auto symbol = node->getSymbol();
+
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), "ZZZZZ : MMM visit indirect load n%dn, final=%d\n", node->getGlobalIndex(), symbol ? symbol->isFinal() : -1 ); }
+
    if (!symRef->isUnresolved() && symbol &&
        (symbol->isFinal() || symbol->isArrayShadowSymbol()))
       {

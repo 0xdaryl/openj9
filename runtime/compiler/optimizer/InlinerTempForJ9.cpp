@@ -5394,6 +5394,18 @@ TR_J9InlinerUtil::computePrexInfo(TR_InlinerBase *inliner, TR_CallSite* site, TR
          if (tracePrex)
             traceMsg(comp, "PREX.inl:      %p: is known object obj%d\n", prexArg, symRef->getKnownObjectIndex());
          }
+
+///// DJM
+
+      else if (argument->hasKnownObjectIndex())
+         {
+         prexArg = new (inliner->trHeapMemory()) TR_PrexArgument(argument->getKnownObjectIndex(), comp);
+         if (tracePrex)
+            traceMsg(comp, "PREX.inl:      %p: is DJM CACHED known object obj%d\n", prexArg, argument->getKnownObjectIndex());
+         }
+
+///// DJM
+
       else if (argument->getOpCodeValue() == TR::aload)
          {
          OMR::ParameterSymbol *parmSymbol = symbol->getParmSymbol();

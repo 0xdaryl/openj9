@@ -939,8 +939,12 @@ InterpreterEmulator::getReturnValue(TR_ResolvedMethod *callee)
       case TR::java_lang_invoke_DelegatingMethodHandle_getTarget:
          {
          TR::KnownObjectTable::Index dmhIndex = top()->getKnownObjectIndex();
-         if (dmhIndex == TR::KnownObjectTable::UNKNOWN)
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), "MMMMM : IE 1 : found DMH.getTarget : dmhIndex=%d\n", dmhIndex); }
+
+         if (dmhIndex == TR::KnownObjectTable::UNKNOWN) {
+if (comp()->trace(OMR::inlining)) { traceMsg( comp(), "MMMMM : IE 2 : DMH.getTarget not known object\n"); }
             return NULL;
+	 }
 
          const char * const cwClassName =
             "java/lang/invoke/MethodHandleImpl$CountingWrapper";

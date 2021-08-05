@@ -34,6 +34,7 @@ namespace J9 { typedef J9::Node NodeConnector; }
 
 #include "j9cfg.h"
 #include "il/OMRNode.hpp"
+#include "env/KnownObjectTable.hpp"
 
 class TR_OpaquePseudoRegister;
 class TR_StorageReference;
@@ -127,6 +128,9 @@ public:
    int32_t      survivingDigits();
 
 
+   void rememberKnownObjectIndex(TR::KnownObjectTable::Index koi);
+   TR::KnownObjectTable::Index getKnownObjectIndex() { return _knownObjectIndex; }
+   bool hasKnownObjectIndex() { return _knownObjectIndex != TR::KnownObjectTable::UNKNOWN; }
 
    bool isTruncatingOrWideningAggrOrBCD();
 
@@ -427,6 +431,9 @@ private:
 
    // Holds DecimalInfo and BCDFlags
    UnionPropertyB _unionPropertyB;
+
+
+   TR::KnownObjectTable::Index _knownObjectIndex;
 
 protected:
    // Flag bits
