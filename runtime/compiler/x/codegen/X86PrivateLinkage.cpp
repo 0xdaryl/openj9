@@ -1741,9 +1741,11 @@ TR::Register *J9::X86::PrivateLinkage::buildIndirectDispatch(TR::Node *callNode)
       TR::Method       *method       = methodSymbol->getMethod();
       if (methodSymbol->isComputed())
          {
+         if (methodSymbol->isComputedStatic() && methodSymbol->getMandatoryRecognizedMethod() != TR::unknownMethod)
          switch (method->getMandatoryRecognizedMethod())
             {
             case TR::java_lang_invoke_ComputedCalls_dispatchVirtual:
+            case TR::com_ibm_jit_JITHelpers_dispatchVirtual:
                {
                // Need a j2i thunk for the method that will ultimately be dispatched by this handle call
                char *j2iSignature = fej9->getJ2IThunkSignatureForDispatchVirtual(methodSymbol->getMethod()->signatureChars(), methodSymbol->getMethod()->signatureLength(), comp());
@@ -2139,7 +2141,9 @@ TR::Instruction *J9::X86::PrivateLinkage::buildVFTCall(TR::X86CallSite &site, TR
       TR::Node *callNode = site.getCallNode();
       TR::ResolvedMethodSymbol *resolvedMethodSymbol = callNode->getSymbol()->getResolvedMethodSymbol();
       bool mayReachJ2IThunk = true;
-      if (resolvedMethodSymbol && resolvedMethodSymbol->getRecognizedMethod() == TR::java_lang_invoke_ComputedCalls_dispatchDirect)
+      if (resolvedMethodSymbol &&
+            (resolvedMethodSymbol->getRecognizedMethod() == TR::java_lang_invoke_ComputedCalls_dispatchDirect ||
+            resolvedMethodSymbol->getRecognizedMethod() == TR::com_ibm_jit_JITHelpers_dispatchComputedStaticCall))
          mayReachJ2IThunk = false;
       if (mayReachJ2IThunk && dispatchOp.isCallOp())
          {
