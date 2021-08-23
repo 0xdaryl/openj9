@@ -82,7 +82,7 @@ public:
     *
     * Returns true if profiling information was available and used.
     */
-   bool setFrequencies();
+   bool setFrequencies(bool tryToUseJPI = true);
 
    void setBlockAndEdgeFrequenciesBasedOnStructure();
    TR_BitVector *setBlockAndEdgeFrequenciesBasedOnJITProfiler();

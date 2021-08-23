@@ -1250,7 +1250,7 @@ TR_J9EstimateCodeSize::realEstimateCodeSize(TR_CallTarget *calltarget, TR_CallSt
       cfg._calledFrequency = 10000;
       }
 
-   cfg.propagateColdInfo(callGraphEnabled); // propagate coldness but also generate frequency information
+   cfg.propagateColdInfo(callGraphEnabled, false); // propagate coldness but also generate frequency information
    // for blocks if call graph profiling is enabled
 
    if (tracer()->heuristicLevel())
