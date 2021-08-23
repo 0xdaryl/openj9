@@ -1715,9 +1715,32 @@ TR_BlockFrequencyInfo::getFrequencyInfo(
       bool normalizeForCallers,
       bool trace)
    {
-   int64_t maxCount = normalizeForCallers ? getMaxRawCount() : getMaxRawCount(bci.getCallerIndex());
    int32_t callerIndex = bci.getCallerIndex();
-   int32_t frequency = getRawCount(callerIndex < 0 ? comp->getMethodSymbol() : comp->getInlinedResolvedMethodSymbol(callerIndex), bci, _callSiteInfo, maxCount, comp);
+   int32_t queriedCallerIndex = callerIndex;
+   
+   bool isMatchingBCI = callerIndex < 0 || (callerIndex < _callSiteInfo->getNumCallSites() && _callSiteInfo->getInlinedMethodFromCallerIndex(callerIndex, comp) == comp->fe()->getInlinedCallSiteMethod(&comp->getInlinedCallSite(callerIndex)));
+
+   if (!isMatchingBCI)
+      {
+      // Try to compute the effective caller index for the inlined method to query the block frequency info
+      TR_ByteCodeInfo bciCheck = bci;
+      TR::list<std::pair<TR_OpaqueMethodBlock*, TR_ByteCodeInfo> > callStackInfo(comp->allocator());
+      // Preparing a callStack for the queried method to compute the effectiveCallerIndex.
+      while (bciCheck.getCallerIndex() > -1)
+         {
+         TR_InlinedCallSite *callSite = &comp->getInlinedCallSite(bciCheck.getCallerIndex());
+         callStackInfo.push_back(std::make_pair(comp->fe()->getInlinedCallSiteMethod(callSite), bciCheck));
+         bciCheck = callSite->_byteCodeInfo;
+         }
+      int32_t computedCallerIndex = -1;
+      isMatchingBCI = _callSiteInfo->computeEffectiveCallerIndex(comp, callStackInfo, queriedCallerIndex);
+      }
+   TR_ByteCodeInfo bciCheck(bci);
+   bciCheck.setCallerIndex(queriedCallerIndex);
+
+   int64_t maxCount = normalizeForCallers ? getMaxRawCount() : getMaxRawCount(queriedCallerIndex);
+   
+   int32_t frequency = isMatchingBCI ? getRawCount(callerIndex < 0 ? comp->getMethodSymbol() : comp->getInlinedResolvedMethodSymbol(callerIndex), bciCheck, _callSiteInfo, maxCount, comp) : -1;
    if (trace)
       traceMsg(comp,"raw frequency on outter level was %d for bci %d:%d\n", frequency, bci.getCallerIndex(), bci.getByteCodeIndex());
    if (frequency > -1 || _counterDerivationInfo == NULL)
@@ -2397,7 +2420,11 @@ TR_CallSiteInfo::computeEffectiveCallerIndex(TR::Compilation *comp, TR::list<std
       }
    return false;
    }
-
+TR_OpaqueMethodBlock* 
+TR_CallSiteInfo::getInlinedMethodFromCallerIndex(int32_t callerIndex, TR::Compilation *comp)
+   {
+   return comp->fe()->getInlinedCallSiteMethod(&_callSites[callerIndex]);
+   }
 bool
 TR_CallSiteInfo::hasSameBytecodeInfo(
       TR_ByteCodeInfo & persistentBytecodeInfo,
