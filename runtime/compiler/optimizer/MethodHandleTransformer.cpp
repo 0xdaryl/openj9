@@ -500,13 +500,18 @@ void TR_MethodHandleTransformer::visitCall(TR::TreeTop* tt, TR::Node* node)
    {
    auto knot = comp()->getKnownObjectTable();
    TR::RecognizedMethod rm = node->getSymbol()->castToMethodSymbol()->getMandatoryRecognizedMethod();
+   TR::KnownObjectTable::Index objIndex;
    switch (rm)
       {
       case TR::java_lang_invoke_MethodHandle_invokeBasic:
          process_java_lang_invoke_MethodHandle_invokeBasic(tt, node);
          break;
-      case TR::java_lang_invoke_MethodHandle_linkToSpecial:
       case TR::java_lang_invoke_MethodHandle_linkToVirtual:
+         objIndex = getObjectInfoOfNode(node->getFirstChild());
+         if (knot && isKnownObject(objIndex) && !knot->isNull(objIndex))
+            process_java_lang_invoke_MethodHandle_linkTo(tt, node);
+         break;
+      case TR::java_lang_invoke_MethodHandle_linkToSpecial:
       case TR::java_lang_invoke_MethodHandle_linkToStatic:
          process_java_lang_invoke_MethodHandle_linkTo(tt, node);
          break;
