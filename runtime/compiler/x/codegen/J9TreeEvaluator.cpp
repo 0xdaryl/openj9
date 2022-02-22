@@ -4075,7 +4075,16 @@ inline void generateInlinedCheckCastOrInstanceOfForInterface(TR::Node* node, TR_
       generateLabelInstruction(TR::InstOpCode::JNE4, node, iTableLoopLabel, cg);
 
       // Found from I-Table
-      generateMemInstruction(TR::InstOpCode::POPMem, node, generateX86MemoryReference(cache, cg), cg); // j9class
+      static bool updateCacheSlot = feGetEnv("TR_updateCheckCastCacheSlot") != NULL;
+      if (updateCacheSlot)
+         {
+         generateMemInstruction(TR::InstOpCode::POPMem, node, generateX86MemoryReference(cache, cg), cg); // j9class
+         }
+      else
+         {
+         generateRegInstruction(TR::InstOpCode::POPReg, node, j9class, cg); // j9class
+         }
+
       if (!isCheckCast)
          {
          generateInstruction(TR::InstOpCode::STC, node, cg);
