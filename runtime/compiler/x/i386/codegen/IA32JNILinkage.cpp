@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2021 IBM Corp. and others
+ * Copyright (c) 2000, 2022 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -458,7 +458,7 @@ TR::Register *J9::X86::I386::JNILinkage::buildJNIDispatch(TR::Node *callNode)
          TR_OutlinedInstructionsGenerator og(refPoolSnippetLabel, callNode, cg());
          generateHelperCallInstruction(callNode, TR_IA32jitCollapseJNIReferenceFrame, NULL, cg());
          generateLabelInstruction(TR::InstOpCode::JMP4, callNode, refPoolRestartLabel, cg());
-      og.endOutlinedInstructionSequence();
+         og.endOutlinedInstructionSequence();
          }
 
       // Now set esp back to its previous value.
@@ -479,13 +479,23 @@ TR::Register *J9::X86::I386::JNILinkage::buildJNIDispatch(TR::Node *callNode)
          returnRegister = cg()->allocateRegisterPair(ecxReal, edxReal);
          break;
 
-      // Current system linkage does not use XMM0 for floating point return, even if SSE is supported on the processor.
-      //
       case TR::Float:
-         deps->addPostCondition(returnRegister = cg()->allocateSinglePrecisionRegister(TR_X87), TR::RealRegister::st0, cg());
-         break;
       case TR::Double:
-         deps->addPostCondition(returnRegister = cg()->allocateRegister(TR_X87), TR::RealRegister::st0, cg());
+         /**
+          * x87 registers can no longer be added to register dependencies because
+          * the x87 register assigner has been removed.  Instead, the dispatch code
+          * must insert code to shuffle from ST0 to XMM0 manually.  The floating
+          * point result register will therefore be XMM0.
+          */
+         returnRegister = cg()->allocateRegister(TR_FPR);
+         if (callNode->getDataType() == TR::Float)
+            {
+            returnRegister->setIsSinglePrecision();
+            }
+         deps->addPostCondition(returnRegister, TR::RealRegister::xmm0, cg());
+         break;
+
+      default:
          break;
       }
 
@@ -524,21 +534,13 @@ TR::Register *J9::X86::I386::JNILinkage::buildJNIDispatch(TR::Node *callNode)
    if (deps)
       stopUsingKilledRegisters(deps, returnRegister);
 
-   // If the processor supports SSE, return floating-point values in XMM registers.
-   //
-   if (callNode->getOpCode().isFloat())
+   /**
+    * For floating point return values, move the value passed in ST0 to an XMM register.
+    * The x87 stack will be popped.
+    */
+   if (callNode->getDataType() == TR::Float || callNode->getDataType() == TR::Double)
       {
-      TR::MemoryReference  *tempMR = cg()->machine()->getDummyLocalMR(TR::Float);
-      generateFPMemRegInstruction(TR::InstOpCode::FSTPMemReg, callNode, tempMR, returnRegister, cg());
-      returnRegister = cg()->allocateSinglePrecisionRegister(TR_FPR);
-      generateRegMemInstruction(TR::InstOpCode::MOVSSRegMem, callNode, returnRegister, generateX86MemoryReference(*tempMR, 0, cg()), cg());
-      }
-   else if (callNode->getOpCode().isDouble())
-      {
-      TR::MemoryReference  *tempMR = cg()->machine()->getDummyLocalMR(TR::Double);
-      generateFPMemRegInstruction(TR::InstOpCode::DSTPMemReg, callNode, tempMR, returnRegister, cg());
-      returnRegister = cg()->allocateRegister(TR_FPR);
-      generateRegMemInstruction(cg()->getXMMDoubleLoadOpCode(), callNode, returnRegister, generateX86MemoryReference(*tempMR, 0, cg()), cg());
+      TR::TreeEvaluator::coerceST0ToFPR(callNode, callNode->getDataType(), cg(), returnRegister);
       }
 
    if (cg()->enableRegisterAssociations())

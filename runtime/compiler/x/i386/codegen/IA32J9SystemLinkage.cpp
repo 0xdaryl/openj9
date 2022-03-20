@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2021 IBM Corp. and others
+ * Copyright (c) 2000, 2022 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -47,14 +47,21 @@ TR::IA32J9SystemLinkage::buildVolatileAndReturnDependencies(TR::Node *callNode, 
 
    deps->addPostCondition(cg()->getMethodMetaDataRegister(), TR::RealRegister::ebp, cg());
 
+   /**
+    * For a function with a floating point return value, the xmm0 (return value)
+    * dependence will already be created when the register dependencies are
+    * created.  It should not be added to the dependency conditions again.
+    */
+   int32_t firstVolatileXMMR = (returnReg && returnReg->getKind() == TR_FPR) ? TR::RealRegister::xmm1 : TR::RealRegister::xmm0;
+
    uint8_t numXmmRegs = 0;
    TR_LiveRegisters *lr = cg()->getLiveRegisters(TR_FPR);
    if (!lr || lr->getNumberOfLiveRegisters() > 0)
-      numXmmRegs = (uint8_t)(TR::RealRegister::LastXMMR - TR::RealRegister::FirstXMMR+1);
+      numXmmRegs = (uint8_t)(TR::RealRegister::LastXMMR - firstVolatileXMMR + 1);
 
    if (numXmmRegs > 0)
       {
-      for (int regIndex = TR::RealRegister::FirstXMMR; regIndex <= TR::RealRegister::LastXMMR; regIndex++)
+      for (int32_t regIndex = firstVolatileXMMR; regIndex <= TR::RealRegister::LastXMMR; regIndex++)
          {
          TR::Register *dummy = cg()->allocateRegister(TR_FPR);
          dummy->setPlaceholderReg();
@@ -130,21 +137,13 @@ TR::IA32J9SystemLinkage::buildDirectDispatch(TR::Node *callNode, bool spillFPReg
    if (deps)
       stopUsingKilledRegisters(deps, returnReg);
 
-   if (callNode->getOpCode().isFloat())
+   /**
+    * For floating point return values, move the value passed in ST0 to an XMM register.
+    * The x87 stack will be popped.
+    */
+   if (callNode->getDataType() == TR::Float || callNode->getDataType() == TR::Double)
       {
-      TR::MemoryReference  *tempMR = machine()->getDummyLocalMR(TR::Float);
-      generateFPMemRegInstruction(TR::InstOpCode::FSTPMemReg, callNode, tempMR, returnReg, cg());
-      cg()->stopUsingRegister(returnReg); // zhxingl: this is added by me
-      returnReg = cg()->allocateSinglePrecisionRegister(TR_FPR);
-      generateRegMemInstruction(TR::InstOpCode::MOVSSRegMem, callNode, returnReg, generateX86MemoryReference(*tempMR, 0, cg()), cg());
-      }
-   else if (callNode->getOpCode().isDouble())
-      {
-      TR::MemoryReference  *tempMR = machine()->getDummyLocalMR(TR::Double);
-      generateFPMemRegInstruction(TR::InstOpCode::DSTPMemReg, callNode, tempMR, returnReg, cg());
-      cg()->stopUsingRegister(returnReg); // zhxingl: this is added by me
-      returnReg = cg()->allocateRegister(TR_FPR);
-      generateRegMemInstruction(cg()->getXMMDoubleLoadOpCode(), callNode, returnReg, generateX86MemoryReference(*tempMR, 0, cg()), cg());
+      TR::TreeEvaluator::coerceST0ToFPR(callNode, callNode->getDataType(), cg(), returnReg);
       }
 
    if (cg()->enableRegisterAssociations())
