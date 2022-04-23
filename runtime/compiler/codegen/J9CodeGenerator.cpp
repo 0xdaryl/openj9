@@ -672,26 +672,35 @@ J9::CodeGenerator::lowerTreesPreChildrenVisit(TR::Node *parent, TR::TreeTop *tre
        (parent->getSymbolReference() == self()->comp()->getSymRefTab()->findThisRangeExtensionSymRef()))
       TR::Node::recreate(parent, TR::treetop);
 
-
-   // J9
-   //
-   if (parent->getOpCode().isCall() &&
-       !parent->getSymbolReference()->isUnresolved() &&
-       parent->getSymbolReference()->getSymbol()->getMethodSymbol() &&
-       !parent->getSymbolReference()->getSymbol()->castToMethodSymbol()->isHelper() &&
-       !parent->getSymbolReference()->getSymbol()->castToMethodSymbol()->isSystemLinkageDispatch() &&
-       parent->getSymbolReference()->getSymbol()->getResolvedMethodSymbol())
+   if (parent->getOpCode().isCall())
       {
-      //this code should match the one in genInvoke (Walker.cpp)
-      if (parent->getSymbolReference()->getSymbol()->castToResolvedMethodSymbol()->getRecognizedMethod() == TR::com_ibm_jit_JITHelpers_getAddressAsPrimitive32 ||
-            parent->getSymbolReference()->getSymbol()->castToResolvedMethodSymbol()->getRecognizedMethod() == TR::com_ibm_jit_JITHelpers_getAddressAsPrimitive64
-         )
-         parent->removeChild(0);
+      TR::ResolvedMethodSymbol *resolvedMethodSymbol =
+         parent->getSymbolReference()->getSymbol()->getResolvedMethodSymbol();
 
-      if (parent->getSymbolReference()->getSymbol()->castToResolvedMethodSymbol()->getRecognizedMethod() == TR::com_ibm_jit_JITHelpers_getAddressAsPrimitive32)
-         TR::Node::recreate(parent, TR::a2i);
-      else if (parent->getSymbolReference()->getSymbol()->castToResolvedMethodSymbol()->getRecognizedMethod() == TR::com_ibm_jit_JITHelpers_getAddressAsPrimitive64)
-         TR::Node::recreate(parent, TR::a2l);
+      if (resolvedMethodSymbol)
+         {
+         if (!resolvedMethodSymbol->isHelper() &&
+             !resolvedMethodSymbol->isSystemLinkageDispatch())
+            {
+            // This code should match the corresponding code in genInvoke (Walker.cpp)
+            //
+            switch (resolvedMethodSymbol->getRecognizedMethod())
+               {
+               case TR::com_ibm_jit_JITHelpers_getAddressAsPrimitive32:
+                  parent->removeChild(0);
+                  TR::Node::recreate(parent, TR::a2i);
+                  break;
+
+               case TR::com_ibm_jit_JITHelpers_getAddressAsPrimitive64:
+                  parent->removeChild(0);
+                  TR::Node::recreate(parent, TR::a2l);
+                  break;
+
+               default:
+                  break;
+               }
+            }
+         }
       }
 
    // J9
