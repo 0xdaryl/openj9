@@ -1374,3 +1374,81 @@ getArgPointer(J9UpcallNativeSignature *nativeSig, void *argListPtr, I_32 argIdx)
 #endif /* JAVA_SPEC_VERSION >= 16 */
 
 } /* extern "C" */
+
+#if 0
+        /* @brief Check the merged composition types of both the first 8 bytes and the next 8 bytes
+         * of the 16-byte composition type array so as to determine the aggregate subtype of
+         * a struct equal to or less than 16 bytes in size).
+         *
+         * @param first16ByteComposTypes[in] A pointer to a composition type array for the 1st 16bytes of the struct signature string
+         * @return an encoded AGGREGATE subtype for the struct signature
+         */
+        static U_8
+        getStructSigTypeFrom16ByteComposTypes(U_8 *first16ByteComposTypes)
+        {
+                U_8 structSigType = 0;
+                U_8 first8ByteComposType = getComposTypeFrom8Bytes(first16ByteComposTypes, 0);
+                U_8 second8ByteComposType = getComposTypeFrom8Bytes(first16ByteComposTypes, 8);
+                U_8 structSigComposType = (first8ByteComposType << 4) | second8ByteComposType;
+
+                switch (structSigComposType) {
+                case J9_FFI_UPCALL_STRU_COMPOSITION_TYPE_F_E_D:
+                        /* The aggregate subtype is set for the struct {float, padding, double} */
+                        structSigType = J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_DP;
+                        break;
+                case J9_FFI_UPCALL_STRU_COMPOSITION_TYPE_F_F_D:
+                        /* The aggregate subtype is set for the struct {float, float, double} */
+                        structSigType = J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_SP_DP;
+                        break;
+                case J9_FFI_UPCALL_STRU_COMPOSITION_TYPE_D_F_E:
+                        /* The aggregate subtype is set for the struct {double, float, padding} */
+                        structSigType = J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_SP;
+                        break;
+                case J9_FFI_UPCALL_STRU_COMPOSITION_TYPE_D_F_F:
+                        /* The aggregate subtype is set for the struct {double, float, float} */
+                        structSigType = J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_SP_SP;
+                        break;
+                case J9_FFI_UPCALL_STRU_COMPOSITION_TYPE_M_F_E:
+                        /* The aggregate subtype is set for structs starting with the mix of any integer type/float
+                         * in the first 8 bytes followed by one float in the second 8 bytes.
+                         * e.g. {int, float, float} or {float, int, float}.
+                         */
+                        structSigType = J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC_SP;
+                        break;
+                case J9_FFI_UPCALL_STRU_COMPOSITION_TYPE_M_F_F: /* Fall through */
+                case J9_FFI_UPCALL_STRU_COMPOSITION_TYPE_M_D:
+                        /* The aggregate subtype is set for a struct starting with the mix of any integer type/float in the
+                         * first 8 bytes followed by a double or two floats(treated as a double) in the second 8 bytes.
+                         * e.g. {int, float, double}, {float, int, double}, {long, double}, {int, float, float, float}
+                         * or {long, float, float}.
+                         */
+                        structSigType = J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC_DP;
+                        break;
+                case J9_FFI_UPCALL_STRU_COMPOSITION_TYPE_F_E_M:
+                        /* The aggregate subtype is set for a struct starting with a float in the first 8 bytes
+                         * followed by the mix of any integer type/float in the second 8 bytes.
+                         * e.g. {float, padding, long}.
+                         */
+                        structSigType = J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_MISC;
+                        break;
+                case J9_FFI_UPCALL_STRU_COMPOSITION_TYPE_F_F_M: /* Fall through */
+                case J9_FFI_UPCALL_STRU_COMPOSITION_TYPE_D_M:
+                        /* The aggregate subtype is set for a struct starting with a double or two floats in the
+                         * first 8 bytes, followed by the mix of any integer type/float in the second 8 bytes.
+                         * e.g. {double, float, int}, {double, long} or  {float, float, float, int}
+                         * or {float, float, long}.
+                         */
+                        structSigType = J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_MISC;
+                        break;
+                default:
+                        /* The aggregate subtype is set for a struct mixed with any integer type/float
+                         * without pure float/double in the first/second 8 bytes.
+                         * e.g. {short a[3], char b} or {int, float, int, float}.
+                         */
+                        structSigType = J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC;
+                        break;
+                }
+
+                return structSigType;
+        }
+#endif
