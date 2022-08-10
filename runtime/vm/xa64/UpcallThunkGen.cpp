@@ -41,6 +41,15 @@ extern "C" {
 #define MAX_GPRS_PASSED_IN_REGS 6
 #define MAX_FPRS_PASSED_IN_REGS 8
 
+typedef enum StructPassingMechanismEnum {
+	PASS_STRUCT_IN_MEMORY,
+	PASS_STRUCT_IN_ONE_FPR,
+	PASS_STRUCT_IN_TWO_FPR,
+	PASS_STRUCT_IN_ONE_GPR_ONE_FPR,
+	PASS_STRUCT_IN_ONE_GPR,
+	PASS_STRUCT_IN_TWO_GPR
+} X64StructPassingMechanism;
+
 #define REX	0x40
 #define REX_W	0x08
 #define REX_R	0x04
@@ -129,6 +138,8 @@ const X64_FPR fprParmRegs[MAX_FPRS_PASSED_IN_REGS] = {
 	xmm7
 };
 
+#define IS_32BIT_IMM(x,imm)  ((intptr_t)(x) == (intptr_t)(imm) + (int32_t)((intptr_t)(x) - (intptr_t)(imm)))
+
 // -----------------------------------------------------------------------------
 // MOV treg, [rsp + disp32]
 //
@@ -166,6 +177,23 @@ const X64_FPR fprParmRegs[MAX_FPRS_PASSED_IN_REGS] = {
 #define S8_mRSP_DISP32m_SREG_LENGTH (1+3+4)
 
 // -----------------------------------------------------------------------------
+// MOV treg, imm32
+//
+#define MOV_TREG_IMM32(cursor, treg, imm32) \
+	{ \
+	*cursor = REX | REX_W; \
+	uint8_t *rex = cursor++; \
+	*cursor++ = 0xc7; \
+	*cursor++ = 0xc0 | modRM[treg].rm; \
+	*rex |= modRM[treg].rexb; \
+	*(int32_t *)cursor = imm32; \
+	cursor += 4; \
+	}
+
+// REX + op + modRM + imm32
+#define MOV_TREG_IMM32_LENGTH (1+2+4)
+
+// -----------------------------------------------------------------------------
 // MOV treg, imm64
 //
 #define MOV_TREG_IMM64(cursor, treg, imm64) \
@@ -195,6 +223,24 @@ const X64_FPR fprParmRegs[MAX_FPRS_PASSED_IN_REGS] = {
 
 // REX + op + modRM
 #define MOV_TREG_SREG_LENGTH (3)
+
+// -----------------------------------------------------------------------------
+// LEA treg, [rsp + disp32]
+//
+#define LEA_TREG_mRSP_DISP32m(cursor, treg, disp32) \
+	{ \
+	*cursor = REX | REX_W; \
+	uint8_t *rex = cursor++; \
+	*cursor++ = 0x8d; \
+	*cursor++ = 0x84 | modRM[treg].reg; \
+	*rex |= modRM[treg].rexr; \
+	*cursor++ = 0x24; \
+	*(int32_t *)cursor = disp32; \
+	cursor += 4; \
+	}
+
+// REX + op + modRM + SIB + disp32
+#define LEA_TREG_mRSP_DISP32m_LENGTH (1+3+4)
 
 // -----------------------------------------------------------------------------
 // SUB rsp, imm32
@@ -285,7 +331,36 @@ const X64_FPR fprParmRegs[MAX_FPRS_PASSED_IN_REGS] = {
 //
 #define CALL_mSREG_DISP32m_LENGTH (1+2+1)
 
+// -----------------------------------------------------------------------------
+// RET
+//
+#define RET(cursor) \
+	{ \
+	*cursor++ = 0xc3; \
+	}
 
+#define RET_LENGTH (1)
+
+// -----------------------------------------------------------------------------
+// INT3
+//
+#define INT3(cursor) \
+	{ \
+	*cursor++ = 0xcc; \
+	}
+
+#define INT3_LENGTH (1)
+
+// -----------------------------------------------------------------------------
+// REP MOVSB
+//
+#define REP_MOVSB(cursor) \
+	{ \
+	*cursor++ = 0xf3; \
+	*cursor++ = 0xa4; \
+	}
+
+#define REP_MOVSB_LENGTH (2)
 
 /**
  * Macros for instructions expected to be used in thunk generation
@@ -395,6 +470,132 @@ copyBackLoop(I_32 *instrArray, I_32 *currIdx, I_32 resSize, I_32 paramOffset)
 	*currIdx = localIdx;
 }
 
+
+#if 0
+/**
+ * Calculate the buffer size required to emit the following:
+ *
+ *    lea rsi, [rsp + sourceOffset]
+ *    lea rdi, [rsp + destOffset]
+ *    mov rcx, structSize
+ *    rep movsb
+ *
+ * This function uses rsi, rdi, rcx
+ */
+static I_32
+calculateCopyStructInstructionsByteCount(J9UpcallSigType structParm, I_32 stackOffsetToSource, I_32 stackOffsetToDest) {
+
+	I_32 byteCount = 0;
+
+
+assert IS_32BIT_DISP
+
+	byteCount =   LEA_TREG_mRSP_DISP32m_LENGTH
+	            + LEA_TREG_mRSP_DISP32m_LENGTH
+                    + IS_32BIT_IMM(structSize) ?
+
+MOV_TREG_IMM32_LENGTH
+
+}
+#endif
+
+
+static X64StructPassingMechanism
+analyzeStructParm(I_32 gprRegParmCount, I_32 fprRegParmCount, J9UpcallSigType structParm) {
+
+	I_32 structSize = structParm.sizeInByte;
+
+	if (structSize > 16) {
+		// On Linux, passed as an arg on the stack (not a pointer)
+		// On Windows, memory allocated on the stack but passed as a pointer to that memory.  Stack memory is checked when locals > 8k before allocation (__chkstk)
+		return PASS_STRUCT_IN_MEMORY;
+	}
+
+	switch (structParm.type) {
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_ALL_SP:
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_ALL_DP:
+		{
+			I_32 numParmFPRsRequired = (structSize <= 8) ? 1 : 2;
+			if (fprRegParmCount + numParmFPRsRequired > MAX_FPRS_PASSED_IN_REGS) {
+				// Struct is allocated on the stack corresponding to the arg position (i.e., not passed as a pointer to memory)
+				// Struct rounded up to multiple of 8 bytes
+				return PASS_STRUCT_IN_MEMORY;
+			}
+
+			// Pass in next available 1 or next available 2 numParmFPRsRequired
+			return (numParmFPRsRequired == 1) ? PASS_STRUCT_IN_ONE_FPR : PASS_STRUCT_IN_TWO_FPR;
+		}
+
+		/* Windows
+                4, 8, 16, 32, 64 bits passed in GPR registers
+		any other length passed in memory
+
+		1,2 floats passed in GPR corresponding to arg position if <= 4 or memory if in pos >= 5
+		> 64 bits passed in mem as pointer, address in GPR corresponding to arg position if <=4 or memory if in pos >= 5
+
+		1 double passed in GPR corresponding to arg position if <= 4 or memory if in pos >= 5
+		> 64 bits (more than one double) passed in mem as a pointer, address in GPR corresponding to arg position if <=4 or memory if in pos >= 5
+		*/
+
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_DP:
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_SP_DP:
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_SP:
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_SP_SP:
+			// Linux: Pass in next available 2 numParmFPRsRequired; otherwise pass on stack
+			// 2 floats are packed into a single XMM and/or occupy consecutive 4-byte slots in memory
+			if (fprRegParmCount + 2 > MAX_FPRS_PASSED_IN_REGS) {
+				return PASS_STRUCT_IN_MEMORY;
+			}
+
+			// Pass in next available 2 numParmFPRsRequired
+			return PASS_STRUCT_IN_TWO_FPR;
+
+			// Windows: Pass pointer to struct on stack
+
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC_SP:
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC_DP:
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_MISC:
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_MISC:
+			// Pass Misc in first avail GPR, DP in first avail FPR
+			// Pass on stack if neither available
+			if ((gprRegParmCount + 1 > MAX_GPRS_PASSED_IN_REGS) ||
+			    (fprRegParmCount + 1 > MAX_FPRS_PASSED_IN_REGS)) {
+				return PASS_STRUCT_IN_MEMORY;
+			}
+
+			return PASS_STRUCT_IN_ONE_GPR_ONE_FPR;
+
+			// Windows: Pass pointer to struct on stack
+
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC:
+		{
+			// First avail GPR + Second Avail GPR
+			// Pass on stack otherwise
+			I_32 numParmGPRsRequired = (structSize <= 8) ? 1 : 2;
+			if (gprRegParmCount + numParmGPRsRequired > MAX_GPRS_PASSED_IN_REGS) {
+				return PASS_STRUCT_IN_MEMORY;
+			}
+
+			// Pass in next available 1 or next available 2 numParmGPRsRequired
+			return (numParmGPRsRequired == 1) ? PASS_STRUCT_IN_ONE_GPR : PASS_STRUCT_IN_TWO_GPR;
+		}
+
+			// Windows:
+			// If length <= 8, pass in GPR
+			// Else pass pointer to struct on stack
+
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_OTHER:
+			// struct length > 16
+			return PASS_STRUCT_IN_MEMORY;
+			break;
+
+		default:
+			Assert_VM_unreachable();
+	}
+}
+
+
+
 /**
  * @brief Generate the appropriate thunk/adaptor for a given J9UpcallMetaData
  *
@@ -440,7 +641,8 @@ createUpcallThunk(J9UpcallMetaData *metaData)
 	I_32 fprRegFillInstructionCount = 0;
 	I_32 gprRegParmCount = 0;
 	I_32 fprRegParmCount = 0;
-
+	I_32 copyStructInstructionsByteCount = 0;
+	bool hiddenParameter = false;
 
 	Assert_VM_true(lastSigIdx >= 0);
 
@@ -502,23 +704,67 @@ createUpcallThunk(J9UpcallMetaData *metaData)
 			case J9_FFI_UPCALL_SIG_TYPE_FLOAT:  /* Fall through */
 			case J9_FFI_UPCALL_SIG_TYPE_DOUBLE:
 			{
-				stackSlotCount++;
+				stackSlotCount += 1;
 
 				if (fprRegParmCount < MAX_FPRS_PASSED_IN_REGS) {
 					// Parm must be spilled from parm register to argList
-					fprRegParmCount++;
-					fprRegSpillInstructionCount++;
+					fprRegParmCount += 1;
+					fprRegSpillInstructionCount += 1;
 				} else {
 					// Parm must be filled from frame and spilled to argList
-					fprRegFillInstructionCount++;
-					fprRegSpillInstructionCount++;
+					fprRegFillInstructionCount += 1;
+					fprRegSpillInstructionCount += 1;
 				}
 
 				break;
 			}
 			default:
-				// Passing structs is not supported yet
+			{
+				X64StructPassingMechanism mechanism = analyzeStructParm(gprRegParmCount, fprRegParmCount, sigArray[i]);
+				switch (mechanism) {
+					case PASS_STRUCT_IN_MEMORY:
+						copyStructInstructionsByteCount += calculateCopyStructInstructionsByteCount(sigArray[i]);
+						break;
+
+					case PASS_STRUCT_IN_ONE_FPR:
+						// Parm must be spilled from parm register to argList
+						fprRegParmCount += 1;
+						fprRegSpillInstructionCount += 1;
+						break;
+
+					case PASS_STRUCT_IN_TWO_FPR:
+						// Parm must be spilled from two parm registers to argList
+						fprRegParmCount += 2;
+						fprRegSpillInstructionCount += 2;
+						break;
+
+					case PASS_STRUCT_IN_ONE_GPR_ONE_FPR:
+						// Parm must be spilled from two parm registers to argList
+						gprRegParmCount += 1;
+						gprRegSpillInstructionCount += 1;
+						fprRegParmCount += 1;
+						fprRegSpillInstructionCount += 1;
+						break;
+
+					case PASS_STRUCT_IN_ONE_GPR:
+						// Parm must be spilled from parm register to argList
+						gprRegParmCount += 1;
+						gprRegSpillInstructionCount += 1;
+						break;
+
+					case PASS_STRUCT_IN_TWO_GPR:
+						// Parm must be spilled from two parm registers to argList
+						gprRegParmCount += 2;
+						gprRegSpillInstructionCount += 2;
+						break;
+
+					default:
+						Assert_VM_unreachable();
+				}
+
 				Assert_VM_unreachable();
+			}
+
 		}
 	}
 
@@ -533,6 +779,12 @@ createUpcallThunk(J9UpcallMetaData *metaData)
 	// -------------------------------------------------------------------------------
 
 	I_32 thunkSize = 0;
+	I_32 roundedCodeSize = 0;
+	I_32 breakOnEntry = 1;
+
+	if (breakOnEntry) {
+		thunkSize += INT3_LENGTH;
+	}
 
 	if (frameSize >= -128 && frameSize <= 127) {
 		thunkSize += SUB_RSP_IMM8_LENGTH;
@@ -548,15 +800,15 @@ createUpcallThunk(J9UpcallMetaData *metaData)
 	Assert_VM_true(offsetof(J9UpcallMetaData, upCallCommonDispatcher) <= 127);
 
 	thunkSize += MOV_TREG_IMM64_LENGTH
-                   + CALL_mSREG_DISP8m_LENGTH;
+	           + CALL_mSREG_DISP8m_LENGTH
+	           + RET_LENGTH;
 
-	// round code size to multiple of 8
-	// extra 8 bytes for "metadata" like Power?
+	roundedCodeSize = (thunkSize + 7) & ~7;
 
-	I_8 *thunkMem = NULL;
+	// +8 accounts for cached J9UpcallMetaData pointer after thunk code
+	metaData->thunkSize = roundedCodeSize + 8;
 
-	metaData->thunkSize = roundedCodeSize;
-	thunkMem = (I_8 *)vmFuncs->allocateUpcallThunkMemory(metaData);
+	I_8 *thunkMem = (I_8 *)vmFuncs->allocateUpcallThunkMemory(metaData);
 	if (NULL == thunkMem) {
 		return NULL;
 	}
@@ -572,6 +824,10 @@ createUpcallThunk(J9UpcallMetaData *metaData)
 	fprRegParmCount = 0;
 
 	I_8 *thunkCursor = thunkMem;
+
+	if (breakOnEntry) {
+		INT3(thunkCursor)
+	}
 
 	if (frameSize > 0) {
 		if (frameSize >= -128 && frameSize <= 127) {
@@ -629,15 +885,26 @@ createUpcallThunk(J9UpcallMetaData *metaData)
 
 	if (frameSize > 0) {
 		if (frameSize >= -128 && frameSize <= 127) {
-			ADD_RSP_IMM8(frameSize)
+			ADD_RSP_IMM8(cursor, frameSize)
 		} else {
-			ADD_RSP_IMM32(frameSize)
+			ADD_RSP_IMM32(cursor, frameSize)
 		}
 	}
 
+	RET(cursor)
+
+	Assert_VM_true( (thunkCursor - thunkMem) <= roundedCodeSize );
+
+	// Store the metaData pointer
+	*(J9UpcallMetaData **)((char *)thunkMem + roundedCodeSize) = metaData;
+
+	// Finish up before returning
+	vmFuncs->doneUpcallThunkGeneration(metaData, (void *)thunkMem);
+
+	return (void *)thunkMem;
 
 // ORIG BELOW ------------------------------------------------------------------
-
+#if 0
 	I_32 stackSlotCount = 0;
 	I_32 fprCovered = 0;
 	I_32 tempInt = 0;
@@ -1299,6 +1566,7 @@ createUpcallThunk(J9UpcallMetaData *metaData)
 	vmFuncs->doneUpcallThunkGeneration(metaData, (void *)thunkMem);
 
 	return (void *)thunkMem;
+#endif
 }
 
 /**
