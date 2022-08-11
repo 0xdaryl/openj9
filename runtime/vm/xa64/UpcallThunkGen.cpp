@@ -278,7 +278,7 @@ const X64_FPR fprParmRegs[MAX_FPRS_PASSED_IN_REGS] = {
 	cursor += 4;
 
 // REX + op + modRM + disp32
-#define ADD_RSP_IMM32_DISP32_LENGTH (1+2+4)
+#define ADD_RSP_IMM32_LENGTH (1+2+4)
 
 // -----------------------------------------------------------------------------
 // ADD rsp, imm8
@@ -329,7 +329,7 @@ const X64_FPR fprParmRegs[MAX_FPRS_PASSED_IN_REGS] = {
 //
 // Note: the REX prefix is included in this calculation whether it is emitted or not
 //
-#define CALL_mSREG_DISP32m_LENGTH (1+2+1)
+#define CALL_mSREG_DISP8m_LENGTH (1+2+1)
 
 // -----------------------------------------------------------------------------
 // RET
@@ -400,6 +400,7 @@ const X64_FPR fprParmRegs[MAX_FPRS_PASSED_IN_REGS] = {
  *
  *     short-cut convenience in handling the residue
  */
+#if 0
 static void
 copyBackStraight(I_32 *instrArray, I_32 *currIdx, I_32 resSize, I_32 paramOffset)
 {
@@ -469,7 +470,7 @@ copyBackLoop(I_32 *instrArray, I_32 *currIdx, I_32 resSize, I_32 paramOffset)
 
 	*currIdx = localIdx;
 }
-
+#endif
 
 #if 0
 /**
@@ -591,6 +592,7 @@ analyzeStructParm(I_32 gprRegParmCount, I_32 fprRegParmCount, J9UpcallSigType st
 
 		default:
 			Assert_VM_unreachable();
+			return PASS_STRUCT_IN_MEMORY;
 	}
 }
 
@@ -641,10 +643,13 @@ createUpcallThunk(J9UpcallMetaData *metaData)
 	I_32 fprRegFillInstructionCount = 0;
 	I_32 gprRegParmCount = 0;
 	I_32 fprRegParmCount = 0;
-	I_32 copyStructInstructionsByteCount = 0;
-	bool hiddenParameter = false;
+	//I_32 copyStructInstructionsByteCount = 0;
+	I_32 stackSlotCount = 0;
+	//bool hiddenParameter = false;
 
 	Assert_VM_true(lastSigIdx >= 0);
+
+printf("XXXXX createUpcallThunk : metaData=%p\n", metaData);
 
 	// -------------------------------------------------------------------------------
 	// Set up the appropriate VM upcall dispatch function based the return type
@@ -681,6 +686,10 @@ createUpcallThunk(J9UpcallMetaData *metaData)
 
 	for (I_32 i = 0; i < lastSigIdx; i++) {
 		tempInt = sigArray[i].sizeInByte;
+
+printf("XXXXX arg %d : type=%d, size=%d : ", i, sigArray[i].type, tempInt);
+
+
 		switch (sigArray[i].type) {
 			case J9_FFI_UPCALL_SIG_TYPE_CHAR:    /* Fall through */
 			case J9_FFI_UPCALL_SIG_TYPE_SHORT:   /* Fall through */
@@ -694,10 +703,12 @@ createUpcallThunk(J9UpcallMetaData *metaData)
 					// Parm must be spilled from parm register to argList
 					gprRegParmCount++;
 					gprRegSpillInstructionCount++;
+printf("REG : gprRegParmCount=%d, gprRegSpillInstructionCount=%d\n", gprRegParmCount, gprRegSpillInstructionCount);
 				} else {
 					// Parm must be filled from frame and spilled to argList
 					gprRegFillInstructionCount++;
 					gprRegSpillInstructionCount++;
+printf("MEM : gprRegFillInstructionCount=%d, gprRegSpillInstructionCount=%d\n", gprRegFillInstructionCount, gprRegSpillInstructionCount);
 				}
 				break;
 			}
@@ -723,7 +734,7 @@ createUpcallThunk(J9UpcallMetaData *metaData)
 				X64StructPassingMechanism mechanism = analyzeStructParm(gprRegParmCount, fprRegParmCount, sigArray[i]);
 				switch (mechanism) {
 					case PASS_STRUCT_IN_MEMORY:
-						copyStructInstructionsByteCount += calculateCopyStructInstructionsByteCount(sigArray[i]);
+						//copyStructInstructionsByteCount += calculateCopyStructInstructionsByteCount(sigArray[i]);
 						break;
 
 					case PASS_STRUCT_IN_ONE_FPR:
@@ -772,7 +783,9 @@ createUpcallThunk(J9UpcallMetaData *metaData)
 	// Calculate size of VM parameter buffer
 	// -------------------------------------------------------------------------------
 
-	frameSize = stackSlotCount * STACK_SLOT_SIZE;
+	I_32 frameSize = stackSlotCount * STACK_SLOT_SIZE;
+
+printf("XXXXX stackSlotCount=%d, frameSize=%d\n", stackSlotCount, frameSize);
 
 	// -------------------------------------------------------------------------------
 	// Allocate thunk memory
@@ -800,19 +813,25 @@ createUpcallThunk(J9UpcallMetaData *metaData)
 	Assert_VM_true(offsetof(J9UpcallMetaData, upCallCommonDispatcher) <= 127);
 
 	thunkSize += MOV_TREG_IMM64_LENGTH
+	           + MOV_TREG_SREG_LENGTH
 	           + CALL_mSREG_DISP8m_LENGTH
 	           + RET_LENGTH;
 
 	roundedCodeSize = (thunkSize + 7) & ~7;
 
 	// +8 accounts for cached J9UpcallMetaData pointer after thunk code
-	metaData->thunkSize = roundedCodeSize + 8;
+	roundedCodeSize += 8;
 
-	I_8 *thunkMem = (I_8 *)vmFuncs->allocateUpcallThunkMemory(metaData);
+	metaData->thunkSize = roundedCodeSize;
+
+	U_8 *thunkMem = (U_8 *)vmFuncs->allocateUpcallThunkMemory(metaData);
 	if (NULL == thunkMem) {
+printf("XXXXX allocateUpcallThunkMemory FAILED\n");
 		return NULL;
 	}
 	metaData->thunkAddress = (void *)thunkMem;
+
+printf("XXXXX roundedCodeSize = %d, thunkAddress = %p, frameSize = %d\n", roundedCodeSize, thunkMem, frameSize);
 
 	// -------------------------------------------------------------------------------
 	// Emit thunk instructions
@@ -823,7 +842,7 @@ createUpcallThunk(J9UpcallMetaData *metaData)
 	gprRegParmCount = 0;
 	fprRegParmCount = 0;
 
-	I_8 *thunkCursor = thunkMem;
+	U_8 *thunkCursor = thunkMem;
 
 	if (breakOnEntry) {
 		INT3(thunkCursor)
@@ -848,7 +867,7 @@ createUpcallThunk(J9UpcallMetaData *metaData)
 			{
 				if (gprRegParmCount < MAX_GPRS_PASSED_IN_REGS) {
 					// Parm must be spilled from parm register to argList
-					S8_mRSP_DISP32m_SREG(thunkCursor, frameOffsetCursot, gprParmRegs[gprRegParmCount])
+					S8_mRSP_DISP32m_SREG(thunkCursor, frameOffsetCursor, gprParmRegs[gprRegParmCount])
 					gprRegParmCount++;
 				} else {
 					// Parm must be filled from frame and spilled to argList
@@ -867,6 +886,7 @@ createUpcallThunk(J9UpcallMetaData *metaData)
 			}
 			default:
 				// Passing structs is not supported yet
+				printf("%d\n", tempInt);
 				Assert_VM_unreachable();
 		}
 	}
@@ -876,23 +896,26 @@ createUpcallThunk(J9UpcallMetaData *metaData)
 	// -------------------------------------------------------------------------------
 
 	// Parm 1 : J9UpcallMetaData *data
-	MOV_TREG_IMM64(cursor, rdi, reinterpret_cast<int64_t>(metaData))
+	MOV_TREG_IMM64(thunkCursor, rdi, reinterpret_cast<int64_t>(metaData))
 
 	// Parm 2 : void *argsListPointer
-	MOV_TREG_SREG(cursor, rsi, rsp)
+	MOV_TREG_SREG(thunkCursor, rsi, rsp)
 
-	CALL_mSREG_DISP8m(cursor, rdi, offsetof(J9UpcallMetaData, upCallCommonDispatcher))
+	CALL_mSREG_DISP8m(thunkCursor, rdi, offsetof(J9UpcallMetaData, upCallCommonDispatcher))
 
 	if (frameSize > 0) {
 		if (frameSize >= -128 && frameSize <= 127) {
-			ADD_RSP_IMM8(cursor, frameSize)
+			ADD_RSP_IMM8(thunkCursor, frameSize)
 		} else {
-			ADD_RSP_IMM32(cursor, frameSize)
+			ADD_RSP_IMM32(thunkCursor, frameSize)
 		}
 	}
 
-	RET(cursor)
+	RET(thunkCursor)
 
+printf("XXXXX final thunkCursor=%p, bytesUsed=%d\n", thunkMem, (I_32)(thunkCursor - thunkMem));
+
+	// Check for thunk memory overflow
 	Assert_VM_true( (thunkCursor - thunkMem) <= roundedCodeSize );
 
 	// Store the metaData pointer
@@ -900,6 +923,9 @@ createUpcallThunk(J9UpcallMetaData *metaData)
 
 	// Finish up before returning
 	vmFuncs->doneUpcallThunkGeneration(metaData, (void *)thunkMem);
+
+
+printf("XXXXX DONE createUpcallThunk : metaData=%p, thunkMem=%p\n", metaData, thunkMem);
 
 	return (void *)thunkMem;
 
@@ -1588,8 +1614,7 @@ getArgPointer(J9UpcallNativeSignature *nativeSig, void *argListPtr, I_32 argIdx)
 	I_32 stackSlotCount = 0;
 	I_32 tempInt = 0;
 
-	// MUST BE IMPLEMENTED
-	Assert_VM_unreachable();
+printf("YYYYY getArgPointer : nativeSig=%p, argListPtr=%p, argIdx=%d\n", nativeSig, argListPtr, argIdx);
 
 	Assert_VM_true((argIdx >= 0) && (argIdx < lastSigIdx));
 
@@ -1635,7 +1660,10 @@ getArgPointer(J9UpcallNativeSignature *nativeSig, void *argListPtr, I_32 argIdx)
 		}
 	}
 
-	return (void *)((char *)argListPtr + (stackSlotCount * STACK_SLOT_SIZE));
+void *argPtr = (void *)((char *)argListPtr + (stackSlotCount * STACK_SLOT_SIZE));
+printf("YYYYY : argPtr=%p\n", argPtr);
+
+	return argPtr;
 }
 
 
