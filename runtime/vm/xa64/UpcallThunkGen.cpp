@@ -785,6 +785,12 @@ printf("MEM : gprRegFillInstructionCount=%d, gprRegSpillInstructionCount=%d\n", 
 
 	I_32 frameSize = stackSlotCount * STACK_SLOT_SIZE;
 
+	// Adjust frame size such that the end of the input argument area is a multiple
+	// of 16.
+	if (frameSize % 16 == 0) {
+		frameSize += STACK_SLOT_SIZE;
+	}
+
 printf("XXXXX stackSlotCount=%d, frameSize=%d\n", stackSlotCount, frameSize);
 
 	// -------------------------------------------------------------------------------
@@ -1661,7 +1667,7 @@ printf("YYYYY getArgPointer : nativeSig=%p, argListPtr=%p, argIdx=%d\n", nativeS
 	}
 
 void *argPtr = (void *)((char *)argListPtr + (stackSlotCount * STACK_SLOT_SIZE));
-printf("YYYYY : argPtr=%p\n", argPtr);
+printf("YYYYY : argPtr=%p [%08lx]\n", argPtr, *( (uint64_t *)argPtr) );
 
 	return argPtr;
 }
