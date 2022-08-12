@@ -95,18 +95,19 @@ struct modRM_encoding {
 };
 
 
+// Also used for xmm0 - xmm7
 const struct modRM_encoding modRM[MAX_GPRS] = {
 
 	//  rexr   reg       rexb   rm
         //  ------ --------- ------ ---
- 	  { 0,     0x0 << 3, 0,     0x0 }, // rax
-	  { 0,     0x1 << 3, 0,     0x1 }, // rcx
-	  { 0,     0x2 << 3, 0,     0x2 }, // rdx
-	  { 0,     0x3 << 3, 0,     0x3 }, // rbx
-	  { 0,     0x4 << 3, 0,     0x4 }, // rsp
-	  { 0,     0x5 << 3, 0,     0x5 }, // rbp
-	  { 0,     0x6 << 3, 0,     0x6 }, // rsi
-	  { 0,     0x7 << 3, 0,     0x7 }, // rdi
+ 	  { 0,     0x0 << 3, 0,     0x0 }, // rax / xmm0
+	  { 0,     0x1 << 3, 0,     0x1 }, // rcx / xmm1
+	  { 0,     0x2 << 3, 0,     0x2 }, // rdx / xmm2
+	  { 0,     0x3 << 3, 0,     0x3 }, // rbx / xmm3
+	  { 0,     0x4 << 3, 0,     0x4 }, // rsp / xmm4
+	  { 0,     0x5 << 3, 0,     0x5 }, // rbp / xmm5
+	  { 0,     0x6 << 3, 0,     0x6 }, // rsi / xmm6
+	  { 0,     0x7 << 3, 0,     0x7 }, // rdi / xmm7
 	  { REX_R, 0x0 << 3, REX_B, 0x0 }, // r8
 	  { REX_R, 0x1 << 3, REX_B, 0x1 }, // r9
 	  { REX_R, 0x2 << 3, REX_B, 0x2 }, // r10
@@ -175,6 +176,75 @@ const X64_FPR fprParmRegs[MAX_FPRS_PASSED_IN_REGS] = {
 
 // REX + op + modRM + SIB + disp32
 #define S8_mRSP_DISP32m_SREG_LENGTH (1+3+4)
+
+// -----------------------------------------------------------------------------
+// MOVSS treg, [rsp + disp32]
+//
+#define MOVSS_TREG_mRSP_DISP32m(cursor, treg, disp32) \
+	{ \
+	*cursor++ = 0xf3; \
+	*cursor++ = 0x0f; \
+	*cursor++ = 0x10; \
+	*cursor++ = 0x84 | modRM[treg].reg; \
+	*cursor++ = 0x24; \
+	*(int32_t *)cursor = disp32; \
+	cursor += 4; \
+	}
+
+// 3*op + modRM + SIB + disp32
+#define MOVSS_TREG_mRSP_DISP32m_LENGTH (3+2+4)
+
+// -----------------------------------------------------------------------------
+// MOVSS [rsp + disp32], sreg
+//
+#define MOVSS_mRSP_DISP32m_SREG(cursor, disp32, sreg) \
+	{ \
+	*cursor++ = 0xf3; \
+	*cursor++ = 0x0f; \
+	*cursor++ = 0x11; \
+	*cursor++ = 0x84 | modRM[sreg].reg; \
+	*cursor++ = 0x24; \
+	*(int32_t *)cursor = disp32; \
+	cursor += 4; \
+	}
+
+// 3*op + modRM + SIB + disp32
+#define MOVSS_mRSP_DISP32m_SREG_LENGTH (3+2+4)
+
+// -----------------------------------------------------------------------------
+// MOVSD treg, [rsp + disp32]
+//
+#define MOVSD_TREG_mRSP_DISP32m(cursor, treg, disp32) \
+	{ \
+	*cursor++ = 0xf2; \
+	*cursor++ = 0x0f; \
+	*cursor++ = 0x10; \
+	*cursor++ = 0x84 | modRM[treg].reg; \
+	*cursor++ = 0x24; \
+	*(int32_t *)cursor = disp32; \
+	cursor += 4; \
+	}
+
+// 3*op + modRM + SIB + disp32
+#define MOVSD_TREG_mRSP_DISP32m_LENGTH (3+2+4)
+
+// -----------------------------------------------------------------------------
+// MOVSD [rsp + disp32], sreg
+//
+#define MOVSD_mRSP_DISP32m_SREG(cursor, disp32, sreg) \
+	{ \
+	*cursor++ = 0xf2; \
+	*cursor++ = 0x0f; \
+	*cursor++ = 0x11; \
+	*cursor++ = 0x84 | modRM[sreg].reg; \
+	*cursor++ = 0x24; \
+	*(int32_t *)cursor = disp32; \
+	cursor += 4; \
+	}
+
+// 3*op + modRM + SIB + disp32
+#define MOVSD_mRSP_DISP32m_SREG_LENGTH (3+2+4)
+
 
 // -----------------------------------------------------------------------------
 // MOV treg, imm32
@@ -689,7 +759,6 @@ printf("XXXXX createUpcallThunk : metaData=%p\n", metaData);
 
 printf("XXXXX arg %d : type=%d, size=%d : ", i, sigArray[i].type, tempInt);
 
-
 		switch (sigArray[i].type) {
 			case J9_FFI_UPCALL_SIG_TYPE_CHAR:    /* Fall through */
 			case J9_FFI_UPCALL_SIG_TYPE_SHORT:   /* Fall through */
@@ -721,10 +790,12 @@ printf("MEM : gprRegFillInstructionCount=%d, gprRegSpillInstructionCount=%d\n", 
 					// Parm must be spilled from parm register to argList
 					fprRegParmCount += 1;
 					fprRegSpillInstructionCount += 1;
+printf("REG : fprRegParmCount=%d, fprRegSpillInstructionCount=%d\n", fprRegParmCount, fprRegSpillInstructionCount);
 				} else {
 					// Parm must be filled from frame and spilled to argList
 					fprRegFillInstructionCount += 1;
 					fprRegSpillInstructionCount += 1;
+printf("MEM : fprRegFillInstructionCount=%d, fprRegSpillInstructionCount=%d\n", fprRegFillInstructionCount, fprRegSpillInstructionCount);
 				}
 
 				break;
@@ -785,8 +856,7 @@ printf("MEM : gprRegFillInstructionCount=%d, gprRegSpillInstructionCount=%d\n", 
 
 	I_32 frameSize = stackSlotCount * STACK_SLOT_SIZE;
 
-	// Adjust frame size such that the end of the input argument area is a multiple
-	// of 16.
+	// Adjust frame size such that the end of the input argument area is a multiple of 16.
 	if (frameSize % 16 == 0) {
 		frameSize += STACK_SLOT_SIZE;
 	}
@@ -815,6 +885,10 @@ printf("XXXXX stackSlotCount=%d, frameSize=%d\n", stackSlotCount, frameSize);
 
 	thunkSize += gprRegFillInstructionCount * L8_TREG_mRSP_DISP32m_LENGTH
 	           + gprRegSpillInstructionCount * S8_mRSP_DISP32m_SREG_LENGTH;
+
+	// MOVSS and MOVSD instructions are the same size
+	thunkSize += fprRegFillInstructionCount * MOVSS_TREG_mRSP_DISP32m_LENGTH
+	           + fprRegSpillInstructionCount * MOVSS_mRSP_DISP32m_SREG_LENGTH;
 
 	Assert_VM_true(offsetof(J9UpcallMetaData, upCallCommonDispatcher) <= 127);
 
@@ -876,7 +950,8 @@ printf("XXXXX roundedCodeSize = %d, thunkAddress = %p, frameSize = %d\n", rounde
 					S8_mRSP_DISP32m_SREG(thunkCursor, frameOffsetCursor, gprParmRegs[gprRegParmCount])
 					gprRegParmCount++;
 				} else {
-					// Parm must be filled from frame and spilled to argList
+					// Parm must be filled from frame and spilled to argList.
+					// Use rbx as the intermediary register since it is volatile
 					L8_TREG_mRSP_DISP32m(thunkCursor, rbx, frameSize + 8 + memParmCursor)
 					S8_mRSP_DISP32m_SREG(thunkCursor, frameOffsetCursor, rbx)
 					memParmCursor += STACK_SLOT_SIZE;
@@ -888,6 +963,32 @@ printf("XXXXX roundedCodeSize = %d, thunkAddress = %p, frameSize = %d\n", rounde
 			case J9_FFI_UPCALL_SIG_TYPE_FLOAT:  /* Fall through */
 			case J9_FFI_UPCALL_SIG_TYPE_DOUBLE:
 			{
+				bool isFloat = (sigArray[i].type == J9_FFI_UPCALL_SIG_TYPE_FLOAT);
+				if (fprRegParmCount < MAX_FPRS_PASSED_IN_REGS) {
+					// Parm must be spilled from parm register to argList
+					if (isFloat) {
+						MOVSS_mRSP_DISP32m_SREG(thunkCursor, frameOffsetCursor, fprParmRegs[fprRegParmCount])
+					} else {
+						MOVSD_mRSP_DISP32m_SREG(thunkCursor, frameOffsetCursor, fprParmRegs[fprRegParmCount])
+					}
+
+					fprRegParmCount++;
+				} else {
+					// Parm must be filled from frame and spilled to argList.
+					// Use xmm0 as the intermediary register since it is volatile and it
+					// must have been processed as the first parameter already.
+					if (isFloat) {
+						MOVSS_TREG_mRSP_DISP32m(thunkCursor, xmm0, frameSize + 8 + memParmCursor)
+						MOVSS_mRSP_DISP32m_SREG(thunkCursor, frameOffsetCursor, xmm0)
+					} else {
+						MOVSD_TREG_mRSP_DISP32m(thunkCursor, xmm0, frameSize + 8 + memParmCursor)
+						MOVSD_mRSP_DISP32m_SREG(thunkCursor, frameOffsetCursor, xmm0)
+					}
+
+					memParmCursor += STACK_SLOT_SIZE;
+				}
+
+				frameOffsetCursor += STACK_SLOT_SIZE;
 				break;
 			}
 			default:
