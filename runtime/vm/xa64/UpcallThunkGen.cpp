@@ -37,6 +37,8 @@ extern "C" {
 
 #define STACK_SLOT_SIZE 8
 
+#define ROUND_UP_TO_SLOT_MULTIPLE(s) ( ((s) + (STACK_SLOT_SIZE-1)) & (~(STACK_SLOT_SIZE-1)) )
+
 #define MAX_GPRS 16
 #define MAX_GPRS_PASSED_IN_REGS 6
 #define MAX_FPRS_PASSED_IN_REGS 8
@@ -46,6 +48,7 @@ typedef enum StructPassingMechanismEnum {
 	PASS_STRUCT_IN_ONE_FPR,
 	PASS_STRUCT_IN_TWO_FPR,
 	PASS_STRUCT_IN_ONE_GPR_ONE_FPR,
+	PASS_STRUCT_IN_ONE_FPR_ONE_GPR,
 	PASS_STRUCT_IN_ONE_GPR,
 	PASS_STRUCT_IN_TWO_GPR
 } X64StructPassingMechanism;
@@ -139,7 +142,23 @@ const X64_FPR fprParmRegs[MAX_FPRS_PASSED_IN_REGS] = {
 	xmm7
 };
 
-#define IS_32BIT_IMM(x,imm)  ((intptr_t)(x) == (intptr_t)(imm) + (int32_t)((intptr_t)(x) - (intptr_t)(imm)))
+typedef struct structParmInMemoryMetaData {
+
+	// Stack offset to struct parm passed in memory
+	I_32 memParmCursor;
+
+	// Stack offset to argList entry to copy struct parm
+	I_32 frameOffsetCursor;
+
+	// Size of the struct parm in bytes
+	I_32 sizeofStruct;
+
+	// Windows ONLY
+	// memPointerRegister
+	// memPointerOffset (or 0 if passed in register)
+} structParmInMemoryMetaDataStruct;
+
+#define IS_32BIT_SIGNED(x) ((x) == (int32_t)(x))
 
 // -----------------------------------------------------------------------------
 // MOV treg, [rsp + disp32]
@@ -432,117 +451,9 @@ const X64_FPR fprParmRegs[MAX_FPRS_PASSED_IN_REGS] = {
 
 #define REP_MOVSB_LENGTH (2)
 
-/**
- * Macros for instructions expected to be used in thunk generation
- */
-#define LD(rt, ra, si)        (0xE8000000 | ((rt) << 21) | ((ra) << 16) | ((si) & 0x0000ffff))
-#define STD(rs, ra, si)       (0xF8000000 | ((rs) << 21) | ((ra) << 16) | ((si) & 0x0000ffff))
-#define LFS(frt, ra, si)      (0xC0000000 | ((frt) << 21) | ((ra) << 16) | ((si) & 0x0000ffff))
-#define STFS(frs, ra, si)     (0xD0000000 | ((frs) << 21) | ((ra) << 16) | ((si) & 0x0000ffff))
-#define LFD(frt, ra, si)      (0xC8000000 | ((frt) << 21) | ((ra) << 16) | ((si) & 0x0000ffff))
-#define STFD(frs, ra, si)     (0xD8000000 | ((frs) << 21) | ((ra) << 16) | ((si) & 0x0000ffff))
-#define ADDI(rt, ra, si)      (0x38000000 | ((rt) << 21) | ((ra) << 16) | ((si) & 0x0000ffff))
-#define STDU(rs, ra, si)      (0xF8000001 | ((rs) << 21) | ((ra) << 16) | ((si) & 0x0000ffff))
-#define MFLR(rt)              (0x7C0802A6 | ((rt) << 21))
-#define MTLR(rs)              (0x7C0803A6 | ((rs) << 21))
-#define MTCTR(rs)             (0x7C0903A6 | ((rs) << 21))
-#define BCTR()                (0x4E800420)
-#define BCTRL()               (0x4E800421)
-#define BDNZ(si)              (0x42000000 | ((si) & 0x0000ffff))
-#define BLR()                 (0x4E800020)
-
 #define ROUND_UP_SLOT(si)     (((si) + 7) / 8)
 
-/**
- * @brief Generate straight sequence of instructions to copy back result
- * @param instrArray[in/out] A pointer to the thunk memory
- * @param currIdx[in/out] A pointer to the current instruction index
- * @param resSize[in] The size in byte to copy, guarantee to be not more than 64
- * @param paramOffset[in] Offset to the parameter area
- * @return none
- *
- * Details:
- *   a static routine to generate instructions to copy back the upcall result
- *   fixed registers are used
- *     load the hidden parameter into register number 4
- *     load the result in sequence in no more than 8 registers starting from register 5
- *     store these registers back into the memory designated by the hidden parameter
- *
- *     short-cut convenience in handling the residue
- */
-#if 0
-static void
-copyBackStraight(I_32 *instrArray, I_32 *currIdx, I_32 resSize, I_32 paramOffset)
-{
-	I_32 localIdx = *currIdx;
-	I_32 roundUpSlots = ROUND_UP_SLOT(resSize);
 
-	instrArray[localIdx++] = LD(4, 1, paramOffset);
-	for (I_32 gIdx = 0; gIdx < roundUpSlots; gIdx++) {
-		instrArray[localIdx++] = LD(gIdx + 5, 3, gIdx * 8);
-	}
-
-	for (I_32 gIdx = 0; gIdx < roundUpSlots; gIdx++) {
-		instrArray[localIdx++] = STD(gIdx + 5, 4, gIdx * 8);
-	}
-
-	*currIdx = localIdx;
-}
-
-/**
- * @brief Generate instruction loop to copy back result
- * @param instrArray[in/out] A pointer to the thunk memory
- * @param currIdx[in/out]    A pointer to the current instruction index
- * @param resSize[in] The size in byte to copy, guarantee to be more than 64
- * @param paramOffset[in] Offset to the parameter area
- * @return none
- *
- * Details:
- *   a static routine to generate instruction loop to copy back the upcall result
- *   fixed registers are used
- *     load the hidden parameter into register number 4
- *     set up the loop:  2 instructions
- *     loop itself: 11 instructions (4 load, 4 store, 2 addi, and branch)
- *     load the residue in sequence in no more than 4 registers starting from register 5
- *     store these registers back into the memory designated by the hidden parameter
- *
- *     short-cut convenience in handling the residue
- */
-static void
-copyBackLoop(I_32 *instrArray, I_32 *currIdx, I_32 resSize, I_32 paramOffset)
-{
-	I_32 localIdx = *currIdx;
-	I_32 roundUpSlots = ROUND_UP_SLOT(resSize & 31);
-
-	instrArray[localIdx++] = LD(4, 1, paramOffset);
-	instrArray[localIdx++] = ADDI(0, 0, resSize >> 5);
-	instrArray[localIdx++] = MTCTR(0);
-
-	instrArray[localIdx++] = LD(5, 3, 0);
-	instrArray[localIdx++] = LD(6, 3, 8);
-	instrArray[localIdx++] = LD(7, 3, 16);
-	instrArray[localIdx++] = LD(8, 3, 24);
-	instrArray[localIdx++] = STD(5, 4, 0);
-	instrArray[localIdx++] = STD(6, 4, 8);
-	instrArray[localIdx++] = STD(7, 4, 16);
-	instrArray[localIdx++] = STD(8, 4, 24);
-	instrArray[localIdx++] = ADDI(3, 3, 32);
-	instrArray[localIdx++] = ADDI(4, 4, 32);
-	instrArray[localIdx++] = BDNZ(-40);
-
-	for (I_32 gIdx = 0; gIdx < roundUpSlots; gIdx++) {
-		instrArray[localIdx++] = LD(gIdx + 5, 3, gIdx * 8);
-	}
-
-	for (I_32 gIdx = 0; gIdx < roundUpSlots; gIdx++) {
-		instrArray[localIdx++] = STD(gIdx + 5, 4, gIdx * 8);
-	}
-
-	*currIdx = localIdx;
-}
-#endif
-
-#if 0
 /**
  * Calculate the buffer size required to emit the following:
  *
@@ -550,26 +461,15 @@ copyBackLoop(I_32 *instrArray, I_32 *currIdx, I_32 resSize, I_32 paramOffset)
  *    lea rdi, [rsp + destOffset]
  *    mov rcx, structSize
  *    rep movsb
- *
- * This function uses rsi, rdi, rcx
  */
 static I_32
-calculateCopyStructInstructionsByteCount(J9UpcallSigType structParm, I_32 stackOffsetToSource, I_32 stackOffsetToDest) {
+calculateCopyStructInstructionsByteCount(J9UpcallSigType structParm) {
 
-	I_32 byteCount = 0;
-
-
-assert IS_32BIT_DISP
-
-	byteCount =   LEA_TREG_mRSP_DISP32m_LENGTH
-	            + LEA_TREG_mRSP_DISP32m_LENGTH
-                    + IS_32BIT_IMM(structSize) ?
-
-MOV_TREG_IMM32_LENGTH
-
+	return (LEA_TREG_mRSP_DISP32m_LENGTH
+	      + LEA_TREG_mRSP_DISP32m_LENGTH
+	      + (IS_32BIT_SIGNED(structParm.sizeInByte) ? MOV_TREG_IMM32_LENGTH : MOV_TREG_IMM64_LENGTH)
+	      + REP_MOVSB_LENGTH);
 }
-#endif
-
 
 static X64StructPassingMechanism
 analyzeStructParm(I_32 gprRegParmCount, I_32 fprRegParmCount, J9UpcallSigType structParm) {
@@ -583,7 +483,7 @@ analyzeStructParm(I_32 gprRegParmCount, I_32 fprRegParmCount, J9UpcallSigType st
 	}
 
 	switch (structParm.type) {
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_ALL_SP:
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_ALL_SP:  /* Fall through */
 		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_ALL_DP:
 		{
 			I_32 numParmFPRsRequired = (structSize <= 8) ? 1 : 2;
@@ -608,10 +508,11 @@ analyzeStructParm(I_32 gprRegParmCount, I_32 fprRegParmCount, J9UpcallSigType st
 		> 64 bits (more than one double) passed in mem as a pointer, address in GPR corresponding to arg position if <=4 or memory if in pos >= 5
 		*/
 
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_DP:
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_SP_DP:
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_SP:
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_SP_SP:
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_DP:     /* Fall through */
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_SP_DP:  /* Fall through */
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_SP:     /* Fall through */
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_SP_SP:  /* Fall through */
+		{
 			// Linux: Pass in next available 2 numParmFPRsRequired; otherwise pass on stack
 			// 2 floats are packed into a single XMM and/or occupy consecutive 4-byte slots in memory
 			if (fprRegParmCount + 2 > MAX_FPRS_PASSED_IN_REGS) {
@@ -622,11 +523,10 @@ analyzeStructParm(I_32 gprRegParmCount, I_32 fprRegParmCount, J9UpcallSigType st
 			return PASS_STRUCT_IN_TWO_FPR;
 
 			// Windows: Pass pointer to struct on stack
-
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC_SP:
+		}
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC_SP:  /* Fall through */
 		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC_DP:
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_MISC:
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_MISC:
+		{
 			// Pass Misc in first avail GPR, DP in first avail FPR
 			// Pass on stack if neither available
 			if ((gprRegParmCount + 1 > MAX_GPRS_PASSED_IN_REGS) ||
@@ -637,7 +537,21 @@ analyzeStructParm(I_32 gprRegParmCount, I_32 fprRegParmCount, J9UpcallSigType st
 			return PASS_STRUCT_IN_ONE_GPR_ONE_FPR;
 
 			// Windows: Pass pointer to struct on stack
+		}
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_MISC:  /* Fall through */
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_MISC:
+		{
+			// Pass Misc in first avail GPR, DP in first avail FPR
+			// Pass on stack if neither available
+			if ((gprRegParmCount + 1 > MAX_GPRS_PASSED_IN_REGS) ||
+			    (fprRegParmCount + 1 > MAX_FPRS_PASSED_IN_REGS)) {
+				return PASS_STRUCT_IN_MEMORY;
+			}
 
+			return PASS_STRUCT_IN_ONE_FPR_ONE_GPR;
+
+			// Windows: Pass pointer to struct on stack
+		}
 		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC:
 		{
 			// First avail GPR + Second Avail GPR
@@ -649,20 +563,22 @@ analyzeStructParm(I_32 gprRegParmCount, I_32 fprRegParmCount, J9UpcallSigType st
 
 			// Pass in next available 1 or next available 2 numParmGPRsRequired
 			return (numParmGPRsRequired == 1) ? PASS_STRUCT_IN_ONE_GPR : PASS_STRUCT_IN_TWO_GPR;
-		}
 
 			// Windows:
 			// If length <= 8, pass in GPR
 			// Else pass pointer to struct on stack
-
+		}
 		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_OTHER:
+		{
 			// struct length > 16
 			return PASS_STRUCT_IN_MEMORY;
 			break;
-
+		}
 		default:
+		{
 			Assert_VM_unreachable();
 			return PASS_STRUCT_IN_MEMORY;
+		}
 	}
 }
 
@@ -703,6 +619,7 @@ void *
 createUpcallThunk(J9UpcallMetaData *metaData)
 {
 	J9JavaVM *vm = metaData->vm;
+	PORT_ACCESS_FROM_JAVAVM(vm);
 	const J9InternalVMFunctions *vmFuncs = vm->internalVMFunctions;
 	J9UpcallSigType *sigArray = metaData->nativeFuncSignature->sigArray;
 	I_32 lastSigIdx = (I_32)(metaData->nativeFuncSignature->numSigs - 1); // The index of the return type in the signature array
@@ -713,7 +630,8 @@ createUpcallThunk(J9UpcallMetaData *metaData)
 	I_32 fprRegFillInstructionCount = 0;
 	I_32 gprRegParmCount = 0;
 	I_32 fprRegParmCount = 0;
-	//I_32 copyStructInstructionsByteCount = 0;
+	I_32 copyStructInstructionsByteCount = 0;
+	I_32 numStructsPassedInMemory = 0;
 	I_32 stackSlotCount = 0;
 	//bool hiddenParameter = false;
 
@@ -772,12 +690,12 @@ printf("XXXXX arg %d : type=%d, size=%d : ", i, sigArray[i].type, tempInt);
 					// Parm must be spilled from parm register to argList
 					gprRegParmCount++;
 					gprRegSpillInstructionCount++;
-printf("REG : gprRegParmCount=%d, gprRegSpillInstructionCount=%d\n", gprRegParmCount, gprRegSpillInstructionCount);
+printf("  REG : gprRegParmCount=%d, gprRegSpillInstructionCount=%d\n", gprRegParmCount, gprRegSpillInstructionCount);
 				} else {
 					// Parm must be filled from frame and spilled to argList
 					gprRegFillInstructionCount++;
 					gprRegSpillInstructionCount++;
-printf("MEM : gprRegFillInstructionCount=%d, gprRegSpillInstructionCount=%d\n", gprRegFillInstructionCount, gprRegSpillInstructionCount);
+printf("  MEM : gprRegFillInstructionCount=%d, gprRegSpillInstructionCount=%d\n", gprRegFillInstructionCount, gprRegSpillInstructionCount);
 				}
 				break;
 			}
@@ -790,63 +708,70 @@ printf("MEM : gprRegFillInstructionCount=%d, gprRegSpillInstructionCount=%d\n", 
 					// Parm must be spilled from parm register to argList
 					fprRegParmCount += 1;
 					fprRegSpillInstructionCount += 1;
-printf("REG : fprRegParmCount=%d, fprRegSpillInstructionCount=%d\n", fprRegParmCount, fprRegSpillInstructionCount);
+printf("  REG : fprRegParmCount=%d, fprRegSpillInstructionCount=%d\n", fprRegParmCount, fprRegSpillInstructionCount);
 				} else {
 					// Parm must be filled from frame and spilled to argList
 					fprRegFillInstructionCount += 1;
 					fprRegSpillInstructionCount += 1;
-printf("MEM : fprRegFillInstructionCount=%d, fprRegSpillInstructionCount=%d\n", fprRegFillInstructionCount, fprRegSpillInstructionCount);
+printf("  MEM : fprRegFillInstructionCount=%d, fprRegSpillInstructionCount=%d\n", fprRegFillInstructionCount, fprRegSpillInstructionCount);
 				}
 
 				break;
 			}
 			default:
 			{
+				stackSlotCount += ROUND_UP_TO_SLOT_MULTIPLE(sigArray[i].sizeInByte) / STACK_SLOT_SIZE;
+
 				X64StructPassingMechanism mechanism = analyzeStructParm(gprRegParmCount, fprRegParmCount, sigArray[i]);
 				switch (mechanism) {
 					case PASS_STRUCT_IN_MEMORY:
-						//copyStructInstructionsByteCount += calculateCopyStructInstructionsByteCount(sigArray[i]);
+						copyStructInstructionsByteCount += calculateCopyStructInstructionsByteCount(sigArray[i]);
+						numStructsPassedInMemory += 1;
+printf("  MEM : PASS_STRUCT_IN_MEMORY : copyStructInstructionsByteCount=%d, numStructsPassedInMemory=%d\n", copyStructInstructionsByteCount, numStructsPassedInMemory);
 						break;
 
 					case PASS_STRUCT_IN_ONE_FPR:
 						// Parm must be spilled from parm register to argList
 						fprRegParmCount += 1;
 						fprRegSpillInstructionCount += 1;
+printf("  REG : PASS_STRUCT_IN_ONE_FPR : fprRegParmCount=%d, fprRegSpillInstructionCount=%d\n", fprRegParmCount, fprRegSpillInstructionCount);
 						break;
 
 					case PASS_STRUCT_IN_TWO_FPR:
 						// Parm must be spilled from two parm registers to argList
 						fprRegParmCount += 2;
 						fprRegSpillInstructionCount += 2;
+printf("  REG : PASS_STRUCT_IN_TWO_FPR : fprRegParmCount=%d, fprRegSpillInstructionCount=%d\n", fprRegParmCount, fprRegSpillInstructionCount);
 						break;
 
-					case PASS_STRUCT_IN_ONE_GPR_ONE_FPR:
+					case PASS_STRUCT_IN_ONE_GPR_ONE_FPR:  /* Fall through */
+					case PASS_STRUCT_IN_ONE_FPR_ONE_GPR:
 						// Parm must be spilled from two parm registers to argList
 						gprRegParmCount += 1;
 						gprRegSpillInstructionCount += 1;
 						fprRegParmCount += 1;
 						fprRegSpillInstructionCount += 1;
+printf("  REG : PASS_STRUCT_IN_ONE_GPR_ONE_FPR : gprRegParmCount=%d, gprRegSpillInstructionCount=%d, fprRegParmCount=%d, fprRegSpillInstructionCount=%d\n", gprRegParmCount, gprRegSpillInstructionCount, fprRegParmCount, fprRegSpillInstructionCount);
 						break;
 
 					case PASS_STRUCT_IN_ONE_GPR:
 						// Parm must be spilled from parm register to argList
 						gprRegParmCount += 1;
 						gprRegSpillInstructionCount += 1;
+printf("  REG : PASS_STRUCT_IN_ONE_GPR : gprRegParmCount=%d, gprRegSpillInstructionCount=%d\n", gprRegParmCount, gprRegSpillInstructionCount);
 						break;
 
 					case PASS_STRUCT_IN_TWO_GPR:
 						// Parm must be spilled from two parm registers to argList
 						gprRegParmCount += 2;
 						gprRegSpillInstructionCount += 2;
+printf("  REG : PASS_STRUCT_IN_TWO_GPR : gprRegParmCount=%d, gprRegSpillInstructionCount=%d\n", gprRegParmCount, gprRegSpillInstructionCount);
 						break;
 
 					default:
 						Assert_VM_unreachable();
 				}
-
-				Assert_VM_unreachable();
 			}
-
 		}
 	}
 
@@ -890,6 +815,8 @@ printf("XXXXX stackSlotCount=%d, frameSize=%d\n", stackSlotCount, frameSize);
 	thunkSize += fprRegFillInstructionCount * MOVSS_TREG_mRSP_DISP32m_LENGTH
 	           + fprRegSpillInstructionCount * MOVSS_mRSP_DISP32m_SREG_LENGTH;
 
+	thunkSize += copyStructInstructionsByteCount;
+
 	Assert_VM_true(offsetof(J9UpcallMetaData, upCallCommonDispatcher) <= 127);
 
 	thunkSize += MOV_TREG_IMM64_LENGTH
@@ -897,7 +824,7 @@ printf("XXXXX stackSlotCount=%d, frameSize=%d\n", stackSlotCount, frameSize);
 	           + CALL_mSREG_DISP8m_LENGTH
 	           + RET_LENGTH;
 
-	roundedCodeSize = (thunkSize + 7) & ~7;
+	roundedCodeSize = ROUND_UP_TO_SLOT_MULTIPLE(thunkSize);
 
 	// +8 accounts for cached J9UpcallMetaData pointer after thunk code
 	roundedCodeSize += 8;
@@ -919,8 +846,25 @@ printf("XXXXX roundedCodeSize = %d, thunkAddress = %p, frameSize = %d\n", rounde
 
 	I_32 frameOffsetCursor = 0;
 	I_32 memParmCursor = 0;
+	I_32 numStructsPassedInMemoryCursor = 0;
 	gprRegParmCount = 0;
 	fprRegParmCount = 0;
+	structParmInMemoryMetaDataStruct *structParmInMemory = NULL;
+
+	if (numStructsPassedInMemory > 0) {
+		/**
+		 * Allocate a bookkeeping structure for struct parms passed in memory to avoid
+		 * a complete traversal of the parameters again.
+		 */
+		structParmInMemory = (structParmInMemoryMetaDataStruct *)
+			j9mem_allocate_memory(numStructsPassedInMemory * sizeof(structParmInMemoryMetaDataStruct), OMRMEM_CATEGORY_VM);
+
+		if (NULL == structParmInMemory) {
+			return NULL;
+		}
+
+printf("XXXXX allocate structParmInMemory %p for numStructsPassedInMemory=%d\n", structParmInMemory, numStructsPassedInMemory);
+	}
 
 	U_8 *thunkCursor = thunkMem;
 
@@ -937,7 +881,6 @@ printf("XXXXX roundedCodeSize = %d, thunkAddress = %p, frameSize = %d\n", rounde
 	}
 
 	for (I_32 i = 0; i < lastSigIdx; i++) {
-		tempInt = sigArray[i].sizeInByte;
 		switch (sigArray[i].type) {
 			case J9_FFI_UPCALL_SIG_TYPE_CHAR:    /* Fall through */
 			case J9_FFI_UPCALL_SIG_TYPE_SHORT:   /* Fall through */
@@ -992,10 +935,111 @@ printf("XXXXX roundedCodeSize = %d, thunkAddress = %p, frameSize = %d\n", rounde
 				break;
 			}
 			default:
-				// Passing structs is not supported yet
-				printf("%d\n", tempInt);
-				Assert_VM_unreachable();
+			{
+				// Handle structs passed in registers.  Structs passed in memory will be handled
+				// after all other parameters are processed
+
+				X64StructPassingMechanism mechanism = analyzeStructParm(gprRegParmCount, fprRegParmCount, sigArray[i]);
+				switch (mechanism) {
+					case PASS_STRUCT_IN_MEMORY:
+					{
+						/**
+						 * Record the source and destination offsets and the number of bytes to copy
+						 */
+						structParmInMemory[numStructsPassedInMemoryCursor].memParmCursor = memParmCursor;
+						structParmInMemory[numStructsPassedInMemoryCursor].frameOffsetCursor = frameOffsetCursor;
+						structParmInMemory[numStructsPassedInMemoryCursor].sizeofStruct = sigArray[i].sizeInByte;
+printf("XXXXX PASS_STRUCT_IN_MEMORY : numStructsPassedInMemoryCursor=%d, memParmCursor=%d, frameOffsetCursor=%d, sizeofStruct=%d\n", numStructsPassedInMemoryCursor, memParmCursor, frameOffsetCursor, sigArray[i].sizeInByte);
+
+						I_32 roundedStructSize = ROUND_UP_TO_SLOT_MULTIPLE(sigArray[i].sizeInByte);
+						memParmCursor += roundedStructSize;
+						frameOffsetCursor += roundedStructSize;
+						numStructsPassedInMemoryCursor += 1;
+						break;
+					}
+					case PASS_STRUCT_IN_ONE_FPR:
+					{
+						MOVSD_mRSP_DISP32m_SREG(thunkCursor, frameOffsetCursor, fprParmRegs[fprRegParmCount])
+						fprRegParmCount += 1;
+						frameOffsetCursor += STACK_SLOT_SIZE;
+						break;
+					}
+					case PASS_STRUCT_IN_TWO_FPR:
+					{
+						MOVSD_mRSP_DISP32m_SREG(thunkCursor, frameOffsetCursor, fprParmRegs[fprRegParmCount])
+						fprRegParmCount += 1;
+						frameOffsetCursor += STACK_SLOT_SIZE;
+						MOVSD_mRSP_DISP32m_SREG(thunkCursor, frameOffsetCursor, fprParmRegs[fprRegParmCount])
+						fprRegParmCount += 1;
+						frameOffsetCursor += STACK_SLOT_SIZE;
+						break;
+					}
+					case PASS_STRUCT_IN_ONE_GPR_ONE_FPR:
+					{
+						S8_mRSP_DISP32m_SREG(thunkCursor, frameOffsetCursor, gprParmRegs[gprRegParmCount])
+						gprRegParmCount++;
+						frameOffsetCursor += STACK_SLOT_SIZE;
+						MOVSD_mRSP_DISP32m_SREG(thunkCursor, frameOffsetCursor, fprParmRegs[fprRegParmCount])
+						fprRegParmCount += 1;
+						frameOffsetCursor += STACK_SLOT_SIZE;
+						break;
+					}
+					case PASS_STRUCT_IN_ONE_FPR_ONE_GPR:
+					{
+						MOVSD_mRSP_DISP32m_SREG(thunkCursor, frameOffsetCursor, fprParmRegs[fprRegParmCount])
+						fprRegParmCount += 1;
+						frameOffsetCursor += STACK_SLOT_SIZE;
+						S8_mRSP_DISP32m_SREG(thunkCursor, frameOffsetCursor, gprParmRegs[gprRegParmCount])
+						gprRegParmCount++;
+						frameOffsetCursor += STACK_SLOT_SIZE;
+						break;
+					}
+					case PASS_STRUCT_IN_ONE_GPR:
+					{
+						S8_mRSP_DISP32m_SREG(thunkCursor, frameOffsetCursor, gprParmRegs[gprRegParmCount])
+						gprRegParmCount++;
+						frameOffsetCursor += STACK_SLOT_SIZE;
+						break;
+					}
+					case PASS_STRUCT_IN_TWO_GPR:
+					{
+						S8_mRSP_DISP32m_SREG(thunkCursor, frameOffsetCursor, gprParmRegs[gprRegParmCount])
+						gprRegParmCount++;
+						frameOffsetCursor += STACK_SLOT_SIZE;
+						S8_mRSP_DISP32m_SREG(thunkCursor, frameOffsetCursor, gprParmRegs[gprRegParmCount])
+						gprRegParmCount++;
+						frameOffsetCursor += STACK_SLOT_SIZE;
+						break;
+					}
+
+					default:
+					{
+						Assert_VM_unreachable();
+					}
+				}
+			}
 		}
+	}
+
+	/**
+	 * Handle structs passed in memory.  These are handled last to avoid the complication of
+	 * preserving registers used for REP MOVSB.
+	 */
+	if (numStructsPassedInMemory > 0) {
+		for (I_32 i = 0; i < numStructsPassedInMemory; i++) {
+			LEA_TREG_mRSP_DISP32m(thunkCursor, rsi, frameSize + 8 + structParmInMemory[i].memParmCursor)
+			LEA_TREG_mRSP_DISP32m(thunkCursor, rdi, structParmInMemory[i].frameOffsetCursor)
+
+			if (IS_32BIT_SIGNED(structParmInMemory[i].sizeofStruct)) {
+				MOV_TREG_IMM32(thunkCursor, rcx, structParmInMemory[i].sizeofStruct)
+			} else {
+				MOV_TREG_IMM64(thunkCursor, rcx, structParmInMemory[i].sizeofStruct)
+			}
+
+			REP_MOVSB(thunkCursor)
+		}
+
+		j9mem_free_memory(structParmInMemory);
 	}
 
 	// -------------------------------------------------------------------------------
