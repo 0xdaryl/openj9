@@ -121,6 +121,24 @@ const struct modRM_encoding modRM[MAX_GPRS] = {
 	  { REX_R, 0x7 << 3, REX_B, 0x7 }  // r15
 };
 
+const I_8 registerValues[MAX_GPRS] = {
+	0,  // rax
+	1,  // rcx
+	2,  // rdx
+	3,  // rbx
+	4,  // rsp
+	5,  // rbp
+	6,  // rsi
+	7,  // rdi
+	0,  // r8
+	1,  // r9
+	2,  // r10
+	3,  // r11
+	4,  // r12
+	5,  // r13
+	6,  // r14
+	7   // r15
+};
 
 const X64_GPR gprParmRegs[MAX_GPRS_PASSED_IN_REGS] = {
 	rdi,
@@ -151,7 +169,7 @@ typedef struct structParmInMemoryMetaData {
 	I_32 frameOffsetCursor;
 
 	// Size of the struct parm in bytes
-	I_32 sizeofStruct;
+	U_32 sizeofStruct;
 
 	// Windows ONLY
 	// memPointerRegister
@@ -177,6 +195,42 @@ typedef struct structParmInMemoryMetaData {
 
 // REX + op + modRM + SIB + disp32
 #define L8_TREG_mRSP_DISP32m_LENGTH (1+3+4)
+
+// -----------------------------------------------------------------------------
+// MOV treg, [sreg + disp8]
+//
+// Note: this does not encode sreg=r12 (requires a SIB byte)
+//
+#define L8_TREG_mSREG_DISP8m(cursor, treg, sreg, disp8) \
+	{ \
+	*cursor = REX | REX_W; \
+	uint8_t *rex = cursor++; \
+	*cursor++ = 0x8b; \
+	*cursor++ = 0x40 | modRM[treg].reg | modRM[sreg].rm; \
+	*rex |= (modRM[treg].rexr | modRM[sreg].rexb); \
+	*(int32_t *)cursor = disp8; \
+	cursor += 1; \
+	}
+
+// REX + op + modRM + disp8
+#define L8_TREG_mSREG_DISP8m_LENGTH (1+2+1)
+
+// -----------------------------------------------------------------------------
+// MOV treg, [sreg]
+//
+// Note: this does not encode sreg=r12 (requires a SIB byte)
+//
+#define L8_TREG_mSREGm(cursor, treg, sreg) \
+	{ \
+	*cursor = REX | REX_W; \
+	uint8_t *rex = cursor++; \
+	*cursor++ = 0x8b; \
+	*cursor++ = 0x00 | modRM[treg].reg | modRM[sreg].rm; \
+	*rex |= (modRM[treg].rexr | modRM[sreg].rexb); \
+	}
+
+// REX + op + modRM
+#define L8_TREG_mSREGm_LENGTH (1+2)
 
 // -----------------------------------------------------------------------------
 // MOV [rsp + disp32], sreg
@@ -214,6 +268,44 @@ typedef struct structParmInMemoryMetaData {
 #define MOVSS_TREG_mRSP_DISP32m_LENGTH (3+2+4)
 
 // -----------------------------------------------------------------------------
+// MOVSS treg, [sreg]
+//
+#define MOVSS_TREG_mSREGm(cursor, treg, sreg) \
+	{ \
+	*cursor++ = 0xf3; \
+	if (modRM[sreg].rexb) { \
+		*cursor++ = REX | modRM[sreg].rexb; \
+	} \
+	*cursor++ = 0x0f; \
+	*cursor++ = 0x10; \
+	*cursor++ = 0x00 | modRM[treg].reg | modRM[sreg].rm; \
+	}
+
+// REX + 3*op + modRM
+// Note: REX is always conservatively included in this calculation
+#define MOVSS_TREG_mSREGm_LENGTH (1+3+1)
+
+// -----------------------------------------------------------------------------
+// MOVSS treg, [sreg + disp8]
+//
+#define MOVSS_TREG_mSREG_DISP8m(cursor, treg, sreg, disp8) \
+	{ \
+	*cursor++ = 0xf3; \
+	if (modRM[sreg].rexb) { \
+		*cursor++ = REX | modRM[sreg].rexb; \
+	} \
+	*cursor++ = 0x0f; \
+	*cursor++ = 0x10; \
+	*cursor++ = 0x40 | modRM[treg].reg | modRM[sreg].rm; \
+	*(int8_t *)cursor = disp8; \
+	cursor += 1; \
+	}
+
+// REX + 3*op + modRM + disp8
+// Note: REX is always conservatively included in this calculation
+#define MOVSS_TREG_mSREG_DISP8m_LENGTH (1+3+1+1)
+
+// -----------------------------------------------------------------------------
 // MOVSS [rsp + disp32], sreg
 //
 #define MOVSS_mRSP_DISP32m_SREG(cursor, disp32, sreg) \
@@ -246,6 +338,44 @@ typedef struct structParmInMemoryMetaData {
 
 // 3*op + modRM + SIB + disp32
 #define MOVSD_TREG_mRSP_DISP32m_LENGTH (3+2+4)
+
+// -----------------------------------------------------------------------------
+// MOVSD treg, [sreg]
+//
+#define MOVSD_TREG_mSREGm(cursor, treg, sreg) \
+	{ \
+	*cursor++ = 0xf2; \
+	if (modRM[sreg].rexb) { \
+		*cursor++ = REX | modRM[sreg].rexb; \
+	} \
+	*cursor++ = 0x0f; \
+	*cursor++ = 0x10; \
+	*cursor++ = 0x00 | modRM[treg].reg | modRM[sreg].rm; \
+	}
+
+// REX + 3*op + modRM
+// Note: REX is always conservatively included in this calculation
+#define MOVSD_TREG_mSREGm_LENGTH (1+3+1)
+
+// -----------------------------------------------------------------------------
+// MOVSD treg, [sreg + disp8]
+//
+#define MOVSD_TREG_mSREG_DISP8m(cursor, treg, sreg, disp8) \
+	{ \
+	*cursor++ = 0xf2; \
+	if (modRM[sreg].rexb) { \
+		*cursor++ = REX | modRM[sreg].rexb; \
+	} \
+	*cursor++ = 0x0f; \
+	*cursor++ = 0x10; \
+	*cursor++ = 0x40 | modRM[treg].reg | modRM[sreg].rm; \
+	*(int8_t *)cursor = disp8; \
+	cursor += 1; \
+	}
+
+// REX + 3*op + modRM + disp8
+// Note: REX is always conservatively included in this calculation
+#define MOVSD_TREG_mSREG_DISP8m_LENGTH (1+3+1+1)
 
 // -----------------------------------------------------------------------------
 // MOVSD [rsp + disp32], sreg
@@ -382,6 +512,34 @@ typedef struct structParmInMemoryMetaData {
 #define ADD_RSP_IMM8_LENGTH (1+2+1)
 
 // -----------------------------------------------------------------------------
+// PUSH sreg
+//
+#define PUSH_SREG(cursor, sreg) \
+	{ \
+	if (modRM[sreg].rexb) { \
+		*cursor++ = REX | modRM[sreg].rexb; \
+	} \
+	*cursor++ = 0x50 + registerValues[sreg]; \
+	}
+
+// REX + op
+#define PUSH_SREG_LENGTH(sreg) ((modRM[sreg].rexb ? 1 : 0) + 1)
+
+// -----------------------------------------------------------------------------
+// POP sreg
+//
+#define POP_SREG(cursor, treg) \
+	{ \
+	if (modRM[treg].rexb) { \
+		*cursor++ = REX | modRM[treg].rexb; \
+	} \
+	*cursor++ = 0x58 + registerValues[treg]; \
+	}
+
+// REX + op
+#define POP_SREG_LENGTH(treg) ((modRM[treg].rexb ? 1 : 0) + 1)
+
+// -----------------------------------------------------------------------------
 // CALL [sreg + disp32]
 //
 #define CALL_mSREG_DISP32m(cursor, sreg, disp32) \
@@ -396,10 +554,7 @@ typedef struct structParmInMemoryMetaData {
 	}
 
 // REX + op + modRM + disp32
-//
-// Note: the REX prefix is included in this calculation whether it is emitted or not
-//
-#define CALL_mSREG_DISP32m_LENGTH (1+2+4)
+#define CALL_mSREG_DISP32m_LENGTH(sreg) ((modRM[sreg].rexb ? 1 : 0) + 2 + 4)
 
 // -----------------------------------------------------------------------------
 // CALL [sreg + disp8]
@@ -415,10 +570,7 @@ typedef struct structParmInMemoryMetaData {
 	}
 
 // REX + op + modRM + disp32
-//
-// Note: the REX prefix is included in this calculation whether it is emitted or not
-//
-#define CALL_mSREG_DISP8m_LENGTH (1+2+1)
+#define CALL_mSREG_DISP8m_LENGTH(sreg) ((modRM[sreg].rexb ? 1 : 0) + 2 + 1)
 
 // -----------------------------------------------------------------------------
 // RET
@@ -467,7 +619,7 @@ calculateCopyStructInstructionsByteCount(J9UpcallSigType structParm) {
 
 	return (LEA_TREG_mRSP_DISP32m_LENGTH
 	      + LEA_TREG_mRSP_DISP32m_LENGTH
-	      + (IS_32BIT_SIGNED(structParm.sizeInByte) ? MOV_TREG_IMM32_LENGTH : MOV_TREG_IMM64_LENGTH)
+	      + MOV_TREG_IMM32_LENGTH
 	      + REP_MOVSB_LENGTH);
 }
 
@@ -631,13 +783,15 @@ createUpcallThunk(J9UpcallMetaData *metaData)
 	I_32 gprRegParmCount = 0;
 	I_32 fprRegParmCount = 0;
 	I_32 copyStructInstructionsByteCount = 0;
+	I_32 prepareStructReturnInstructionsLength = 0;
 	I_32 numStructsPassedInMemory = 0;
 	I_32 stackSlotCount = 0;
-	//bool hiddenParameter = false;
+	I_32 preservedRegisterAreaSize = 0;
+	bool hiddenParameter = false;
 
 	Assert_VM_true(lastSigIdx >= 0);
 
-printf("XXXXX createUpcallThunk : metaData=%p\n", metaData);
+printf("XXXXX createUpcallThunk : metaData=%p, upCallCommonDispatcher=%p\n", metaData, metaData->upCallCommonDispatcher);
 
 	// -------------------------------------------------------------------------------
 	// Set up the appropriate VM upcall dispatch function based the return type
@@ -663,8 +817,74 @@ printf("XXXXX createUpcallThunk : metaData=%p\n", metaData);
 		case J9_FFI_UPCALL_SIG_TYPE_DOUBLE:
 			metaData->upCallCommonDispatcher = (void *)vmFuncs->icallVMprJavaUpcallD;
 			break;
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_ALL_SP:   /* Fall through */
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_ALL_DP:   /* Fall through */
+                case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_DP:    /* Fall through */
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_SP_DP: /* Fall through */
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_SP:    /* Fall through */
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_SP_SP: /* Fall through */
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC_SP:  /* Fall through */
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC_DP:  /* Fall through */
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_MISC:  /* Fall through */
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_MISC:  /* Fall through */
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC:     /* Fall through */
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_OTHER:
+		{
+			metaData->upCallCommonDispatcher = (void *)vmFuncs->icallVMprJavaUpcallStruct;
+			X64StructPassingMechanism mechanism = analyzeStructParm(0, 0, sigArray[lastSigIdx]);
+			switch (mechanism) {
+				case PASS_STRUCT_IN_MEMORY:
+					hiddenParameter = true;
+					gprRegParmCount++;
+
+					// A preserved register will hold the hidden parameter across the function call.
+					// The preserved register must therefore be saved/restored.
+					preservedRegisterAreaSize = 8;
+
+					prepareStructReturnInstructionsLength +=
+						 (MOV_TREG_SREG_LENGTH   /* mov rbx, rax (preserve hidden parameter) */
+						+ MOV_TREG_SREG_LENGTH   /* mov rsi, rax (return value from call) */
+						+ MOV_TREG_SREG_LENGTH   /* mov rdi, rbx (address from preserved hidden parameter) */
+	      					+ MOV_TREG_IMM32_LENGTH
+						+ REP_MOVSB_LENGTH
+						+ MOV_TREG_SREG_LENGTH); /* mov rax, rbx (return caller-supplied  buffer in rax) */
+printf("XXXXX return : PASS_STRUCT_IN_MEMORY\n");
+					break;
+				case PASS_STRUCT_IN_ONE_FPR:
+					prepareStructReturnInstructionsLength += MOVSD_TREG_mSREGm_LENGTH;
+printf("XXXXX return : PASS_STRUCT_IN_ONE_FPR\n");
+					break;
+				case PASS_STRUCT_IN_TWO_FPR:
+					prepareStructReturnInstructionsLength +=
+						(MOVSD_TREG_mSREGm_LENGTH + MOVSD_TREG_mSREG_DISP8m_LENGTH);
+printf("XXXXX return : PASS_STRUCT_IN_TWO_FPR\n");
+					break;
+				case PASS_STRUCT_IN_ONE_GPR_ONE_FPR:
+					prepareStructReturnInstructionsLength +=
+						(MOVSD_TREG_mSREG_DISP8m_LENGTH + L8_TREG_mSREGm_LENGTH);
+printf("XXXXX return : PASS_STRUCT_IN_ONE_GPR_ONE_FPR\n");
+					break;
+				case PASS_STRUCT_IN_ONE_FPR_ONE_GPR:
+					prepareStructReturnInstructionsLength +=
+						(MOVSD_TREG_mSREGm_LENGTH + L8_TREG_mSREG_DISP8m_LENGTH);
+printf("XXXXX return : PASS_STRUCT_IN_ONE_FPR_ONE_GPR\n");
+					break;
+				case PASS_STRUCT_IN_ONE_GPR:
+					prepareStructReturnInstructionsLength += L8_TREG_mSREGm_LENGTH;
+printf("XXXXX return : PASS_STRUCT_IN_ONE_GPR\n");
+					break;
+				case PASS_STRUCT_IN_TWO_GPR:
+					prepareStructReturnInstructionsLength +=
+						(L8_TREG_mSREG_DISP8m_LENGTH + L8_TREG_mSREGm_LENGTH);
+printf("XXXXX return : PASS_STRUCT_IN_TWO_GPR\n");
+					break;
+				default:
+					Assert_VM_unreachable();
+			}
+
+			break;
+		}
 		default:
-			// Returning structs is not supported yet
 			Assert_VM_unreachable();
 	}
 
@@ -751,7 +971,7 @@ printf("  REG : PASS_STRUCT_IN_TWO_FPR : fprRegParmCount=%d, fprRegSpillInstruct
 						gprRegSpillInstructionCount += 1;
 						fprRegParmCount += 1;
 						fprRegSpillInstructionCount += 1;
-printf("  REG : PASS_STRUCT_IN_ONE_GPR_ONE_FPR : gprRegParmCount=%d, gprRegSpillInstructionCount=%d, fprRegParmCount=%d, fprRegSpillInstructionCount=%d\n", gprRegParmCount, gprRegSpillInstructionCount, fprRegParmCount, fprRegSpillInstructionCount);
+printf("  REG : PASS_STRUCT_IN_ONE_GPR_ONE_FPR (or FPR/GPR) : gprRegParmCount=%d, gprRegSpillInstructionCount=%d, fprRegParmCount=%d, fprRegSpillInstructionCount=%d\n", gprRegParmCount, gprRegSpillInstructionCount, fprRegParmCount, fprRegSpillInstructionCount);
 						break;
 
 					case PASS_STRUCT_IN_ONE_GPR:
@@ -782,11 +1002,11 @@ printf("  REG : PASS_STRUCT_IN_TWO_GPR : gprRegParmCount=%d, gprRegSpillInstruct
 	I_32 frameSize = stackSlotCount * STACK_SLOT_SIZE;
 
 	// Adjust frame size such that the end of the input argument area is a multiple of 16.
-	if (frameSize % 16 == 0) {
+	if ((frameSize + preservedRegisterAreaSize) % 16 == 0) {
 		frameSize += STACK_SLOT_SIZE;
 	}
 
-printf("XXXXX stackSlotCount=%d, frameSize=%d\n", stackSlotCount, frameSize);
+printf("XXXXX stackSlotCount=%d, preservedRegisterAreaSize=%d, frameSize=%d\n", stackSlotCount, preservedRegisterAreaSize, frameSize);
 
 	// -------------------------------------------------------------------------------
 	// Allocate thunk memory
@@ -798,6 +1018,11 @@ printf("XXXXX stackSlotCount=%d, frameSize=%d\n", stackSlotCount, frameSize);
 
 	if (breakOnEntry) {
 		thunkSize += INT3_LENGTH;
+	}
+
+	if (hiddenParameter) {
+		// Save and restore preserved register
+		thunkSize += (PUSH_SREG_LENGTH(rbx) + POP_SREG_LENGTH(rbx));
 	}
 
 	if (frameSize >= -128 && frameSize <= 127) {
@@ -821,8 +1046,10 @@ printf("XXXXX stackSlotCount=%d, frameSize=%d\n", stackSlotCount, frameSize);
 
 	thunkSize += MOV_TREG_IMM64_LENGTH
 	           + MOV_TREG_SREG_LENGTH
-	           + CALL_mSREG_DISP8m_LENGTH
+	           + CALL_mSREG_DISP8m_LENGTH(rdi)
 	           + RET_LENGTH;
+
+	thunkSize += prepareStructReturnInstructionsLength;
 
 	roundedCodeSize = ROUND_UP_TO_SLOT_MULTIPLE(thunkSize);
 
@@ -854,7 +1081,8 @@ printf("XXXXX roundedCodeSize = %d, thunkAddress = %p, frameSize = %d\n", rounde
 	if (numStructsPassedInMemory > 0) {
 		/**
 		 * Allocate a bookkeeping structure for struct parms passed in memory to avoid
-		 * a complete traversal of the parameters again.
+		 * a complete traversal of the parameters again.  The memory for this structure
+		 * will be freed in this function once the information is consumed.
 		 */
 		structParmInMemory = (structParmInMemoryMetaDataStruct *)
 			j9mem_allocate_memory(numStructsPassedInMemory * sizeof(structParmInMemoryMetaDataStruct), OMRMEM_CATEGORY_VM);
@@ -872,12 +1100,22 @@ printf("XXXXX allocate structParmInMemory %p for numStructsPassedInMemory=%d\n",
 		INT3(thunkCursor)
 	}
 
+	if (hiddenParameter) {
+		PUSH_SREG(thunkCursor, rbx)
+	}
+
 	if (frameSize > 0) {
 		if (frameSize >= -128 && frameSize <= 127) {
 			SUB_RSP_IMM8(thunkCursor, frameSize)
 		} else {
 			SUB_RSP_IMM32(thunkCursor, frameSize)
 		}
+	}
+
+	if (hiddenParameter) {
+		// Copy the hidden parameter to a register preserved across the call
+		MOV_TREG_SREG(thunkCursor, rbx, gprParmRegs[0])
+		gprRegParmCount++;
 	}
 
 	for (I_32 i = 0; i < lastSigIdx; i++) {
@@ -895,7 +1133,7 @@ printf("XXXXX allocate structParmInMemory %p for numStructsPassedInMemory=%d\n",
 				} else {
 					// Parm must be filled from frame and spilled to argList.
 					// Use rbx as the intermediary register since it is volatile
-					L8_TREG_mRSP_DISP32m(thunkCursor, rbx, frameSize + 8 + memParmCursor)
+					L8_TREG_mRSP_DISP32m(thunkCursor, rbx, frameSize + preservedRegisterAreaSize + 8 + memParmCursor)
 					S8_mRSP_DISP32m_SREG(thunkCursor, frameOffsetCursor, rbx)
 					memParmCursor += STACK_SLOT_SIZE;
 				}
@@ -921,10 +1159,10 @@ printf("XXXXX allocate structParmInMemory %p for numStructsPassedInMemory=%d\n",
 					// Use xmm0 as the intermediary register since it is volatile and it
 					// must have been processed as the first parameter already.
 					if (isFloat) {
-						MOVSS_TREG_mRSP_DISP32m(thunkCursor, xmm0, frameSize + 8 + memParmCursor)
+						MOVSS_TREG_mRSP_DISP32m(thunkCursor, xmm0, frameSize + preservedRegisterAreaSize + 8 + memParmCursor)
 						MOVSS_mRSP_DISP32m_SREG(thunkCursor, frameOffsetCursor, xmm0)
 					} else {
-						MOVSD_TREG_mRSP_DISP32m(thunkCursor, xmm0, frameSize + 8 + memParmCursor)
+						MOVSD_TREG_mRSP_DISP32m(thunkCursor, xmm0, frameSize + preservedRegisterAreaSize + 8 + memParmCursor)
 						MOVSD_mRSP_DISP32m_SREG(thunkCursor, frameOffsetCursor, xmm0)
 					}
 
@@ -1013,9 +1251,7 @@ printf("XXXXX PASS_STRUCT_IN_MEMORY : numStructsPassedInMemoryCursor=%d, memParm
 					}
 
 					default:
-					{
 						Assert_VM_unreachable();
-					}
 				}
 			}
 		}
@@ -1027,15 +1263,9 @@ printf("XXXXX PASS_STRUCT_IN_MEMORY : numStructsPassedInMemoryCursor=%d, memParm
 	 */
 	if (numStructsPassedInMemory > 0) {
 		for (I_32 i = 0; i < numStructsPassedInMemory; i++) {
-			LEA_TREG_mRSP_DISP32m(thunkCursor, rsi, frameSize + 8 + structParmInMemory[i].memParmCursor)
+			LEA_TREG_mRSP_DISP32m(thunkCursor, rsi, frameSize + preservedRegisterAreaSize + 8 + structParmInMemory[i].memParmCursor)
 			LEA_TREG_mRSP_DISP32m(thunkCursor, rdi, structParmInMemory[i].frameOffsetCursor)
-
-			if (IS_32BIT_SIGNED(structParmInMemory[i].sizeofStruct)) {
-				MOV_TREG_IMM32(thunkCursor, rcx, structParmInMemory[i].sizeofStruct)
-			} else {
-				MOV_TREG_IMM64(thunkCursor, rcx, structParmInMemory[i].sizeofStruct)
-			}
-
+			MOV_TREG_IMM32(thunkCursor, rcx, structParmInMemory[i].sizeofStruct)
 			REP_MOVSB(thunkCursor)
 		}
 
@@ -1054,12 +1284,85 @@ printf("XXXXX PASS_STRUCT_IN_MEMORY : numStructsPassedInMemoryCursor=%d, memParm
 
 	CALL_mSREG_DISP8m(thunkCursor, rdi, offsetof(J9UpcallMetaData, upCallCommonDispatcher))
 
+	// -------------------------------------------------------------------------------
+	// Process return value for ABI representation
+	// -------------------------------------------------------------------------------
+
+	switch (sigArray[lastSigIdx].type) {
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_ALL_SP:   /* Fall through */
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_ALL_DP:   /* Fall through */
+                case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_DP:    /* Fall through */
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_SP_DP: /* Fall through */
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_SP:    /* Fall through */
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_SP_SP: /* Fall through */
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC_SP:  /* Fall through */
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC_DP:  /* Fall through */
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_MISC:  /* Fall through */
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_MISC:  /* Fall through */
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC:     /* Fall through */
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_OTHER:
+		{
+			X64StructPassingMechanism mechanism = analyzeStructParm(0, 0, sigArray[lastSigIdx]);
+			switch (mechanism) {
+				case PASS_STRUCT_IN_MEMORY:
+					// rax == buffer address from return value
+					MOV_TREG_SREG(thunkCursor, rsi, rax)
+
+					// rbx = caller-supplied buffer address (preserved in rbx)
+					MOV_TREG_SREG(thunkCursor, rdi, rbx)
+					MOV_TREG_IMM32(thunkCursor, rcx, sigArray[lastSigIdx].sizeInByte)
+					REP_MOVSB(thunkCursor)
+
+					// rax must contain the address of the caller-supplied buffer
+					MOV_TREG_SREG(thunkCursor, rax, rbx)
+					break;
+				case PASS_STRUCT_IN_ONE_FPR:
+					MOVSD_TREG_mSREGm(thunkCursor, xmm0, rax)
+					break;
+				case PASS_STRUCT_IN_TWO_FPR:
+					MOVSD_TREG_mSREGm(thunkCursor, xmm0, rax)
+					MOVSD_TREG_mSREG_DISP8m(thunkCursor, xmm1, rax, 8)
+					break;
+				case PASS_STRUCT_IN_ONE_GPR_ONE_FPR:
+					MOVSD_TREG_mSREG_DISP8m(thunkCursor, xmm0, rax, 8)
+					L8_TREG_mSREGm(thunkCursor, rax, rax)
+					break;
+				case PASS_STRUCT_IN_ONE_FPR_ONE_GPR:
+					MOVSD_TREG_mSREGm(thunkCursor, xmm0, rax)
+					L8_TREG_mSREG_DISP8m(thunkCursor, rax, rax, 8)
+					break;
+				case PASS_STRUCT_IN_ONE_GPR:
+					L8_TREG_mSREGm(thunkCursor, rax, rax)
+					break;
+				case PASS_STRUCT_IN_TWO_GPR:
+					L8_TREG_mSREG_DISP8m(thunkCursor, rdx, rax, 8)
+					L8_TREG_mSREGm(thunkCursor, rax, rax)
+					break;
+				default:
+					Assert_VM_unreachable();
+			}
+		}
+		default:
+			// For all other return types the VM helper will have placed the
+			// value in the correct register for the ABI.
+			break;
+
+	}
+
+	// -------------------------------------------------------------------------------
+	// Cleanup frame and return
+	// -------------------------------------------------------------------------------
+
 	if (frameSize > 0) {
 		if (frameSize >= -128 && frameSize <= 127) {
 			ADD_RSP_IMM8(thunkCursor, frameSize)
 		} else {
 			ADD_RSP_IMM32(thunkCursor, frameSize)
 		}
+	}
+
+	if (hiddenParameter) {
+		POP_SREG(thunkCursor, rbx)
 	}
 
 	RET(thunkCursor)
