@@ -38,6 +38,7 @@ extern "C" {
 #define STACK_SLOT_SIZE 8
 
 #define ROUND_UP_TO_SLOT_MULTIPLE(s) ( ((s) + (STACK_SLOT_SIZE-1)) & (~(STACK_SLOT_SIZE-1)) )
+#define ROUND_UP_SLOT(si) (((si) + 7) / 8)
 
 #define MAX_GPRS 16
 #define MAX_GPRS_PASSED_IN_REGS 6
@@ -60,33 +61,12 @@ typedef enum StructPassingMechanismEnum {
 #define REX_B	0x01
 
 enum X64_GPR {
-	rax,
-	rcx,
-	rdx,
-	rbx,
-	rsp,
-	rbp,
-	rsi,
-	rdi,
-	r8,
-	r9,
-	r10,
-	r11,
-	r12,
-	r13,
-	r14,
-	r15
+	rax, rcx, rdx, rbx, rsp, rbp, rsi, rdi,
+	r8, r9, r10, r11, r12, r13, r14, r15
 };
 
 enum X64_FPR {
-	xmm0,
-	xmm1,
-	xmm2,
-	xmm3,
-	xmm4,
-	xmm5,
-	xmm6,
-	xmm7
+	xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7
 };
 
 
@@ -141,23 +121,11 @@ const I_8 registerValues[MAX_GPRS] = {
 };
 
 const X64_GPR gprParmRegs[MAX_GPRS_PASSED_IN_REGS] = {
-	rdi,
-	rsi,
-	rdx,
-	rcx,
-	r8,
-	r9
+	rdi, rsi, rdx, rcx, r8, r9
 };
 
 const X64_FPR fprParmRegs[MAX_FPRS_PASSED_IN_REGS] = {
-	xmm0,
-	xmm1,
-	xmm2,
-	xmm3,
-	xmm4,
-	xmm5,
-	xmm6,
-	xmm7
+	xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7
 };
 
 typedef struct structParmInMemoryMetaData {
@@ -171,12 +139,7 @@ typedef struct structParmInMemoryMetaData {
 	// Size of the struct parm in bytes
 	U_32 sizeofStruct;
 
-	// Windows ONLY
-	// memPointerRegister
-	// memPointerOffset (or 0 if passed in register)
 } structParmInMemoryMetaDataStruct;
-
-#define IS_32BIT_SIGNED(x) ((x) == (int32_t)(x))
 
 // -----------------------------------------------------------------------------
 // MOV treg, [rsp + disp32]
@@ -199,7 +162,7 @@ typedef struct structParmInMemoryMetaData {
 // -----------------------------------------------------------------------------
 // MOV treg, [sreg + disp8]
 //
-// Note: this does not encode sreg=r12 (requires a SIB byte)
+// Warning: this does not encode sreg=r12 (requires a SIB byte)
 //
 #define L8_TREG_mSREG_DISP8m(cursor, treg, sreg, disp8) \
 	{ \
@@ -208,7 +171,7 @@ typedef struct structParmInMemoryMetaData {
 	*cursor++ = 0x8b; \
 	*cursor++ = 0x40 | modRM[treg].reg | modRM[sreg].rm; \
 	*rex |= (modRM[treg].rexr | modRM[sreg].rexb); \
-	*(int32_t *)cursor = disp8; \
+	*(int8_t *)cursor = disp8; \
 	cursor += 1; \
 	}
 
@@ -218,7 +181,7 @@ typedef struct structParmInMemoryMetaData {
 // -----------------------------------------------------------------------------
 // MOV treg, [sreg]
 //
-// Note: this does not encode sreg=r12 (requires a SIB byte)
+// Warning: this does not encode sreg=r12 (requires a SIB byte)
 //
 #define L8_TREG_mSREGm(cursor, treg, sreg) \
 	{ \
@@ -603,26 +566,6 @@ typedef struct structParmInMemoryMetaData {
 
 #define REP_MOVSB_LENGTH (2)
 
-#define ROUND_UP_SLOT(si)     (((si) + 7) / 8)
-
-
-/**
- * Calculate the buffer size required to emit the following:
- *
- *    lea rsi, [rsp + sourceOffset]
- *    lea rdi, [rsp + destOffset]
- *    mov rcx, structSize
- *    rep movsb
- */
-static I_32
-calculateCopyStructInstructionsByteCount(J9UpcallSigType structParm) {
-
-	return (LEA_TREG_mRSP_DISP32m_LENGTH
-	      + LEA_TREG_mRSP_DISP32m_LENGTH
-	      + MOV_TREG_IMM32_LENGTH
-	      + REP_MOVSB_LENGTH);
-}
-
 static X64StructPassingMechanism
 analyzeStructParm(I_32 gprRegParmCount, I_32 fprRegParmCount, J9UpcallSigType structParm) {
 
@@ -775,7 +718,6 @@ createUpcallThunk(J9UpcallMetaData *metaData)
 	const J9InternalVMFunctions *vmFuncs = vm->internalVMFunctions;
 	J9UpcallSigType *sigArray = metaData->nativeFuncSignature->sigArray;
 	I_32 lastSigIdx = (I_32)(metaData->nativeFuncSignature->numSigs - 1); // The index of the return type in the signature array
-	I_32 tempInt = 0;
 	I_32 gprRegSpillInstructionCount = 0;
 	I_32 gprRegFillInstructionCount = 0;
 	I_32 fprRegSpillInstructionCount = 0;
@@ -797,25 +739,24 @@ printf("XXXXX createUpcallThunk : metaData=%p, upCallCommonDispatcher=%p\n", met
 	// Set up the appropriate VM upcall dispatch function based the return type
 	// -------------------------------------------------------------------------------
 
-	tempInt = sigArray[lastSigIdx].sizeInByte;
         switch (sigArray[lastSigIdx].type) {
 		case J9_FFI_UPCALL_SIG_TYPE_VOID:
-			metaData->upCallCommonDispatcher = (void *)vmFuncs->icallVMprJavaUpcall0;
+			metaData->upCallCommonDispatcher = (void *)vmFuncs->native2InterpJavaUpcall0;
 			break;
 		case J9_FFI_UPCALL_SIG_TYPE_CHAR:  /* Fall through */
 		case J9_FFI_UPCALL_SIG_TYPE_SHORT: /* Fall through */
 		case J9_FFI_UPCALL_SIG_TYPE_INT32:
-			metaData->upCallCommonDispatcher = (void *)vmFuncs->icallVMprJavaUpcall1;
+			metaData->upCallCommonDispatcher = (void *)vmFuncs->native2InterpJavaUpcall1;
 			break;
 		case J9_FFI_UPCALL_SIG_TYPE_POINTER:
 		case J9_FFI_UPCALL_SIG_TYPE_INT64:
-			metaData->upCallCommonDispatcher = (void *)vmFuncs->icallVMprJavaUpcallJ;
+			metaData->upCallCommonDispatcher = (void *)vmFuncs->native2InterpJavaUpcallJ;
 			break;
 		case J9_FFI_UPCALL_SIG_TYPE_FLOAT:
-			metaData->upCallCommonDispatcher = (void *)vmFuncs->icallVMprJavaUpcallF;
+			metaData->upCallCommonDispatcher = (void *)vmFuncs->native2InterpJavaUpcallF;
 			break;
 		case J9_FFI_UPCALL_SIG_TYPE_DOUBLE:
-			metaData->upCallCommonDispatcher = (void *)vmFuncs->icallVMprJavaUpcallD;
+			metaData->upCallCommonDispatcher = (void *)vmFuncs->native2InterpJavaUpcallD;
 			break;
 		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_ALL_SP:   /* Fall through */
 		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_ALL_DP:   /* Fall through */
@@ -830,7 +771,7 @@ printf("XXXXX createUpcallThunk : metaData=%p, upCallCommonDispatcher=%p\n", met
 		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC:     /* Fall through */
 		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_OTHER:
 		{
-			metaData->upCallCommonDispatcher = (void *)vmFuncs->icallVMprJavaUpcallStruct;
+			metaData->upCallCommonDispatcher = (void *)vmFuncs->native2InterpJavaUpcallStruct;;
 			X64StructPassingMechanism mechanism = analyzeStructParm(0, 0, sigArray[lastSigIdx]);
 			switch (mechanism) {
 				case PASS_STRUCT_IN_MEMORY:
@@ -893,9 +834,8 @@ printf("XXXXX return : PASS_STRUCT_IN_TWO_GPR\n");
 	// -------------------------------------------------------------------------------
 
 	for (I_32 i = 0; i < lastSigIdx; i++) {
-		tempInt = sigArray[i].sizeInByte;
 
-printf("XXXXX arg %d : type=%d, size=%d : ", i, sigArray[i].type, tempInt);
+printf("XXXXX arg %d : type=%d, size=%d : ", i, sigArray[i].type, sigArray[i].sizeInByte);
 
 		switch (sigArray[i].type) {
 			case J9_FFI_UPCALL_SIG_TYPE_CHAR:    /* Fall through */
@@ -945,7 +885,11 @@ printf("  MEM : fprRegFillInstructionCount=%d, fprRegSpillInstructionCount=%d\n"
 				X64StructPassingMechanism mechanism = analyzeStructParm(gprRegParmCount, fprRegParmCount, sigArray[i]);
 				switch (mechanism) {
 					case PASS_STRUCT_IN_MEMORY:
-						copyStructInstructionsByteCount += calculateCopyStructInstructionsByteCount(sigArray[i]);
+						copyStructInstructionsByteCount +=
+							  LEA_TREG_mRSP_DISP32m_LENGTH
+							+ LEA_TREG_mRSP_DISP32m_LENGTH
+							+ MOV_TREG_IMM32_LENGTH
+							+ REP_MOVSB_LENGTH;
 						numStructsPassedInMemory += 1;
 printf("  MEM : PASS_STRUCT_IN_MEMORY : copyStructInstructionsByteCount=%d, numStructsPassedInMemory=%d\n", copyStructInstructionsByteCount, numStructsPassedInMemory);
 						break;
@@ -999,7 +943,9 @@ printf("  REG : PASS_STRUCT_IN_TWO_GPR : gprRegParmCount=%d, gprRegSpillInstruct
 	// Calculate size of VM parameter buffer
 	// -------------------------------------------------------------------------------
 
-	I_32 frameSize = stackSlotCount * STACK_SLOT_SIZE;
+	I_32 frameSize =
+		// Storage required to pass argList
+		stackSlotCount * STACK_SLOT_SIZE;
 
 	// Adjust frame size such that the end of the input argument area is a multiple of 16.
 	if ((frameSize + preservedRegisterAreaSize) % 16 == 0) {
@@ -1014,7 +960,7 @@ printf("XXXXX stackSlotCount=%d, preservedRegisterAreaSize=%d, frameSize=%d\n", 
 
 	I_32 thunkSize = 0;
 	I_32 roundedCodeSize = 0;
-	I_32 breakOnEntry = 1;
+	I_32 breakOnEntry = 0;
 
 	if (breakOnEntry) {
 		thunkSize += INT3_LENGTH;
@@ -1052,9 +998,6 @@ printf("XXXXX stackSlotCount=%d, preservedRegisterAreaSize=%d, frameSize=%d\n", 
 	thunkSize += prepareStructReturnInstructionsLength;
 
 	roundedCodeSize = ROUND_UP_TO_SLOT_MULTIPLE(thunkSize);
-
-	// +8 accounts for cached J9UpcallMetaData pointer after thunk code
-	roundedCodeSize += 8;
 
 	metaData->thunkSize = roundedCodeSize;
 
@@ -1113,7 +1056,7 @@ printf("XXXXX allocate structParmInMemory %p for numStructsPassedInMemory=%d\n",
 	}
 
 	if (hiddenParameter) {
-		// Copy the hidden parameter to a register preserved across the call
+		// Copy the hidden parameter to a register preserved across the call (rbx)
 		MOV_TREG_SREG(thunkCursor, rbx, gprParmRegs[0])
 		gprRegParmCount++;
 	}
@@ -1132,9 +1075,9 @@ printf("XXXXX allocate structParmInMemory %p for numStructsPassedInMemory=%d\n",
 					gprRegParmCount++;
 				} else {
 					// Parm must be filled from frame and spilled to argList.
-					// Use rbx as the intermediary register since it is volatile
-					L8_TREG_mRSP_DISP32m(thunkCursor, rbx, frameSize + preservedRegisterAreaSize + 8 + memParmCursor)
-					S8_mRSP_DISP32m_SREG(thunkCursor, frameOffsetCursor, rbx)
+					// Use rax as the intermediary register since it is volatile
+					L8_TREG_mRSP_DISP32m(thunkCursor, rax, frameSize + preservedRegisterAreaSize + 8 + memParmCursor)
+					S8_mRSP_DISP32m_SREG(thunkCursor, frameOffsetCursor, rax)
 					memParmCursor += STACK_SLOT_SIZE;
 				}
 
@@ -1174,9 +1117,9 @@ printf("XXXXX allocate structParmInMemory %p for numStructsPassedInMemory=%d\n",
 			}
 			default:
 			{
-				// Handle structs passed in registers.  Structs passed in memory will be handled
-				// after all other parameters are processed
-
+                                // Handle structs passed in registers.  Structs passed in memory will be handled
+                                // after all other parameters are processed to avoid the complication of preserving
+                                // registers implicitly required for REP MOVSB.
 				X64StructPassingMechanism mechanism = analyzeStructParm(gprRegParmCount, fprRegParmCount, sigArray[i]);
 				switch (mechanism) {
 					case PASS_STRUCT_IN_MEMORY:
@@ -1257,10 +1200,7 @@ printf("XXXXX PASS_STRUCT_IN_MEMORY : numStructsPassedInMemoryCursor=%d, memParm
 		}
 	}
 
-	/**
-	 * Handle structs passed in memory.  These are handled last to avoid the complication of
-	 * preserving registers used for REP MOVSB.
-	 */
+	// Handle structs passed in memory.  No need to preserve rsi, rdi, rcx.
 	if (numStructsPassedInMemory > 0) {
 		for (I_32 i = 0; i < numStructsPassedInMemory; i++) {
 			LEA_TREG_mRSP_DISP32m(thunkCursor, rsi, frameSize + preservedRegisterAreaSize + 8 + structParmInMemory[i].memParmCursor)
@@ -1344,7 +1284,7 @@ printf("XXXXX PASS_STRUCT_IN_MEMORY : numStructsPassedInMemoryCursor=%d, memParm
 		}
 		default:
 			// For all other return types the VM helper will have placed the
-			// value in the correct register for the ABI.
+			// value in the correct register per the ABI.
 			break;
 
 	}
@@ -1372,681 +1312,12 @@ printf("XXXXX final thunkCursor=%p, bytesUsed=%d\n", thunkMem, (I_32)(thunkCurso
 	// Check for thunk memory overflow
 	Assert_VM_true( (thunkCursor - thunkMem) <= roundedCodeSize );
 
-	// Store the metaData pointer
-	*(J9UpcallMetaData **)((char *)thunkMem + roundedCodeSize) = metaData;
-
 	// Finish up before returning
 	vmFuncs->doneUpcallThunkGeneration(metaData, (void *)thunkMem);
-
 
 printf("XXXXX DONE createUpcallThunk : metaData=%p, thunkMem=%p\n", metaData, thunkMem);
 
 	return (void *)thunkMem;
-
-// ORIG BELOW ------------------------------------------------------------------
-#if 0
-	I_32 stackSlotCount = 0;
-	I_32 fprCovered = 0;
-	I_32 tempInt = 0;
-	I_32 instructionCount = 0;
-	bool hiddenParameter = false;
-	bool resultDistNeeded = false;
-	bool paramAreaNeeded = true;
-
-	Assert_VM_true(lastSigIdx >= 0);
-
-	// To call the dispatcher: load metaData, load targetAddress, set-up argListPtr, mtctr, bctr
-	instructionCount = 5;
-
-	// Testing the return type
-	tempInt = sigArray[lastSigIdx].sizeInByte;
-        switch (sigArray[lastSigIdx].type) {
-		case J9_FFI_UPCALL_SIG_TYPE_VOID:
-			metaData->upCallCommonDispatcher = (void *)vmFuncs->icallVMprJavaUpcall0;
-			break;
-		case J9_FFI_UPCALL_SIG_TYPE_CHAR:  /* Fall through */
-		case J9_FFI_UPCALL_SIG_TYPE_SHORT: /* Fall through */
-		case J9_FFI_UPCALL_SIG_TYPE_INT32:
-			metaData->upCallCommonDispatcher = (void *)vmFuncs->icallVMprJavaUpcall1;
-			break;
-		case J9_FFI_UPCALL_SIG_TYPE_POINTER:
-		case J9_FFI_UPCALL_SIG_TYPE_INT64:
-			metaData->upCallCommonDispatcher = (void *)vmFuncs->icallVMprJavaUpcallJ;
-			break;
-		case J9_FFI_UPCALL_SIG_TYPE_FLOAT:
-			metaData->upCallCommonDispatcher = (void *)vmFuncs->icallVMprJavaUpcallF;
-			break;
-		case J9_FFI_UPCALL_SIG_TYPE_DOUBLE:
-			metaData->upCallCommonDispatcher = (void *)vmFuncs->icallVMprJavaUpcallD;
-			break;
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_ALL_SP:
-		{
-			Assert_VM_true(0 == (tempInt % sizeof(float)));
-			metaData->upCallCommonDispatcher = (void *)vmFuncs->icallVMprJavaUpcallStruct;
-			resultDistNeeded = true;
-			if (tempInt <= (I_32)(8 * sizeof(float))) {
-				// Distribute result back into FPRs
-				instructionCount += tempInt/sizeof(float);
-			} else {
-				// Copy back to memory area designated by a hidden parameter
-				// Temporarily take a convenient short-cut of always 8-byte
-				stackSlotCount += 1;
-				hiddenParameter = true;
-				if (tempInt <= 64) {
-					// Straight-forward copy: load hidden pointer, sequence of copy
-					instructionCount += 1 + (ROUND_UP_SLOT(tempInt) * 2);
-				} else {
-					// Loop 32-byte per iteration: load hidden pointer, set-up CTR for loop-count
-					// 11-instruction loop body, residue copy
-					// Note: didn't optimize for loop-entry alignment
-					instructionCount += 3 + 11 + (ROUND_UP_SLOT(tempInt & 31) * 2);
-				}
-			}
-			break;
-		}
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_ALL_DP:
-		{
-			Assert_VM_true(0 == (tempInt % sizeof(double)));
-			metaData->upCallCommonDispatcher = (void *)vmFuncs->icallVMprJavaUpcallStruct;
-			resultDistNeeded = true;
-			if (tempInt <= (I_32)(8 * sizeof(double))) {
-				// Distribute back into FPRs
-				instructionCount += tempInt/sizeof(double);
-			} else {
-				// Loop 32-byte per iteration: load hidden pointer, set-up CTR for loop-count
-				// 11-instruction loop body, residue copy
-				// Note: didn't optimize for loop-entry alignment
-				stackSlotCount += 1;
-				hiddenParameter = true;
-				instructionCount += 3 + 11 + (ROUND_UP_SLOT(tempInt & 31) * 2);
-			}
-			break;
-		}
-		// Definitely <= 16-byte
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_DP:    /* Fall through */
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_SP_DP: /* Fall through */
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_SP:    /* Fall through */
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_SP_SP: /* Fall through */
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC_SP:  /* Fall through */
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC_DP:  /* Fall through */
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_MISC:  /* Fall through */
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_MISC:  /* Fall through */
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC:
-		{
-			Assert_VM_true(tempInt <= 16);
-			metaData->upCallCommonDispatcher = (void *)vmFuncs->icallVMprJavaUpcallStruct;
-			resultDistNeeded = true;
-			instructionCount += ROUND_UP_SLOT(tempInt);
-			break;
-		}
-		// Definitely > 16-byte
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_OTHER:
-		{
-			Assert_VM_true(tempInt > 16);
-			metaData->upCallCommonDispatcher = (void *)vmFuncs->icallVMprJavaUpcallStruct;
-			resultDistNeeded = true;
-			hiddenParameter = true;
-			stackSlotCount += 1;
-			if (tempInt <= 64) {
-				// Straight-forward copy: load hidden pointer, sequence of copy
-				instructionCount += 1 + (ROUND_UP_SLOT(tempInt) * 2);
-			} else {
-				// Loop 32-byte per iteration: load hidden pointer, set-up CTR for loop-count
-				// 11-instruction loop body, residue copy
-				// Note: didn't optimize for loop-entry alignment
-				instructionCount += 3 + 11 + (ROUND_UP_SLOT(tempInt & 31) * 2);
-			}
-			break;
-		}
-		default:
-			Assert_VM_unreachable();
-	}
-
-	if (hiddenParameter) {
-		instructionCount += 1;
-	}
-
-	// Loop through the arguments
-	for (I_32 i = 0; i < lastSigIdx; i++) {
-		// Testing this argument
-		tempInt = sigArray[i].sizeInByte;
-		switch (sigArray[i].type) {
-			case J9_FFI_UPCALL_SIG_TYPE_CHAR:    /* Fall through */
-			case J9_FFI_UPCALL_SIG_TYPE_SHORT:   /* Fall through */
-			case J9_FFI_UPCALL_SIG_TYPE_INT32:   /* Fall through */
-			case J9_FFI_UPCALL_SIG_TYPE_POINTER: /* Fall through */
-			case J9_FFI_UPCALL_SIG_TYPE_INT64:
-			{
-				stackSlotCount += 1;
-				if (stackSlotCount > 8) {
-					paramAreaNeeded = false;
-				} else {
-					instructionCount += 1;
-				}
-				break;
-			}
-			case J9_FFI_UPCALL_SIG_TYPE_FLOAT:  /* Fall through */
-			case J9_FFI_UPCALL_SIG_TYPE_DOUBLE:
-			{
-				stackSlotCount += 1;
-				fprCovered += 1;
-				if (fprCovered > 13) {
-					if (stackSlotCount > 8) {
-						paramAreaNeeded = false;
-					} else {
-						instructionCount += 1;
-					}
-				} else {
-					instructionCount += 1;
-				}
-				break;
-			}
-			case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_ALL_SP:
-			{
-				Assert_VM_true(0 == (tempInt % sizeof(float)));
-				stackSlotCount += ROUND_UP_SLOT(tempInt);
-				if (tempInt <= (I_32)(8 * sizeof(float))) {
-					if ((fprCovered + (tempInt / sizeof(float))) > 13) {
-						// It is really tricky here. some remaining SPs are passed in
-						// GPRs if there are free GPR parameter registers.
-						I_32 restSlots = 0;
-						if (fprCovered < 13) {
-							instructionCount += 13 - fprCovered;
-							// Round-down the already passed in FPRs
-							restSlots = ROUND_UP_SLOT(tempInt) - ((13 - fprCovered) / 2);
-						} else {
-							restSlots = ROUND_UP_SLOT(tempInt);
-						}
-
-						Assert_VM_true(restSlots > 0);
-						if ((stackSlotCount - restSlots) < 8) {
-							if (stackSlotCount > 8) {
-								paramAreaNeeded = false;
-								instructionCount += 8 - (stackSlotCount - restSlots);
-							} else {
-								instructionCount += restSlots;
-							}
-						} else {
-							paramAreaNeeded = false;
-						}
-					} else {
-						instructionCount += tempInt / sizeof(float);
-					}
-					fprCovered += tempInt / sizeof(float);
-				} else {
-					if (stackSlotCount > 8) {
-						paramAreaNeeded = false;
-						if ((stackSlotCount - ROUND_UP_SLOT(tempInt)) < 8) {
-							instructionCount += 8 + ROUND_UP_SLOT(tempInt) - stackSlotCount;
-						}
-					} else {
-						instructionCount += ROUND_UP_SLOT(tempInt);
-					}
-				}
-				break;
-			}
-			case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_ALL_DP:
-			{
-				Assert_VM_true(0 == (tempInt % sizeof(double)));
-				stackSlotCount += ROUND_UP_SLOT(tempInt);
-				if (tempInt <= (I_32)(8 * sizeof(double))) {
-					if ((fprCovered + (tempInt / sizeof(double))) > 13) {
-						I_32 restSlots = 0;
-						if (fprCovered < 13) {
-							instructionCount += 13 - fprCovered;
-							restSlots = ROUND_UP_SLOT(tempInt) - (13 - fprCovered);
-						} else {
-							restSlots = ROUND_UP_SLOT(tempInt);
-						}
-
-						Assert_VM_true(restSlots > 0);
-						if ((stackSlotCount - restSlots) < 8) {
-							if (stackSlotCount > 8) {
-								paramAreaNeeded = false;
-								instructionCount += 8 - (stackSlotCount - restSlots);
-							} else {
-								instructionCount += restSlots;
-							}
-						} else {
-							paramAreaNeeded = false;
-						}
-					} else {
-						instructionCount += tempInt / sizeof(double);
-					}
-					fprCovered += tempInt / sizeof(double);
-				} else {
-					if (stackSlotCount > 8) {
-						paramAreaNeeded = false;
-						if ((stackSlotCount - ROUND_UP_SLOT(tempInt)) < 8) {
-							instructionCount += 8 + ROUND_UP_SLOT(tempInt) - stackSlotCount;
-						}
-					} else {
-						instructionCount += ROUND_UP_SLOT(tempInt);
-					}
-				}
-				break;
-			}
-			// Definitely <= 16-byte
-			case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_DP:    /* Fall through */
-			case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_SP_DP: /* Fall through */
-			case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_SP:    /* Fall through */
-			case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_SP_SP: /* Fall through */
-			case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC_SP:  /* Fall through */
-			case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC_DP:  /* Fall through */
-			case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_MISC:  /* Fall through */
-			case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_MISC:  /* Fall through */
-			case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC:
-			{
-				Assert_VM_true(tempInt <= 16);
-				stackSlotCount += ROUND_UP_SLOT(tempInt);
-				if (stackSlotCount > 8) {
-					paramAreaNeeded = false;
-					if ((stackSlotCount - ROUND_UP_SLOT(tempInt)) < 8) {
-						instructionCount += 8 + ROUND_UP_SLOT(tempInt) - stackSlotCount;
-					}
-				} else {
-					instructionCount += ROUND_UP_SLOT(tempInt);
-				}
-				break;
-			}
-			// Definitely > 16-byte
-			case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_OTHER:
-			{
-				Assert_VM_true(tempInt > 16);
-				stackSlotCount += ROUND_UP_SLOT(tempInt);
-				if (stackSlotCount > 8) {
-					paramAreaNeeded = false;
-					if ((stackSlotCount - ROUND_UP_SLOT(tempInt)) < 8) {
-						instructionCount += 8 + ROUND_UP_SLOT(tempInt) - stackSlotCount;
-					}
-				} else {
-					instructionCount += ROUND_UP_SLOT(tempInt);
-				}
-				break;
-			}
-			case J9_FFI_UPCALL_SIG_TYPE_VA_LIST: /* Unused */
-				// This must be the last argument
-				Assert_VM_true(i == (lastSigIdx - 1));
-				paramAreaNeeded = false;
-				break;
-			default:
-				Assert_VM_unreachable();
-		}
-
-		// Saturate what we want to know: if there are any in-register args to be pushed back
-		if ((stackSlotCount > 8) && (fprCovered > 13)) {
-			Assert_VM_true(paramAreaNeeded == false);
-			break;
-		}
-	}
-
-	// 7 instructions to build frame: mflr, save-return-addr, stdu-frame, addi-tear-down-frame, load-return-addr, mtlr, blr
-	I_32 frameSize = 0;
-	I_32 offsetToParamArea = 0;
-	I_32 roundedCodeSize = 0;
-	I_32 *thunkMem = NULL;  // always 4-byte instruction: convenient to use int-pointer
-
-	if (resultDistNeeded || paramAreaNeeded) {
-		instructionCount += 7;
-		if (paramAreaNeeded) {
-			frameSize = 64 + ((stackSlotCount + 1) / 2) * 16;
-			offsetToParamArea = 48;
-		} else {
-			frameSize = 48;
-			// Using the caller frame paramArea
-			offsetToParamArea = 80;
-		}
-	} else {
-		frameSize = 0;
-		// Using the caller frame paramArea
-		offsetToParamArea = 32;
-	}
-
-	// If a frame is needed, less than 22 slots are expected (8 GPR + 13 FPR);
-	Assert_VM_true(frameSize <= 240);
-
-	// Hopefully a thunk memory is 8-byte aligned. We also make sure thunkSize is multiple of 8
-	// another 8-byte to store metaData pointer itself
-	roundedCodeSize = ((instructionCount + 1) / 2) * 8;
-	metaData->thunkSize = roundedCodeSize + 8;
-	thunkMem = (I_32 *)vmFuncs->allocateUpcallThunkMemory(metaData);
-	if (NULL == thunkMem) {
-		return NULL;
-	}
-	metaData->thunkAddress = (void *)thunkMem;
-
-	// Generate the instruction sequence according to the signature, looping over them again
-	I_32 gprIdx = 3;
-	I_32 fprIdx = 1;
-	I_32 slotIdx = 0;
-	I_32 instrIdx = 0;
-	I_32 C_SP = 1;
-
-	if (resultDistNeeded || paramAreaNeeded) {
-		thunkMem[instrIdx++] = MFLR(0);
-		thunkMem[instrIdx++] = STD(0, C_SP, 16);
-		thunkMem[instrIdx++] = STDU(C_SP, C_SP, -frameSize);
-	}
-
-	if (hiddenParameter) {
-		thunkMem[instrIdx++] = STD(gprIdx++, C_SP, offsetToParamArea);
-		slotIdx += 1;
-	}
-
-	// Loop through the arguments again
-	for (I_32 i = 0; i < lastSigIdx; i++) {
-		// Testing this argument
-		tempInt = sigArray[i].sizeInByte;
-	        switch (sigArray[i].type) {
-			case J9_FFI_UPCALL_SIG_TYPE_CHAR:    /* Fall through */
-			case J9_FFI_UPCALL_SIG_TYPE_SHORT:   /* Fall through */
-			case J9_FFI_UPCALL_SIG_TYPE_INT32:   /* Fall through */
-			case J9_FFI_UPCALL_SIG_TYPE_POINTER: /* Fall through */
-			case J9_FFI_UPCALL_SIG_TYPE_INT64:
-			{
-				if (slotIdx < 8) {
-					thunkMem[instrIdx++] = STD(gprIdx, C_SP, offsetToParamArea + (slotIdx * 8));
-				}
-				gprIdx += 1;
-				slotIdx += 1;
-				break;
-			}
-			case J9_FFI_UPCALL_SIG_TYPE_FLOAT:
-			{
-				if (fprIdx <= 13) {
-					thunkMem[instrIdx++] = STFS(fprIdx, C_SP, offsetToParamArea + (slotIdx * 8));
-				} else {
-					if (slotIdx < 8) {
-						thunkMem[instrIdx++] = STD(gprIdx, C_SP, offsetToParamArea + (slotIdx * 8));
-					}
-				}
-				fprIdx += 1;
-				gprIdx += 1;
-				slotIdx += 1;
-				break;
-			}
-			case J9_FFI_UPCALL_SIG_TYPE_DOUBLE:
-			{
-				if (fprIdx <= 13) {
-					thunkMem[instrIdx++] = STFD(fprIdx, C_SP, offsetToParamArea + (slotIdx * 8));
-				} else {
-					if (slotIdx < 8) {
-						thunkMem[instrIdx++] = STD(gprIdx, C_SP, offsetToParamArea + (slotIdx * 8));
-					}
-				}
-				fprIdx += 1;
-				gprIdx += 1;
-				slotIdx += 1;
-				break;
-			}
-			case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_ALL_SP:
-			{
-				if (tempInt <= (I_32)(8 * sizeof(float))) {
-					if ((fprIdx + (tempInt / sizeof(float))) > 14) {
-						I_32 restSlots = 0;
-						I_32 gprStartSlot = 0;
-
-						if (fprIdx <= 13) {
-							for (I_32 eIdx = 0; eIdx < (14 - fprIdx); eIdx++) {
-								thunkMem[instrIdx++] = STFS(fprIdx + eIdx, C_SP,
-									offsetToParamArea + (slotIdx * 8) + (eIdx * sizeof(float)));
-							}
-							// Round-down the already passed in FPRs
-							restSlots = ROUND_UP_SLOT(tempInt) - ((14 - fprIdx) / 2);
-						} else {
-							restSlots = ROUND_UP_SLOT(tempInt);
-						}
-
-						if ((gprStartSlot = (slotIdx + ROUND_UP_SLOT(tempInt) - restSlots)) < 8) {
-							if ((slotIdx + ROUND_UP_SLOT(tempInt)) > 8) {
-								for (I_32 gIdx = 0; gIdx < (8 - gprStartSlot); gIdx++) {
-									thunkMem[instrIdx++] = STD(3 + gprStartSlot + gIdx, C_SP,
-										offsetToParamArea + ((gprStartSlot + gIdx) * 8));
-								}
-							} else {
-								for (I_32 gIdx = 0; gIdx < restSlots; gIdx++) {
-									thunkMem[instrIdx++] = STD(3 + gprStartSlot + gIdx, C_SP,
-										offsetToParamArea + ((gprStartSlot + gIdx) * 8));
-								}
-							}
-						}
-					} else {
-						for (I_32 eIdx = 0; eIdx < (I_32)(tempInt / sizeof(float)); eIdx++) {
-							thunkMem[instrIdx++] = STFS(fprIdx + eIdx, C_SP,
-								 offsetToParamArea + (slotIdx * 8) + (eIdx * sizeof(float)));
-						}
-					}
-
-					fprIdx += tempInt / sizeof(float);
-				} else {
-					if ((slotIdx + ROUND_UP_SLOT(tempInt)) > 8) {
-						if (slotIdx < 8) {
-							for (I_32 gIdx = 0; gIdx < (8 - slotIdx); gIdx++) {
-								thunkMem[instrIdx++] = STD(gprIdx + gIdx, C_SP,
-									 offsetToParamArea + (slotIdx + gIdx) * 8);
-							}
-						}
-					} else {
-						for (I_32 gIdx = 0; gIdx < ROUND_UP_SLOT(tempInt); gIdx++) {
-							thunkMem[instrIdx++] = STD(gprIdx + gIdx, C_SP, offsetToParamArea + (slotIdx + gIdx) * 8);
-						}
-					}
-				}
-				gprIdx += ROUND_UP_SLOT(tempInt);
-				slotIdx += ROUND_UP_SLOT(tempInt);
-				break;
-			}
-			case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_ALL_DP:
-			{
-				if (tempInt <= (I_32)(8 * sizeof(double))) {
-					if ((fprIdx + (tempInt / sizeof(double))) > 14) {
-						I_32 restSlots = 0;
-						I_32 gprStartSlot = 0;
-
-						if (fprIdx <= 13) {
-							for (I_32 eIdx = 0; eIdx < (14 - fprIdx); eIdx++) {
-								thunkMem[instrIdx++] = STFD(fprIdx + eIdx, C_SP,
-									offsetToParamArea + (slotIdx + eIdx) * 8);
-							}
-							restSlots = ROUND_UP_SLOT(tempInt) - (14 - fprIdx);
-						} else {
-							restSlots = ROUND_UP_SLOT(tempInt);
-						}
-
-						if ((gprStartSlot = (slotIdx + ROUND_UP_SLOT(tempInt) - restSlots)) < 8) {
-							if ((slotIdx + ROUND_UP_SLOT(tempInt)) > 8) {
-								for (I_32 gIdx = 0; gIdx < (8 - gprStartSlot); gIdx++) {
-									thunkMem[instrIdx++] = STD(3 + gprStartSlot + gIdx, C_SP,
-										offsetToParamArea + ((gprStartSlot + gIdx) * 8));
-								}
-							} else {
-								for (I_32 gIdx = 0; gIdx < restSlots; gIdx++) {
-									thunkMem[instrIdx++] = STD(3 + gprStartSlot + gIdx, C_SP,
-										offsetToParamArea + ((gprStartSlot + gIdx) * 8));
-								}
-							}
-						}
-					} else {
-						for (I_32 eIdx = 0; eIdx < (I_32)(tempInt / sizeof(double)); eIdx++) {
-							thunkMem[instrIdx++] = STFD(fprIdx + eIdx, C_SP,
-									offsetToParamArea + (slotIdx + eIdx) * 8);
-						}
-					}
-
-					fprIdx += tempInt / sizeof(double);
-				} else {
-					if ((slotIdx + ROUND_UP_SLOT(tempInt)) > 8) {
-						if (slotIdx < 8) {
-							for (I_32 gIdx = 0; gIdx < (8 - slotIdx); gIdx++) {
-								thunkMem[instrIdx++] = STD(gprIdx + gIdx, C_SP,
-									 offsetToParamArea + (slotIdx + gIdx) * 8);
-							}
-						}
-					} else {
-						for (I_32 gIdx = 0; gIdx < ROUND_UP_SLOT(tempInt); gIdx++) {
-							thunkMem[instrIdx++] = STD(gprIdx + gIdx, C_SP,
-									offsetToParamArea + (slotIdx + gIdx) * 8);
-						}
-					}
-				}
-				gprIdx += ROUND_UP_SLOT(tempInt);
-				slotIdx += ROUND_UP_SLOT(tempInt);
-				break;
-			}
-			// Definitely <= 16-byte
-			case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_DP:    /* Fall through */
-			case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_SP_DP: /* Fall through */
-			case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_SP:    /* Fall through */
-			case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_SP_SP: /* Fall through */
-			case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC_SP:  /* Fall through */
-			case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC_DP:  /* Fall through */
-			case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_MISC:  /* Fall through */
-			case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_MISC:  /* Fall through */
-			case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC:
-			{
-				if ((slotIdx + ROUND_UP_SLOT(tempInt)) > 8) {
-					if (slotIdx < 8) {
-						for (I_32 gIdx = 0; gIdx < (8 - slotIdx); gIdx++) {
-							thunkMem[instrIdx++] = STD(gprIdx + gIdx, C_SP,
-									offsetToParamArea + (slotIdx + gIdx) * 8);
-						}
-					}
-				} else {
-					for (I_32 gIdx = 0; gIdx < ROUND_UP_SLOT(tempInt); gIdx++) {
-						thunkMem[instrIdx++] = STD(gprIdx + gIdx, C_SP,
-								offsetToParamArea + (slotIdx + gIdx) * 8);
-					}
-				}
-				slotIdx += ROUND_UP_SLOT(tempInt);
-				gprIdx += ROUND_UP_SLOT(tempInt);
-				break;
-			}
-			// Definitely > 16-byte
-			case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_OTHER:
-			{
-				if ((slotIdx + ROUND_UP_SLOT(tempInt)) > 8) {
-					if (slotIdx < 8) {
-						for (I_32 gIdx = 0; gIdx < (8 - slotIdx); gIdx++) {
-							thunkMem[instrIdx++] = STD(gprIdx + gIdx, C_SP,
-									offsetToParamArea + (slotIdx + gIdx) * 8);
-						}
-					}
-				} else {
-					for (I_32 gIdx = 0; gIdx < ROUND_UP_SLOT(tempInt); gIdx++) {
-						thunkMem[instrIdx++] = STD(gprIdx + gIdx, C_SP,
-								offsetToParamArea + (slotIdx + gIdx) * 8);
-					}
-				}
-				slotIdx += ROUND_UP_SLOT(tempInt);
-				gprIdx += ROUND_UP_SLOT(tempInt);
-				break;
-			}
-			case J9_FFI_UPCALL_SIG_TYPE_VA_LIST: /* Unused */
-				break;
-			default:
-				Assert_VM_unreachable();
-		}
-
-		// No additional arg instructions are expected
-		if ((slotIdx > 8) && (fprIdx > 13)) {
-			break;
-		}
-	}
-
-	// Make the jump or call to the common dispatcher.
-	// gr12 is currently pointing at thunkMem (by ABI requirement),
-	// in which case we can load the metaData by a fixed offset
-	thunkMem[instrIdx++] = LD(3, 12, roundedCodeSize);
-	thunkMem[instrIdx++] = LD(12, 3, offsetof(J9UpcallMetaData, upCallCommonDispatcher));
-	thunkMem[instrIdx++] = ADDI(4, C_SP, offsetToParamArea);
-	thunkMem[instrIdx++] = MTCTR(12);
-
-	if (resultDistNeeded || paramAreaNeeded) {
-		thunkMem[instrIdx++] = BCTRL();
-
-		// Distribute result if needed, then tear down the frame and return
-		if (resultDistNeeded) {
-			tempInt = sigArray[lastSigIdx].sizeInByte;
-		        switch (sigArray[lastSigIdx].type) {
-				case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_ALL_SP:
-				{
-					if (tempInt <= (I_32)(8 * sizeof(float))) {
-						for (I_32 fIdx = 0; fIdx < (I_32)(tempInt/sizeof(float)); fIdx++) {
-							thunkMem[instrIdx++] = LFS(1+fIdx, 3, fIdx * sizeof(float));
-						}
-					} else {
-						if (tempInt <= 64) {
-							copyBackStraight(thunkMem, &instrIdx, tempInt, offsetToParamArea);
-						} else {
-							// Note: didn't optimize for loop-entry alignment
-							copyBackLoop(thunkMem, &instrIdx, tempInt, offsetToParamArea);
-						}
-					}
-					break;
-				}
-				case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_ALL_DP:
-				{
-					if (tempInt <= (I_32)(8 * sizeof(double))) {
-						for (I_32 fIdx = 0; fIdx < (I_32)(tempInt/sizeof(double)); fIdx++) {
-							thunkMem[instrIdx++] = LFD(1+fIdx, 3, fIdx * sizeof(double));
-						}
-					} else {
-						// Note: didn't optimize for loop-entry alignment
-						copyBackLoop(thunkMem, &instrIdx, tempInt, offsetToParamArea);
-					}
-					break;
-				}
-				// Definitely <= 16-byte
-				case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_DP:    /* Fall through */
-				case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_SP_DP: /* Fall through */
-				case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_SP:    /* Fall through */
-				case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_SP_SP: /* Fall through */
-				case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC_SP:  /* Fall through */
-				case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC_DP:  /* Fall through */
-				case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_MISC:  /* Fall through */
-				case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_MISC:  /* Fall through */
-				case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC:
-				{
-					if (tempInt > 8) {
-						thunkMem[instrIdx++] = LD(4, 3, 8);
-					}
-					thunkMem[instrIdx++] = LD(3, 3, 0);
-					break;
-				}
-				// Definitely > 16-byte
-				case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_OTHER:
-				{
-					if (tempInt <= 64) {
-						copyBackStraight(thunkMem, &instrIdx, tempInt, offsetToParamArea);
-					} else {
-						// Note: didn't optimize for loop-entry alignment
-						copyBackLoop(thunkMem, &instrIdx, tempInt, offsetToParamArea);
-					}
-					break;
-				}
-				default:
-					Assert_VM_unreachable();
-			}
-		}
-
-		thunkMem[instrIdx++] = ADDI(C_SP, C_SP, frameSize);
-		thunkMem[instrIdx++] = LD(0, C_SP, 16);
-		thunkMem[instrIdx++] = MTLR(0);
-		thunkMem[instrIdx++] = BLR();
-	} else {
-		thunkMem[instrIdx++] = BCTR();
-	}
-
-	Assert_VM_true(instrIdx == instructionCount);
-
-	// Store the metaData pointer
-	*(J9UpcallMetaData **)((char *)thunkMem + roundedCodeSize) = metaData;
-
-	// Finish up before returning
-	vmFuncs->doneUpcallThunkGeneration(metaData, (void *)thunkMem);
-
-	return (void *)thunkMem;
-#endif
 }
 
 /**
@@ -2125,80 +1396,3 @@ printf("YYYYY : argPtr=%p [%08lx]\n", argPtr, *( (uint64_t *)argPtr) );
 
 } /* extern "C" */
 
-#if 0
-        /* @brief Check the merged composition types of both the first 8 bytes and the next 8 bytes
-         * of the 16-byte composition type array so as to determine the aggregate subtype of
-         * a struct equal to or less than 16 bytes in size).
-         *
-         * @param first16ByteComposTypes[in] A pointer to a composition type array for the 1st 16bytes of the struct signature string
-         * @return an encoded AGGREGATE subtype for the struct signature
-         */
-        static U_8
-        getStructSigTypeFrom16ByteComposTypes(U_8 *first16ByteComposTypes)
-        {
-                U_8 structSigType = 0;
-                U_8 first8ByteComposType = getComposTypeFrom8Bytes(first16ByteComposTypes, 0);
-                U_8 second8ByteComposType = getComposTypeFrom8Bytes(first16ByteComposTypes, 8);
-                U_8 structSigComposType = (first8ByteComposType << 4) | second8ByteComposType;
-
-                switch (structSigComposType) {
-                case J9_FFI_UPCALL_STRU_COMPOSITION_TYPE_F_E_D:
-                        /* The aggregate subtype is set for the struct {float, padding, double} */
-                        structSigType = J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_DP;
-                        break;
-                case J9_FFI_UPCALL_STRU_COMPOSITION_TYPE_F_F_D:
-                        /* The aggregate subtype is set for the struct {float, float, double} */
-                        structSigType = J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_SP_DP;
-                        break;
-                case J9_FFI_UPCALL_STRU_COMPOSITION_TYPE_D_F_E:
-                        /* The aggregate subtype is set for the struct {double, float, padding} */
-                        structSigType = J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_SP;
-                        break;
-                case J9_FFI_UPCALL_STRU_COMPOSITION_TYPE_D_F_F:
-                        /* The aggregate subtype is set for the struct {double, float, float} */
-                        structSigType = J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_SP_SP;
-                        break;
-                case J9_FFI_UPCALL_STRU_COMPOSITION_TYPE_M_F_E:
-                        /* The aggregate subtype is set for structs starting with the mix of any integer type/float
-                         * in the first 8 bytes followed by one float in the second 8 bytes.
-                         * e.g. {int, float, float} or {float, int, float}.
-                         */
-                        structSigType = J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC_SP;
-                        break;
-                case J9_FFI_UPCALL_STRU_COMPOSITION_TYPE_M_F_F: /* Fall through */
-                case J9_FFI_UPCALL_STRU_COMPOSITION_TYPE_M_D:
-                        /* The aggregate subtype is set for a struct starting with the mix of any integer type/float in the
-                         * first 8 bytes followed by a double or two floats(treated as a double) in the second 8 bytes.
-                         * e.g. {int, float, double}, {float, int, double}, {long, double}, {int, float, float, float}
-                         * or {long, float, float}.
-                         */
-                        structSigType = J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC_DP;
-                        break;
-                case J9_FFI_UPCALL_STRU_COMPOSITION_TYPE_F_E_M:
-                        /* The aggregate subtype is set for a struct starting with a float in the first 8 bytes
-                         * followed by the mix of any integer type/float in the second 8 bytes.
-                         * e.g. {float, padding, long}.
-                         */
-                        structSigType = J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_MISC;
-                        break;
-                case J9_FFI_UPCALL_STRU_COMPOSITION_TYPE_F_F_M: /* Fall through */
-                case J9_FFI_UPCALL_STRU_COMPOSITION_TYPE_D_M:
-                        /* The aggregate subtype is set for a struct starting with a double or two floats in the
-                         * first 8 bytes, followed by the mix of any integer type/float in the second 8 bytes.
-                         * e.g. {double, float, int}, {double, long} or  {float, float, float, int}
-                         * or {float, float, long}.
-                         */
-                        structSigType = J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_MISC;
-                        break;
-                default:
-                        /* The aggregate subtype is set for a struct mixed with any integer type/float
-                         * without pure float/double in the first/second 8 bytes.
-                         * e.g. {short a[3], char b} or {int, float, int, float}.
-                         */
-                        structSigType = J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC;
-                        break;
-                }
-
-                return structSigType;
-        }
-#endif
