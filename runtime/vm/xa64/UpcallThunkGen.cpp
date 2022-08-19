@@ -733,7 +733,7 @@ createUpcallThunk(J9UpcallMetaData *metaData)
 
 	Assert_VM_true(lastSigIdx >= 0);
 
-printf("XXXXX createUpcallThunk : metaData=%p, upCallCommonDispatcher=%p\n", metaData, metaData->upCallCommonDispatcher);
+printf("XXXXX createUpcallThunk : metaData=%p, upCallCommonDispatcher=%p\n", metaData, metaData->upCallCommonDispatcher); fflush(stdout);
 
 	// -------------------------------------------------------------------------------
 	// Set up the appropriate VM upcall dispatch function based the return type
@@ -771,7 +771,7 @@ printf("XXXXX createUpcallThunk : metaData=%p, upCallCommonDispatcher=%p\n", met
 		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC:     /* Fall through */
 		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_OTHER:
 		{
-			metaData->upCallCommonDispatcher = (void *)vmFuncs->native2InterpJavaUpcallStruct;;
+			metaData->upCallCommonDispatcher = (void *)vmFuncs->native2InterpJavaUpcallStruct;
 			X64StructPassingMechanism mechanism = analyzeStructParm(0, 0, sigArray[lastSigIdx]);
 			switch (mechanism) {
 				case PASS_STRUCT_IN_MEMORY:
@@ -960,7 +960,7 @@ printf("XXXXX stackSlotCount=%d, preservedRegisterAreaSize=%d, frameSize=%d\n", 
 
 	I_32 thunkSize = 0;
 	I_32 roundedCodeSize = 0;
-	I_32 breakOnEntry = 0;
+	I_32 breakOnEntry = 1;
 
 	if (breakOnEntry) {
 		thunkSize += INT3_LENGTH;
@@ -1386,7 +1386,7 @@ printf("YYYYY getArgPointer : nativeSig=%p, argListPtr=%p, argIdx=%d\n", nativeS
 	}
 
 void *argPtr = (void *)((char *)argListPtr + (stackSlotCount * STACK_SLOT_SIZE));
-printf("YYYYY : argPtr=%p [%08lx]\n", argPtr, *( (uint64_t *)argPtr) );
+printf("YYYYY : argPtr=%p [%08llx]\n", argPtr, *( (uint64_t *)argPtr) );
 
 	return argPtr;
 }
