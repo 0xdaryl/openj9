@@ -1386,7 +1386,7 @@ printf("YYYYY getArgPointer : nativeSig=%p, argListPtr=%p, argIdx=%d\n", nativeS
 	}
 
 void *argPtr = (void *)((char *)argListPtr + (stackSlotCount * STACK_SLOT_SIZE));
-printf("YYYYY : argPtr=%p [%08llx]\n", argPtr, *( (uint64_t *)argPtr) );
+printf("YYYYY : argPtr=%p [%08lx]\n", argPtr, *( (uint64_t *)argPtr) );
 
 	return argPtr;
 }
