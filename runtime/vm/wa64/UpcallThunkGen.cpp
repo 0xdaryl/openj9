@@ -48,7 +48,8 @@ extern "C" {
 typedef enum StructPassingMechanismEnum {
 	PASS_STRUCT_IN_MEMORY_POINTER_IN_REG,
 	PASS_STRUCT_IN_MEMORY_POINTER_ON_STACK,
-	PASS_STRUCT_IN_ONE_GPR
+	PASS_STRUCT_IN_ONE_GPR,
+	PASS_STRUCT_UNKNOWN
 } X64StructPassingMechanism;
 
 #define REX	0x40
@@ -553,118 +554,54 @@ const X64_FPR fprParmRegs[MAX_FPRS_PASSED_IN_REGS] = {
 
 static X64StructPassingMechanism
 analyzeStructParm(I_32 parm, J9UpcallSigType structParm) {
-	return PASS_STRUCT_IN_MEMORY_POINTER_IN_REG;
 
-#if 0
 	I_32 structSize = structParm.sizeInByte;
 
-	if (structSize > 16) {
-		// On Linux, passed as an arg on the stack (not a pointer)
-		// On Windows, memory allocated on the stack but passed as a pointer to that memory.  Stack memory is checked when locals > 8k before allocation (__chkstk)
-		return PASS_STRUCT_IN_MEMORY;
+	switch (structSize) {
+		case 1:  /* Fall through */
+		case 2:  /* Fall through */
+		case 4:  /* Fall through */
+		case 8:  /* Fall through */
+			break;
+
+		default:
+			if (parm < MAX_PARMS_PASSED_IN_REGS) {
+				return PASS_STRUCT_IN_MEMORY_POINTER_IN_REG;
+			} else {
+				return PASS_STRUCT_IN_MEMORY_POINTER_ON_STACK;
+			}
 	}
 
 	switch (structParm.type) {
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_ALL_SP:  /* Fall through */
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_ALL_DP:
-		{
-			I_32 numParmFPRsRequired = (structSize <= 8) ? 1 : 2;
-			if (fprRegParmCount + numParmFPRsRequired > MAX_FPRS_PASSED_IN_REGS) {
-				// Struct is allocated on the stack corresponding to the arg position (i.e., not passed as a pointer to memory)
-				// Struct rounded up to multiple of 8 bytes
-				return PASS_STRUCT_IN_MEMORY;
-			}
-
-			// Pass in next available 1 or next available 2 numParmFPRsRequired
-			return (numParmFPRsRequired == 1) ? PASS_STRUCT_IN_ONE_FPR : PASS_STRUCT_IN_TWO_FPR;
-		}
-
-		/* Windows
-                4, 8, 16, 32, 64 bits passed in GPR registers
-		any other length passed in memory
-
-		1,2 floats passed in GPR corresponding to arg position if <= 4 or memory if in pos >= 5
-		> 64 bits passed in mem as pointer, address in GPR corresponding to arg position if <=4 or memory if in pos >= 5
-
-		1 double passed in GPR corresponding to arg position if <= 4 or memory if in pos >= 5
-		> 64 bits (more than one double) passed in mem as a pointer, address in GPR corresponding to arg position if <=4 or memory if in pos >= 5
-		*/
-
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_DP:     /* Fall through */
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_SP_DP:  /* Fall through */
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_SP:     /* Fall through */
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_SP_SP:  /* Fall through */
-		{
-			// Linux: Pass in next available 2 numParmFPRsRequired; otherwise pass on stack
-			// 2 floats are packed into a single XMM and/or occupy consecutive 4-byte slots in memory
-			if (fprRegParmCount + 2 > MAX_FPRS_PASSED_IN_REGS) {
-				return PASS_STRUCT_IN_MEMORY;
-			}
-
-			// Pass in next available 2 numParmFPRsRequired
-			return PASS_STRUCT_IN_TWO_FPR;
-
-			// Windows: Pass pointer to struct on stack
-		}
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_ALL_SP:   /* Fall through */
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_ALL_DP:   /* Fall through */
 		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC_SP:  /* Fall through */
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC_DP:
-		{
-			// Pass Misc in first avail GPR, DP in first avail FPR
-			// Pass on stack if neither available
-			if ((gprRegParmCount + 1 > MAX_GPRS_PASSED_IN_REGS) ||
-			    (fprRegParmCount + 1 > MAX_FPRS_PASSED_IN_REGS)) {
-				return PASS_STRUCT_IN_MEMORY;
-			}
-
-			return PASS_STRUCT_IN_ONE_GPR_ONE_FPR;
-
-			// Windows: Pass pointer to struct on stack
-		}
 		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_MISC:  /* Fall through */
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_MISC:
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_MISC:  /* Fall through */
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC:     /* Fall through */
 		{
-			// Pass Misc in first avail GPR, DP in first avail FPR
-			// Pass on stack if neither available
-			if ((gprRegParmCount + 1 > MAX_GPRS_PASSED_IN_REGS) ||
-			    (fprRegParmCount + 1 > MAX_FPRS_PASSED_IN_REGS)) {
-				return PASS_STRUCT_IN_MEMORY;
+			if (parm < MAX_PARMS_PASSED_IN_REGS) {
+				return PASS_STRUCT_IN_ONE_GPR;
+			} else {
+				return PASS_STRUCT_IN_MEMORY_POINTER_ON_STACK;
 			}
-
-			return PASS_STRUCT_IN_ONE_FPR_ONE_GPR;
-
-			// Windows: Pass pointer to struct on stack
 		}
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC:
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_DP:    /* Fall through */
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_SP_DP: /* Fall through */
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_SP:    /* Fall through */
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_SP_SP: /* Fall through */
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC_DP:  /* Fall through */
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_OTHER:    /* Fall through */
 		{
-			// First avail GPR + Second Avail GPR
-			// Pass on stack otherwise
-			I_32 numParmGPRsRequired = (structSize <= 8) ? 1 : 2;
-			if (gprRegParmCount + numParmGPRsRequired > MAX_GPRS_PASSED_IN_REGS) {
-				return PASS_STRUCT_IN_MEMORY;
-			}
-
-			// Pass in next available 1 or next available 2 numParmGPRsRequired
-			return (numParmGPRsRequired == 1) ? PASS_STRUCT_IN_ONE_GPR : PASS_STRUCT_IN_TWO_GPR;
-
-			// Windows:
-			// If length <= 8, pass in GPR
-			// Else pass pointer to struct on stack
-		}
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_OTHER:
-		{
-			// struct length > 16
-			return PASS_STRUCT_IN_MEMORY;
-			break;
+			// Unreachable.  Length must be > 8 for these cases
 		}
 		default:
 		{
 			Assert_VM_unreachable();
-			return PASS_STRUCT_IN_MEMORY;
+			return PASS_STRUCT_UNKNOWN;
 		}
 	}
-#endif
 }
-
 
 
 /**
@@ -761,23 +698,18 @@ printf("XXXXX createUpcallThunk : metaData=%p, upCallCommonDispatcher=%p\n", met
 printf("XXXXX return : set native2InterpJavaUpcallStruct : %p\n", (void *)vmFuncs->native2InterpJavaUpcallStruct); fflush(stdout);
 			X64StructPassingMechanism mechanism = analyzeStructParm(0, 0, sigArray[lastSigIdx]);
 			switch (mechanism) {
-				case PASS_STRUCT_IN_MEMORY:
+				case PASS_STRUCT_IN_MEMORY_POINTER_IN_REG:
 					hiddenParameter = true;
 					regParmCursor += 1;
 
 					prepareStructReturnInstructionsLength +=
-						 (MOV_TREG_SREG_LENGTH   /* mov rbx, rax (preserve hidden parameter) */
+						 (MOV_TREG_SREG_LENGTH   /* mov rbx, rcx (preserve hidden parameter) */
 						+ MOV_TREG_SREG_LENGTH   /* mov rsi, rax (return value from call) */
 						+ MOV_TREG_SREG_LENGTH   /* mov rdi, rbx (address from preserved hidden parameter) */
-	      					+ MOV_TREG_IMM32_LENGTH
+	      					+ MOV_TREG_IMM32_LENGTH  /* mov rcx, sizeof(struct) */
 						+ REP_MOVSB_LENGTH
 						+ MOV_TREG_SREG_LENGTH); /* mov rax, rbx (return caller-supplied  buffer in rax) */
-printf("XXXXX return : PASS_STRUCT_IN_MEMORY\n"); fflush(stdout);
-					break;
-
-
-				case PASS_STRUCT_IN_MEMORY_POINTER_IN_REG:
-				case PASS_STRUCT_IN_MEMORY_POINTER_ON_STACK:
+printf("XXXXX return : PASS_STRUCT_IN_MEMORY_POINTER_IN_REG\n"); fflush(stdout);
 
 					preserve_RDI_RSI = true;
 					break;
@@ -786,6 +718,8 @@ printf("XXXXX return : PASS_STRUCT_IN_MEMORY\n"); fflush(stdout);
 					prepareStructReturnInstructionsLength += L8_TREG_mSREGm_LENGTH;
 printf("XXXXX return : PASS_STRUCT_IN_ONE_GPR\n"); fflush(stdout);
 					break;
+
+				case PASS_STRUCT_IN_MEMORY_POINTER_ON_STACK: /* Fall through */
 				default:
 					Assert_VM_unreachable();
 			}
@@ -812,7 +746,7 @@ printf("XXXXX parm %d : type=%d, size=%d : ", i, sigArray[i].type, sigArray[i].s
 			case J9_FFI_UPCALL_SIG_TYPE_POINTER: /* Fall through */
 			case J9_FFI_UPCALL_SIG_TYPE_INT64:
 			{
-				stackSlotCount++;
+				stackSlotCount += 1;
 
 				if (regParmCursor < MAX_PARMS_PASSED_IN_REGS) {
 					// Parm must be spilled from parm register to argList
@@ -886,7 +820,7 @@ printf("  REG : PASS_STRUCT_IN_ONE_GPR : regParmCursor=%d, gprRegSpillInstructio
 	}
 
 	// -------------------------------------------------------------------------------
-	// Calculate size of VM parameter buffer and outgoing arg area
+	// Calculate size of VM parameter buffer, outgoing arg area, and other frame temps
 	// -------------------------------------------------------------------------------
 
 	I_32 frameSize =
@@ -1069,9 +1003,6 @@ printf("XXXXX roundedCodeSize = %d, thunkAddress = %p, frameSize = %d\n", rounde
 			}
 			default:
 			{
-				// Handle structs passed in registers.  Structs passed in memory will be handled
-				// after all other parameters are processed to avoid the complication of preserving
-				// registers implicitly required for REP MOVSB.
 				X64StructPassingMechanism mechanism = analyzeStructParm(regParmCursor, sigArray[i]);
 				switch (mechanism) {
 					case PASS_STRUCT_IN_MEMORY_POINTER_IN_REG:
@@ -1087,6 +1018,7 @@ printf("XXXXX PASS_STRUCT_IN_MEMORY_POINTER_IN_REG : regParmCursor=%d, frameOffs
 						break;
 					}
 					case PASS_STRUCT_IN_MEMORY_POINTER_ON_STACK:
+					{
 printf("XXXXX PASS_STRUCT_IN_MEMORY_POINTER_ON_STACK : memParmCursor=%d, frameOffsetCursor=%d, struct.sizeInByte=%d\n", memParmCursor, frameOffsetCursor, sigArray[i].sizeInByte); fflush(stdout);
 						L8_TREG_mRSP_DISP32m(thunkCursor, rsi, frameSize + preservedRegisterAreaSize + 8 + memParmCursor)
 						LEA_TREG_mRSP_DISP32m(thunkCursor, rdi, frameOffsetCursor)
@@ -1096,7 +1028,7 @@ printf("XXXXX PASS_STRUCT_IN_MEMORY_POINTER_ON_STACK : memParmCursor=%d, frameOf
 						memParmCursor += STACK_SLOT_SIZE;
 						frameOffsetCursor += ROUND_UP_TO_SLOT_MULTIPLE(sigArray[i].sizeInByte);
 						break;
-
+					}
 					case PASS_STRUCT_IN_ONE_GPR:
 					{
 printf("XXXXX PASS_STRUCT_IN_ONE_GPR : regParmCursor=%d, frameOffsetCursor=%d\n", regParmCursor, frameOffsetCursor); fflush(stdout);
@@ -1104,7 +1036,6 @@ printf("XXXXX PASS_STRUCT_IN_ONE_GPR : regParmCursor=%d, frameOffsetCursor=%d\n"
 						frameOffsetCursor += STACK_SLOT_SIZE;
 						break;
 					}
-
 					default:
 						Assert_VM_unreachable();
 				}
@@ -1145,9 +1076,13 @@ printf("XXXXX PASS_STRUCT_IN_ONE_GPR : regParmCursor=%d, frameOffsetCursor=%d\n"
 		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC:     /* Fall through */
 		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_OTHER:
 		{
+			Assert_VM_unreachable();
+
+
 			X64StructPassingMechanism mechanism = analyzeStructParm(0, sigArray[lastSigIdx]);
 			switch (mechanism) {
-				case PASS_STRUCT_IN_MEMORY:
+				case PASS_STRUCT_IN_MEMORY_POINTER_IN_REG:
+				case PASS_STRUCT_IN_MEMORY_POINTER_ON_STACK:
 					// rax == buffer address from return value
 					MOV_TREG_SREG(thunkCursor, rsi, rax)
 
