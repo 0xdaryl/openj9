@@ -768,7 +768,7 @@ printf("  MEM : regParmCursor : %d, gprRegFillInstructionCount=%d, gprRegSpillIn
 				if (regParmCursor < MAX_PARMS_PASSED_IN_REGS) {
 					// Parm must be spilled from parm register to argList
 					fprRegSpillInstructionCount += 1;
-printf("  REG : regParmCursor : %d, fprRegSpillInstructionCount=%d\n", regParmCusor, fprRegSpillInstructionCount); fflush(stdout);
+printf("  REG : regParmCursor : %d, fprRegSpillInstructionCount=%d\n", regParmCursor, fprRegSpillInstructionCount); fflush(stdout);
 				} else {
 					// Parm must be filled from frame and spilled to argList
 					fprRegFillInstructionCount += 1;
