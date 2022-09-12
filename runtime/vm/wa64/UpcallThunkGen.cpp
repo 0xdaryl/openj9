@@ -696,7 +696,7 @@ printf("XXXXX createUpcallThunk : metaData=%p, upCallCommonDispatcher=%p\n", met
 		{
 			metaData->upCallCommonDispatcher = (void *)vmFuncs->native2InterpJavaUpcallStruct;
 printf("XXXXX return : set native2InterpJavaUpcallStruct : %p\n", (void *)vmFuncs->native2InterpJavaUpcallStruct); fflush(stdout);
-			X64StructPassingMechanism mechanism = analyzeStructParm(0, 0, sigArray[lastSigIdx]);
+			X64StructPassingMechanism mechanism = analyzeStructParm(0, sigArray[lastSigIdx]);
 			switch (mechanism) {
 				case PASS_STRUCT_IN_MEMORY_POINTER_IN_REG:
 					hiddenParameter = true;
@@ -1077,7 +1077,6 @@ printf("XXXXX PASS_STRUCT_IN_ONE_GPR : regParmCursor=%d, frameOffsetCursor=%d\n"
 		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_OTHER:
 		{
 			Assert_VM_unreachable();
-
 
 			X64StructPassingMechanism mechanism = analyzeStructParm(0, sigArray[lastSigIdx]);
 			switch (mechanism) {
