@@ -735,7 +735,6 @@ printf("XXXXX return : PASS_STRUCT_IN_ONE_GPR\n"); fflush(stdout);
 	// -------------------------------------------------------------------------------
 
 	for (I_32 i = 0; i < lastSigIdx; i++) {
-		regParmCursor += 1;
 
 printf("XXXXX parm %d : type=%d, size=%d : ", i, sigArray[i].type, sigArray[i].sizeInByte); fflush(stdout);
 
@@ -817,6 +816,8 @@ printf("  REG : PASS_STRUCT_IN_ONE_GPR : regParmCursor=%d, gprRegSpillInstructio
 				}
 			}
 		}
+
+		regParmCursor += 1;
 	}
 
 	// -------------------------------------------------------------------------------
