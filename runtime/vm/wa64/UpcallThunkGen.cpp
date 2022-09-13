@@ -45,6 +45,8 @@ extern "C" {
 #define MAX_FPRS_PASSED_IN_REGS 4
 #define MAX_PARMS_PASSED_IN_REGS 4
 
+#define GUARANTEED_PARM_BACKFILL_AREA_SIZE (4*8)
+
 typedef enum StructPassingMechanismEnum {
 	PASS_STRUCT_IN_MEMORY_POINTER_IN_REG,
 	PASS_STRUCT_IN_MEMORY_POINTER_ON_STACK,
@@ -826,7 +828,7 @@ printf("  REG : PASS_STRUCT_IN_ONE_GPR : regParmCursor=%d, gprRegSpillInstructio
 
 	I_32 frameSize =
 		  // 32 byte register backfill area guaranteed on caller frame
-		  32
+		  GUARANTEED_PARM_BACKFILL_AREA_SIZE
 
 		  // Storage required to pass argList
 		+ stackSlotCount * STACK_SLOT_SIZE;
@@ -963,7 +965,7 @@ printf("XXXXX roundedCodeSize = %d, thunkAddress = %p, frameSize = %d\n", rounde
 				} else {
 					// Parm must be filled from frame and spilled to argList.
 					// Use rax as the intermediary register since it is volatile
-					L8_TREG_mRSP_DISP32m(thunkCursor, rax, frameSize + preservedRegisterAreaSize + 8 + memParmCursor)
+					L8_TREG_mRSP_DISP32m(thunkCursor, rax, frameSize + preservedRegisterAreaSize + 8 + GUARANTEED_PARM_BACKFILL_AREA_SIZE + memParmCursor)
 					S8_mRSP_DISP32m_SREG(thunkCursor, frameOffsetCursor, rax)
 					memParmCursor += STACK_SLOT_SIZE;
 				}
@@ -988,10 +990,10 @@ printf("XXXXX roundedCodeSize = %d, thunkAddress = %p, frameSize = %d\n", rounde
 					// Use xmm0 as the intermediary register since it is volatile and it
 					// must have been processed as the first parameter already.
 					if (isFloat) {
-						MOVSS_TREG_mRSP_DISP32m(thunkCursor, xmm0, frameSize + preservedRegisterAreaSize + 8 + memParmCursor)
+						MOVSS_TREG_mRSP_DISP32m(thunkCursor, xmm0, frameSize + preservedRegisterAreaSize + 8 + GUARANTEED_PARM_BACKFILL_AREA_SIZE + memParmCursor)
 						MOVSS_mRSP_DISP32m_SREG(thunkCursor, frameOffsetCursor, xmm0)
 					} else {
-						MOVSD_TREG_mRSP_DISP32m(thunkCursor, xmm0, frameSize + preservedRegisterAreaSize + 8 + memParmCursor)
+						MOVSD_TREG_mRSP_DISP32m(thunkCursor, xmm0, frameSize + preservedRegisterAreaSize + 8 + GUARANTEED_PARM_BACKFILL_AREA_SIZE + memParmCursor)
 						MOVSD_mRSP_DISP32m_SREG(thunkCursor, frameOffsetCursor, xmm0)
 					}
 
@@ -1021,7 +1023,7 @@ printf("XXXXX PASS_STRUCT_IN_MEMORY_POINTER_IN_REG : regParmCursor=%d, frameOffs
 					case PASS_STRUCT_IN_MEMORY_POINTER_ON_STACK:
 					{
 printf("XXXXX PASS_STRUCT_IN_MEMORY_POINTER_ON_STACK : memParmCursor=%d, frameOffsetCursor=%d, struct.sizeInByte=%d\n", memParmCursor, frameOffsetCursor, sigArray[i].sizeInByte); fflush(stdout);
-						L8_TREG_mRSP_DISP32m(thunkCursor, rsi, frameSize + preservedRegisterAreaSize + 8 + memParmCursor)
+						L8_TREG_mRSP_DISP32m(thunkCursor, rsi, frameSize + preservedRegisterAreaSize + 8 + GUARANTEED_PARM_BACKFILL_AREA_SIZE + memParmCursor)
 						LEA_TREG_mRSP_DISP32m(thunkCursor, rdi, frameOffsetCursor)
 						MOV_TREG_IMM32(thunkCursor, rcx, sigArray[i].sizeInByte)
 						REP_MOVSB(thunkCursor)
