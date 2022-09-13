@@ -895,6 +895,7 @@ printf("XXXXX stackSlotCount=%d, preservedRegisterAreaSize=%d, frameSize=%d\n", 
 	Assert_VM_true(offsetof(J9UpcallMetaData, upCallCommonDispatcher) <= 127);
 
 	thunkSize += MOV_TREG_IMM64_LENGTH
+		   + LEA_TREG_mRSP_DISP32m_LENGTH
 	           + MOV_TREG_SREG_LENGTH
 	           + CALL_mSREG_DISP8m_LENGTH(rcx)
 	           + RET_LENGTH;
@@ -918,7 +919,7 @@ printf("XXXXX roundedCodeSize = %d, thunkAddress = %p, frameSize = %d\n", rounde
 	// Emit thunk instructions
 	// -------------------------------------------------------------------------------
 
-	I_32 frameOffsetCursor = 0;
+	I_32 frameOffsetCursor = GUARANTEED_PARM_BACKFILL_AREA_SIZE;
 	I_32 memParmCursor = 0;
 	regParmCursor = 0;
 
@@ -1057,7 +1058,7 @@ printf("XXXXX PASS_STRUCT_IN_ONE_GPR : regParmCursor=%d, frameOffsetCursor=%d\n"
 	MOV_TREG_IMM64(thunkCursor, rcx, reinterpret_cast<int64_t>(metaData))
 
 	// Parm 2 : void *argsListPointer
-	MOV_TREG_SREG(thunkCursor, rdx, rsp)
+	LEA_TREG_mRSP_DISP32m(thunkCursor, rdx, GUARANTEED_PARM_BACKFILL_AREA_SIZE);
 
 	CALL_mSREG_DISP8m(thunkCursor, rcx, offsetof(J9UpcallMetaData, upCallCommonDispatcher))
 
