@@ -1080,12 +1080,9 @@ printf("XXXXX PASS_STRUCT_IN_ONE_GPR : regParmCursor=%d, frameOffsetCursor=%d\n"
 		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC:     /* Fall through */
 		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_OTHER:
 		{
-			Assert_VM_unreachable();
-
 			X64StructPassingMechanism mechanism = analyzeStructParm(0, sigArray[lastSigIdx]);
 			switch (mechanism) {
 				case PASS_STRUCT_IN_MEMORY_POINTER_IN_REG:
-				case PASS_STRUCT_IN_MEMORY_POINTER_ON_STACK:
 					// rax == buffer address from return value
 					MOV_TREG_SREG(thunkCursor, rsi, rax)
 
@@ -1100,6 +1097,7 @@ printf("XXXXX PASS_STRUCT_IN_ONE_GPR : regParmCursor=%d, frameOffsetCursor=%d\n"
 				case PASS_STRUCT_IN_ONE_GPR:
 					L8_TREG_mSREGm(thunkCursor, rax, rax)
 					break;
+				case PASS_STRUCT_IN_MEMORY_POINTER_ON_STACK:  /* Fall through */
 				default:
 					Assert_VM_unreachable();
 			}
@@ -1108,7 +1106,6 @@ printf("XXXXX PASS_STRUCT_IN_ONE_GPR : regParmCursor=%d, frameOffsetCursor=%d\n"
 			// For all other return types the VM helper will have placed the
 			// value in the correct register per the ABI.
 			break;
-
 	}
 
 	// -------------------------------------------------------------------------------
