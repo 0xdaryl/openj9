@@ -69,7 +69,6 @@ enum X64_FPR {
 	xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7
 };
 
-
 struct modRM_encoding {
 	uint8_t rexr;
 	uint8_t reg;
@@ -77,13 +76,12 @@ struct modRM_encoding {
 	uint8_t rm;
 };
 
-
 // Also used for xmm0 - xmm7
 const struct modRM_encoding modRM[MAX_GPRS] = {
 
 	//  rexr   reg       rexb   rm
-        //  ------ --------- ------ ---
- 	  { 0,     0x0 << 3, 0,     0x0 }, // rax / xmm0
+	//  ------ --------- ------ ---
+	  { 0,     0x0 << 3, 0,     0x0 }, // rax / xmm0
 	  { 0,     0x1 << 3, 0,     0x1 }, // rcx / xmm1
 	  { 0,     0x2 << 3, 0,     0x2 }, // rdx / xmm2
 	  { 0,     0x3 << 3, 0,     0x3 }, // rbx / xmm3
@@ -566,106 +564,82 @@ typedef struct structParmInMemoryMetaData {
 
 #define REP_MOVSB_LENGTH (2)
 
+
+/**
+ * @brief Analyzes a struct passed as a parameter to determine how it should be
+ *        handled by the linkage.  This also handles struct return values.
+ *
+ * @param[in] gprRegParmCount : current count of linkage GPRs used.  This should
+ *               be 0 when processing struct return values.
+ * @param[in] fprRegParmCount : current count of linkage FPRs used.  This should
+ *               be 0 when processing struct return values.
+ * @param[in] structParm : the \c J9UpcallSigType info for the parameter
+ *
+ * @return A \c X64StructPassingMechanism value describing how this parameter
+ *         should be handled.
+ */
 static X64StructPassingMechanism
 analyzeStructParm(I_32 gprRegParmCount, I_32 fprRegParmCount, J9UpcallSigType structParm) {
 
 	I_32 structSize = structParm.sizeInByte;
 
 	if (structSize > 16) {
-		// On Linux, passed as an arg on the stack (not a pointer)
-		// On Windows, memory allocated on the stack but passed as a pointer to that memory.  Stack memory is checked when locals > 8k before allocation (__chkstk)
 		return PASS_STRUCT_IN_MEMORY;
 	}
 
 	switch (structParm.type) {
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_ALL_SP:  /* Fall through */
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_ALL_SP:  // Fall through
 		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_ALL_DP:
 		{
 			I_32 numParmFPRsRequired = (structSize <= 8) ? 1 : 2;
 			if (fprRegParmCount + numParmFPRsRequired > MAX_FPRS_PASSED_IN_REGS) {
-				// Struct is allocated on the stack corresponding to the arg position (i.e., not passed as a pointer to memory)
-				// Struct rounded up to multiple of 8 bytes
 				return PASS_STRUCT_IN_MEMORY;
 			}
 
-			// Pass in next available 1 or next available 2 numParmFPRsRequired
 			return (numParmFPRsRequired == 1) ? PASS_STRUCT_IN_ONE_FPR : PASS_STRUCT_IN_TWO_FPR;
 		}
-
-		/* Windows
-                4, 8, 16, 32, 64 bits passed in GPR registers
-		any other length passed in memory
-
-		1,2 floats passed in GPR corresponding to arg position if <= 4 or memory if in pos >= 5
-		> 64 bits passed in mem as pointer, address in GPR corresponding to arg position if <=4 or memory if in pos >= 5
-
-		1 double passed in GPR corresponding to arg position if <= 4 or memory if in pos >= 5
-		> 64 bits (more than one double) passed in mem as a pointer, address in GPR corresponding to arg position if <=4 or memory if in pos >= 5
-		*/
-
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_DP:     /* Fall through */
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_SP_DP:  /* Fall through */
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_SP:     /* Fall through */
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_SP_SP:  /* Fall through */
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_DP:     // Fall through
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_SP_DP:  // Fall through
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_SP:     // Fall through
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_SP_SP:
 		{
-			// Linux: Pass in next available 2 numParmFPRsRequired; otherwise pass on stack
-			// 2 floats are packed into a single XMM and/or occupy consecutive 4-byte slots in memory
 			if (fprRegParmCount + 2 > MAX_FPRS_PASSED_IN_REGS) {
 				return PASS_STRUCT_IN_MEMORY;
 			}
 
-			// Pass in next available 2 numParmFPRsRequired
 			return PASS_STRUCT_IN_TWO_FPR;
-
-			// Windows: Pass pointer to struct on stack
 		}
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC_SP:  /* Fall through */
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC_SP:  // Fall through
 		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC_DP:
 		{
-			// Pass Misc in first avail GPR, DP in first avail FPR
-			// Pass on stack if neither available
 			if ((gprRegParmCount + 1 > MAX_GPRS_PASSED_IN_REGS) ||
 			    (fprRegParmCount + 1 > MAX_FPRS_PASSED_IN_REGS)) {
 				return PASS_STRUCT_IN_MEMORY;
 			}
 
 			return PASS_STRUCT_IN_ONE_GPR_ONE_FPR;
-
-			// Windows: Pass pointer to struct on stack
 		}
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_MISC:  /* Fall through */
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_MISC:  // Fall through
 		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_MISC:
 		{
-			// Pass Misc in first avail GPR, DP in first avail FPR
-			// Pass on stack if neither available
 			if ((gprRegParmCount + 1 > MAX_GPRS_PASSED_IN_REGS) ||
 			    (fprRegParmCount + 1 > MAX_FPRS_PASSED_IN_REGS)) {
 				return PASS_STRUCT_IN_MEMORY;
 			}
 
 			return PASS_STRUCT_IN_ONE_FPR_ONE_GPR;
-
-			// Windows: Pass pointer to struct on stack
 		}
 		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC:
 		{
-			// First avail GPR + Second Avail GPR
-			// Pass on stack otherwise
 			I_32 numParmGPRsRequired = (structSize <= 8) ? 1 : 2;
 			if (gprRegParmCount + numParmGPRsRequired > MAX_GPRS_PASSED_IN_REGS) {
 				return PASS_STRUCT_IN_MEMORY;
 			}
 
-			// Pass in next available 1 or next available 2 numParmGPRsRequired
 			return (numParmGPRsRequired == 1) ? PASS_STRUCT_IN_ONE_GPR : PASS_STRUCT_IN_TWO_GPR;
-
-			// Windows:
-			// If length <= 8, pass in GPR
-			// Else pass pointer to struct on stack
 		}
 		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_OTHER:
 		{
-			// struct length > 16
 			return PASS_STRUCT_IN_MEMORY;
 			break;
 		}
@@ -678,7 +652,6 @@ analyzeStructParm(I_32 gprRegParmCount, I_32 fprRegParmCount, J9UpcallSigType st
 }
 
 
-
 /**
  * @brief Generate the appropriate thunk/adaptor for a given J9UpcallMetaData
  *
@@ -686,29 +659,20 @@ analyzeStructParm(I_32 gprRegParmCount, I_32 fprRegParmCount, J9UpcallSigType st
  * @return the address for this future upcall function handle, either the thunk or the thunk-descriptor
  *
  * Details:
- *   A thunk or adaptor is mainly composed of 4 parts of instructions to be counted separately:
- *   1) the eventual call to the upcallCommonDispatcher (fixed number of instructions)
- *   2) if needed, instructions to build a stack frame
- *   3) pushing in-register arguments back to the stack, either in newly-built frame or caller frame
- *   4) if needed, instructions to distribute  the java result back to the native side appropriately
  *
- *     1) and 3) are mandatory, while 2) and 4) depend on the particular signature under consideration.
- *     2) is most likely needed, since the caller frame might not contain the parameter area in most cases;
- *     4) implies needing 2), since this adaptor expects a return from java side before returning
- *        to the native caller.
+ * The callin thunk essentially marshalls incoming C parameters into a sequential array
+ * that is passed to a callin helper.  It also marshalls the return value from the callin
+ * helper to the calling C function.
  *
- *   there are two different scenarios under 4):
- *      a) distribute  result back into register-containable aggregates (either homogeneous FP or not)
- *      b) copy the result back to the area designated by the hidden-parameter
+ * Thunk generation proceeds in three stages:
+ * 1) Determine the instructions and their sizes necessary to build the callin thunk.  This involves
+ *    analyzing each parameter and the return value for the appropriate passing mechanism.
+ *    Storage for the array passed to the helper is always allocated on the stack.  The incoming arguments
+ *    are always copied to the outgoing array (i.e., no frame sharing with caller is performed).
+ *    The stack addressability displacement is always assumed to be 32-bits for simplicity.
+ * 2) Allocation of thunk memory
+ * 3) Generating thunk instructions to the allocated buffer
  *
- *   most of the complexities are due to handling ALL_SP homogeneous struct: the register image and
- *   memory image are different, such that it can lead to the situation in which FPR parameter registers
- *   run out before GPR parameter registers. In that case, floating point arguments need to be passed
- *   in GPRs (and in the right position if it is an SP).
- *
- *   when a new frame is needed, it is at least 32bytes in size and 16-byte-aligned. this implementation
- *   going as follows: if caller-frame parameter area can be used, the new frame will be of fixed 48-byte
- *   size; otherwise, it will be of [64 + round-up-16(parameterArea)].
  */
 void *
 createUpcallThunk(J9UpcallMetaData *metaData)
@@ -733,18 +697,16 @@ createUpcallThunk(J9UpcallMetaData *metaData)
 
 	Assert_VM_true(lastSigIdx >= 0);
 
-printf("XXXXX createUpcallThunk : metaData=%p, upCallCommonDispatcher=%p\n", metaData, metaData->upCallCommonDispatcher); fflush(stdout);
-
 	// -------------------------------------------------------------------------------
 	// Set up the appropriate VM upcall dispatch function based the return type
 	// -------------------------------------------------------------------------------
 
-        switch (sigArray[lastSigIdx].type) {
+	switch (sigArray[lastSigIdx].type) {
 		case J9_FFI_UPCALL_SIG_TYPE_VOID:
 			metaData->upCallCommonDispatcher = (void *)vmFuncs->native2InterpJavaUpcall0;
 			break;
-		case J9_FFI_UPCALL_SIG_TYPE_CHAR:  /* Fall through */
-		case J9_FFI_UPCALL_SIG_TYPE_SHORT: /* Fall through */
+		case J9_FFI_UPCALL_SIG_TYPE_CHAR:  // Fall through
+		case J9_FFI_UPCALL_SIG_TYPE_SHORT: // Fall through
 		case J9_FFI_UPCALL_SIG_TYPE_INT32:
 			metaData->upCallCommonDispatcher = (void *)vmFuncs->native2InterpJavaUpcall1;
 			break;
@@ -758,17 +720,17 @@ printf("XXXXX createUpcallThunk : metaData=%p, upCallCommonDispatcher=%p\n", met
 		case J9_FFI_UPCALL_SIG_TYPE_DOUBLE:
 			metaData->upCallCommonDispatcher = (void *)vmFuncs->native2InterpJavaUpcallD;
 			break;
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_ALL_SP:   /* Fall through */
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_ALL_DP:   /* Fall through */
-                case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_DP:    /* Fall through */
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_SP_DP: /* Fall through */
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_SP:    /* Fall through */
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_SP_SP: /* Fall through */
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC_SP:  /* Fall through */
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC_DP:  /* Fall through */
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_MISC:  /* Fall through */
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_MISC:  /* Fall through */
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC:     /* Fall through */
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_ALL_SP:   // Fall through
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_ALL_DP:   // Fall through
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_DP:    // Fall through
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_SP_DP: // Fall through
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_SP:    // Fall through
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_SP_SP: // Fall through
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC_SP:  // Fall through
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC_DP:  // Fall through
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_MISC:  // Fall through
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_MISC:  // Fall through
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC:     // Fall through
 		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_OTHER:
 		{
 			metaData->upCallCommonDispatcher = (void *)vmFuncs->native2InterpJavaUpcallStruct;
@@ -783,41 +745,34 @@ printf("XXXXX createUpcallThunk : metaData=%p, upCallCommonDispatcher=%p\n", met
 					preservedRegisterAreaSize = 8;
 
 					prepareStructReturnInstructionsLength +=
-						 (MOV_TREG_SREG_LENGTH   /* mov rbx, rax (preserve hidden parameter) */
-						+ MOV_TREG_SREG_LENGTH   /* mov rsi, rax (return value from call) */
-						+ MOV_TREG_SREG_LENGTH   /* mov rdi, rbx (address from preserved hidden parameter) */
-	      					+ MOV_TREG_IMM32_LENGTH
+						 (MOV_TREG_SREG_LENGTH   // mov rbx, rax (preserve hidden parameter)
+						+ MOV_TREG_SREG_LENGTH   // mov rsi, rax (return value from call)
+						+ MOV_TREG_SREG_LENGTH   // mov rdi, rbx (address from preserved hidden parameter)
+						+ MOV_TREG_IMM32_LENGTH
 						+ REP_MOVSB_LENGTH
-						+ MOV_TREG_SREG_LENGTH); /* mov rax, rbx (return caller-supplied  buffer in rax) */
-printf("XXXXX return : PASS_STRUCT_IN_MEMORY\n");
+						+ MOV_TREG_SREG_LENGTH); // mov rax, rbx (return caller-supplied  buffer in rax)
 					break;
 				case PASS_STRUCT_IN_ONE_FPR:
 					prepareStructReturnInstructionsLength += MOVSD_TREG_mSREGm_LENGTH;
-printf("XXXXX return : PASS_STRUCT_IN_ONE_FPR\n");
 					break;
 				case PASS_STRUCT_IN_TWO_FPR:
 					prepareStructReturnInstructionsLength +=
 						(MOVSD_TREG_mSREGm_LENGTH + MOVSD_TREG_mSREG_DISP8m_LENGTH);
-printf("XXXXX return : PASS_STRUCT_IN_TWO_FPR\n");
 					break;
 				case PASS_STRUCT_IN_ONE_GPR_ONE_FPR:
 					prepareStructReturnInstructionsLength +=
 						(MOVSD_TREG_mSREG_DISP8m_LENGTH + L8_TREG_mSREGm_LENGTH);
-printf("XXXXX return : PASS_STRUCT_IN_ONE_GPR_ONE_FPR\n");
 					break;
 				case PASS_STRUCT_IN_ONE_FPR_ONE_GPR:
 					prepareStructReturnInstructionsLength +=
 						(MOVSD_TREG_mSREGm_LENGTH + L8_TREG_mSREG_DISP8m_LENGTH);
-printf("XXXXX return : PASS_STRUCT_IN_ONE_FPR_ONE_GPR\n");
 					break;
 				case PASS_STRUCT_IN_ONE_GPR:
 					prepareStructReturnInstructionsLength += L8_TREG_mSREGm_LENGTH;
-printf("XXXXX return : PASS_STRUCT_IN_ONE_GPR\n");
 					break;
 				case PASS_STRUCT_IN_TWO_GPR:
 					prepareStructReturnInstructionsLength +=
 						(L8_TREG_mSREG_DISP8m_LENGTH + L8_TREG_mSREGm_LENGTH);
-printf("XXXXX return : PASS_STRUCT_IN_TWO_GPR\n");
 					break;
 				default:
 					Assert_VM_unreachable();
@@ -834,14 +789,11 @@ printf("XXXXX return : PASS_STRUCT_IN_TWO_GPR\n");
 	// -------------------------------------------------------------------------------
 
 	for (I_32 i = 0; i < lastSigIdx; i++) {
-
-printf("XXXXX arg %d : type=%d, size=%d : ", i, sigArray[i].type, sigArray[i].sizeInByte);
-
 		switch (sigArray[i].type) {
-			case J9_FFI_UPCALL_SIG_TYPE_CHAR:    /* Fall through */
-			case J9_FFI_UPCALL_SIG_TYPE_SHORT:   /* Fall through */
-			case J9_FFI_UPCALL_SIG_TYPE_INT32:   /* Fall through */
-			case J9_FFI_UPCALL_SIG_TYPE_POINTER: /* Fall through */
+			case J9_FFI_UPCALL_SIG_TYPE_CHAR:    // Fall through
+			case J9_FFI_UPCALL_SIG_TYPE_SHORT:   // Fall through
+			case J9_FFI_UPCALL_SIG_TYPE_INT32:   // Fall through
+			case J9_FFI_UPCALL_SIG_TYPE_POINTER: // Fall through
 			case J9_FFI_UPCALL_SIG_TYPE_INT64:
 			{
 				stackSlotCount++;
@@ -850,16 +802,14 @@ printf("XXXXX arg %d : type=%d, size=%d : ", i, sigArray[i].type, sigArray[i].si
 					// Parm must be spilled from parm register to argList
 					gprRegParmCount++;
 					gprRegSpillInstructionCount++;
-printf("  REG : gprRegParmCount=%d, gprRegSpillInstructionCount=%d\n", gprRegParmCount, gprRegSpillInstructionCount);
 				} else {
 					// Parm must be filled from frame and spilled to argList
 					gprRegFillInstructionCount++;
 					gprRegSpillInstructionCount++;
-printf("  MEM : gprRegFillInstructionCount=%d, gprRegSpillInstructionCount=%d\n", gprRegFillInstructionCount, gprRegSpillInstructionCount);
 				}
 				break;
 			}
-			case J9_FFI_UPCALL_SIG_TYPE_FLOAT:  /* Fall through */
+			case J9_FFI_UPCALL_SIG_TYPE_FLOAT:  // Fall through
 			case J9_FFI_UPCALL_SIG_TYPE_DOUBLE:
 			{
 				stackSlotCount += 1;
@@ -868,12 +818,10 @@ printf("  MEM : gprRegFillInstructionCount=%d, gprRegSpillInstructionCount=%d\n"
 					// Parm must be spilled from parm register to argList
 					fprRegParmCount += 1;
 					fprRegSpillInstructionCount += 1;
-printf("  REG : fprRegParmCount=%d, fprRegSpillInstructionCount=%d\n", fprRegParmCount, fprRegSpillInstructionCount);
 				} else {
 					// Parm must be filled from frame and spilled to argList
 					fprRegFillInstructionCount += 1;
 					fprRegSpillInstructionCount += 1;
-printf("  MEM : fprRegFillInstructionCount=%d, fprRegSpillInstructionCount=%d\n", fprRegFillInstructionCount, fprRegSpillInstructionCount);
 				}
 
 				break;
@@ -891,45 +839,39 @@ printf("  MEM : fprRegFillInstructionCount=%d, fprRegSpillInstructionCount=%d\n"
 							+ MOV_TREG_IMM32_LENGTH
 							+ REP_MOVSB_LENGTH;
 						numStructsPassedInMemory += 1;
-printf("  MEM : PASS_STRUCT_IN_MEMORY : copyStructInstructionsByteCount=%d, numStructsPassedInMemory=%d\n", copyStructInstructionsByteCount, numStructsPassedInMemory);
 						break;
 
 					case PASS_STRUCT_IN_ONE_FPR:
 						// Parm must be spilled from parm register to argList
 						fprRegParmCount += 1;
 						fprRegSpillInstructionCount += 1;
-printf("  REG : PASS_STRUCT_IN_ONE_FPR : fprRegParmCount=%d, fprRegSpillInstructionCount=%d\n", fprRegParmCount, fprRegSpillInstructionCount);
 						break;
 
 					case PASS_STRUCT_IN_TWO_FPR:
 						// Parm must be spilled from two parm registers to argList
 						fprRegParmCount += 2;
 						fprRegSpillInstructionCount += 2;
-printf("  REG : PASS_STRUCT_IN_TWO_FPR : fprRegParmCount=%d, fprRegSpillInstructionCount=%d\n", fprRegParmCount, fprRegSpillInstructionCount);
 						break;
 
-					case PASS_STRUCT_IN_ONE_GPR_ONE_FPR:  /* Fall through */
+					case PASS_STRUCT_IN_ONE_GPR_ONE_FPR:  // Fall through
 					case PASS_STRUCT_IN_ONE_FPR_ONE_GPR:
 						// Parm must be spilled from two parm registers to argList
 						gprRegParmCount += 1;
 						gprRegSpillInstructionCount += 1;
 						fprRegParmCount += 1;
 						fprRegSpillInstructionCount += 1;
-printf("  REG : PASS_STRUCT_IN_ONE_GPR_ONE_FPR (or FPR/GPR) : gprRegParmCount=%d, gprRegSpillInstructionCount=%d, fprRegParmCount=%d, fprRegSpillInstructionCount=%d\n", gprRegParmCount, gprRegSpillInstructionCount, fprRegParmCount, fprRegSpillInstructionCount);
 						break;
 
 					case PASS_STRUCT_IN_ONE_GPR:
 						// Parm must be spilled from parm register to argList
 						gprRegParmCount += 1;
 						gprRegSpillInstructionCount += 1;
-printf("  REG : PASS_STRUCT_IN_ONE_GPR : gprRegParmCount=%d, gprRegSpillInstructionCount=%d\n", gprRegParmCount, gprRegSpillInstructionCount);
 						break;
 
 					case PASS_STRUCT_IN_TWO_GPR:
 						// Parm must be spilled from two parm registers to argList
 						gprRegParmCount += 2;
 						gprRegSpillInstructionCount += 2;
-printf("  REG : PASS_STRUCT_IN_TWO_GPR : gprRegParmCount=%d, gprRegSpillInstructionCount=%d\n", gprRegParmCount, gprRegSpillInstructionCount);
 						break;
 
 					default:
@@ -952,15 +894,16 @@ printf("  REG : PASS_STRUCT_IN_TWO_GPR : gprRegParmCount=%d, gprRegSpillInstruct
 		frameSize += STACK_SLOT_SIZE;
 	}
 
-printf("XXXXX stackSlotCount=%d, preservedRegisterAreaSize=%d, frameSize=%d\n", stackSlotCount, preservedRegisterAreaSize, frameSize);
-
 	// -------------------------------------------------------------------------------
 	// Allocate thunk memory
 	// -------------------------------------------------------------------------------
 
 	I_32 thunkSize = 0;
 	I_32 roundedCodeSize = 0;
-	I_32 breakOnEntry = 1;
+
+	// Determines whether a debugger breakpoint is inserted at the start of each thunk.
+	// This is only useful for debugging.
+	I_32 breakOnEntry = 0;
 
 	if (breakOnEntry) {
 		thunkSize += INT3_LENGTH;
@@ -1003,12 +946,9 @@ printf("XXXXX stackSlotCount=%d, preservedRegisterAreaSize=%d, frameSize=%d\n", 
 
 	U_8 *thunkMem = (U_8 *)vmFuncs->allocateUpcallThunkMemory(metaData);
 	if (NULL == thunkMem) {
-printf("XXXXX allocateUpcallThunkMemory FAILED\n");
 		return NULL;
 	}
 	metaData->thunkAddress = (void *)thunkMem;
-
-printf("XXXXX roundedCodeSize = %d, thunkAddress = %p, frameSize = %d\n", roundedCodeSize, thunkMem, frameSize);
 
 	// -------------------------------------------------------------------------------
 	// Emit thunk instructions
@@ -1033,8 +973,6 @@ printf("XXXXX roundedCodeSize = %d, thunkAddress = %p, frameSize = %d\n", rounde
 		if (NULL == structParmInMemory) {
 			return NULL;
 		}
-
-printf("XXXXX allocate structParmInMemory %p for numStructsPassedInMemory=%d\n", structParmInMemory, numStructsPassedInMemory);
 	}
 
 	U_8 *thunkCursor = thunkMem;
@@ -1063,10 +1001,10 @@ printf("XXXXX allocate structParmInMemory %p for numStructsPassedInMemory=%d\n",
 
 	for (I_32 i = 0; i < lastSigIdx; i++) {
 		switch (sigArray[i].type) {
-			case J9_FFI_UPCALL_SIG_TYPE_CHAR:    /* Fall through */
-			case J9_FFI_UPCALL_SIG_TYPE_SHORT:   /* Fall through */
-			case J9_FFI_UPCALL_SIG_TYPE_INT32:   /* Fall through */
-			case J9_FFI_UPCALL_SIG_TYPE_POINTER: /* Fall through */
+			case J9_FFI_UPCALL_SIG_TYPE_CHAR:    // Fall through
+			case J9_FFI_UPCALL_SIG_TYPE_SHORT:   // Fall through
+			case J9_FFI_UPCALL_SIG_TYPE_INT32:   // Fall through
+			case J9_FFI_UPCALL_SIG_TYPE_POINTER: // Fall through
 			case J9_FFI_UPCALL_SIG_TYPE_INT64:
 			{
 				if (gprRegParmCount < MAX_GPRS_PASSED_IN_REGS) {
@@ -1084,7 +1022,7 @@ printf("XXXXX allocate structParmInMemory %p for numStructsPassedInMemory=%d\n",
 				frameOffsetCursor += STACK_SLOT_SIZE;
 				break;
 			}
-			case J9_FFI_UPCALL_SIG_TYPE_FLOAT:  /* Fall through */
+			case J9_FFI_UPCALL_SIG_TYPE_FLOAT:  // Fall through
 			case J9_FFI_UPCALL_SIG_TYPE_DOUBLE:
 			{
 				bool isFloat = (sigArray[i].type == J9_FFI_UPCALL_SIG_TYPE_FLOAT);
@@ -1117,20 +1055,17 @@ printf("XXXXX allocate structParmInMemory %p for numStructsPassedInMemory=%d\n",
 			}
 			default:
 			{
-                                // Handle structs passed in registers.  Structs passed in memory will be handled
-                                // after all other parameters are processed to avoid the complication of preserving
-                                // registers implicitly required for REP MOVSB.
+				// Handle structs passed in registers.  Structs passed in memory will be handled
+				// after all other parameters are processed to avoid the complication of preserving
+				// registers implicitly required for REP MOVSB.
 				X64StructPassingMechanism mechanism = analyzeStructParm(gprRegParmCount, fprRegParmCount, sigArray[i]);
 				switch (mechanism) {
 					case PASS_STRUCT_IN_MEMORY:
 					{
-						/**
-						 * Record the source and destination offsets and the number of bytes to copy
-						 */
+						// Record the source and destination offsets and the number of bytes to copy
 						structParmInMemory[numStructsPassedInMemoryCursor].memParmCursor = memParmCursor;
 						structParmInMemory[numStructsPassedInMemoryCursor].frameOffsetCursor = frameOffsetCursor;
 						structParmInMemory[numStructsPassedInMemoryCursor].sizeofStruct = sigArray[i].sizeInByte;
-printf("XXXXX PASS_STRUCT_IN_MEMORY : numStructsPassedInMemoryCursor=%d, memParmCursor=%d, frameOffsetCursor=%d, sizeofStruct=%d\n", numStructsPassedInMemoryCursor, memParmCursor, frameOffsetCursor, sigArray[i].sizeInByte);
 
 						I_32 roundedStructSize = ROUND_UP_TO_SLOT_MULTIPLE(sigArray[i].sizeInByte);
 						memParmCursor += roundedStructSize;
@@ -1192,7 +1127,6 @@ printf("XXXXX PASS_STRUCT_IN_MEMORY : numStructsPassedInMemoryCursor=%d, memParm
 						frameOffsetCursor += STACK_SLOT_SIZE;
 						break;
 					}
-
 					default:
 						Assert_VM_unreachable();
 				}
@@ -1229,17 +1163,17 @@ printf("XXXXX PASS_STRUCT_IN_MEMORY : numStructsPassedInMemoryCursor=%d, memParm
 	// -------------------------------------------------------------------------------
 
 	switch (sigArray[lastSigIdx].type) {
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_ALL_SP:   /* Fall through */
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_ALL_DP:   /* Fall through */
-                case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_DP:    /* Fall through */
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_SP_DP: /* Fall through */
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_SP:    /* Fall through */
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_SP_SP: /* Fall through */
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC_SP:  /* Fall through */
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC_DP:  /* Fall through */
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_MISC:  /* Fall through */
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_MISC:  /* Fall through */
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC:     /* Fall through */
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_ALL_SP:   // Fall through
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_ALL_DP:   // Fall through
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_DP:    // Fall through
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_SP_DP: // Fall through
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_SP:    // Fall through
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_SP_SP: // Fall through
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC_SP:  // Fall through
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC_DP:  // Fall through
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_SP_MISC:  // Fall through
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_DP_MISC:  // Fall through
+		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_MISC:     // Fall through
 		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_OTHER:
 		{
 			X64StructPassingMechanism mechanism = analyzeStructParm(0, 0, sigArray[lastSigIdx]);
@@ -1307,24 +1241,22 @@ printf("XXXXX PASS_STRUCT_IN_MEMORY : numStructsPassedInMemoryCursor=%d, memParm
 
 	RET(thunkCursor)
 
-printf("XXXXX final thunkCursor=%p, bytesUsed=%d\n", thunkMem, (I_32)(thunkCursor - thunkMem));
-
 	// Check for thunk memory overflow
 	Assert_VM_true( (thunkCursor - thunkMem) <= roundedCodeSize );
 
 	// Finish up before returning
 	vmFuncs->doneUpcallThunkGeneration(metaData, (void *)thunkMem);
 
-printf("XXXXX DONE createUpcallThunk : metaData=%p, thunkMem=%p\n", metaData, thunkMem);
-
 	return (void *)thunkMem;
 }
 
 /**
  * @brief Calculate the requested argument in-stack memory address to return
+ *
  * @param nativeSig[in] a pointer to the J9UpcallNativeSignature
  * @param argListPtr[in] a pointer to the argument list prepared by the thunk
  * @param argIdx[in] the requested argument index
+ *
  * @return address in argument list for the requested argument
  *
  * Details:
@@ -1339,13 +1271,11 @@ getArgPointer(J9UpcallNativeSignature *nativeSig, void *argListPtr, I_32 argIdx)
 	I_32 stackSlotCount = 0;
 	I_32 tempInt = 0;
 
-printf("YYYYY getArgPointer : nativeSig=%p, argListPtr=%p, argIdx=%d\n", nativeSig, argListPtr, argIdx);
-
 	Assert_VM_true((argIdx >= 0) && (argIdx < lastSigIdx));
 
 	// Testing the return type
 	tempInt = sigArray[lastSigIdx].sizeInByte;
-        switch (sigArray[lastSigIdx].type) {
+	switch (sigArray[lastSigIdx].type) {
 		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_ALL_SP:
 			if (tempInt > (I_32)(8 * sizeof(float))) {
 				stackSlotCount += 1;
@@ -1368,12 +1298,12 @@ printf("YYYYY getArgPointer : nativeSig=%p, argListPtr=%p, argIdx=%d\n", nativeS
 		// Testing this argument
 		tempInt = sigArray[i].sizeInByte;
 		switch (sigArray[i].type & J9_FFI_UPCALL_SIG_TYPE_MASK) {
-			case J9_FFI_UPCALL_SIG_TYPE_CHAR:    /* Fall through */
-			case J9_FFI_UPCALL_SIG_TYPE_SHORT:   /* Fall through */
-			case J9_FFI_UPCALL_SIG_TYPE_INT32:   /* Fall through */
-			case J9_FFI_UPCALL_SIG_TYPE_POINTER: /* Fall through */
-			case J9_FFI_UPCALL_SIG_TYPE_INT64:   /* Fall through */
-			case J9_FFI_UPCALL_SIG_TYPE_FLOAT:   /* Fall through */
+			case J9_FFI_UPCALL_SIG_TYPE_CHAR:    // Fall through
+			case J9_FFI_UPCALL_SIG_TYPE_SHORT:   // Fall through
+			case J9_FFI_UPCALL_SIG_TYPE_INT32:   // Fall through
+			case J9_FFI_UPCALL_SIG_TYPE_POINTER: // Fall through
+			case J9_FFI_UPCALL_SIG_TYPE_INT64:   // Fall through
+			case J9_FFI_UPCALL_SIG_TYPE_FLOAT:   // Fall through
 			case J9_FFI_UPCALL_SIG_TYPE_DOUBLE:
 				stackSlotCount += 1;
 				break;
@@ -1385,14 +1315,9 @@ printf("YYYYY getArgPointer : nativeSig=%p, argListPtr=%p, argIdx=%d\n", nativeS
 		}
 	}
 
-void *argPtr = (void *)((char *)argListPtr + (stackSlotCount * STACK_SLOT_SIZE));
-printf("YYYYY : argPtr=%p [%08lx]\n", argPtr, *( (uint64_t *)argPtr) );
-
-	return argPtr;
+	return ((void *)((char *)argListPtr + (stackSlotCount * STACK_SLOT_SIZE)));
 }
-
 
 #endif /* JAVA_SPEC_VERSION >= 16 */
 
 } /* extern "C" */
-
