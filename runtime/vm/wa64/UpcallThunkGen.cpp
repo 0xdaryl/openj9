@@ -554,6 +554,17 @@ const X64_FPR fprParmRegs[MAX_FPRS_PASSED_IN_REGS] = {
 #define REP_MOVSB_LENGTH (2)
 
 
+/**
+ * @brief Analyzes a struct passed as a parameter to determine how it should be
+ *        handled by the linkage.  This also handles struct return values.
+ *
+ * @param[in] parm : the position of the parameter in the parameter list.  This
+ *               should be 0 for processing struct return values.
+ * @param[in] structParm : the \c J9UpcallSigType info for the parameter
+ *
+ * @return A \c X64StructPassingMechanism value describing how this parameter
+ *         should be handled.
+ */
 static X64StructPassingMechanism
 analyzeStructParm(I_32 parm, J9UpcallSigType structParm) {
 
