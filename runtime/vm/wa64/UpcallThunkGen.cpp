@@ -1131,13 +1131,13 @@ printf("XXXXX PASS_STRUCT_IN_ONE_GPR : regParmCursor=%d, frameOffsetCursor=%d\n"
 		}
 	}
 
-	if (hiddenParameter) {
-		POP_SREG(thunkCursor, rbx)
-	}
-
 	if (preserve_RDI_RSI) {
 		POP_SREG(thunkCursor, rsi)
 		POP_SREG(thunkCursor, rdi)
+	}
+
+	if (hiddenParameter) {
+		POP_SREG(thunkCursor, rbx)
 	}
 
 	RET(thunkCursor)
@@ -1177,26 +1177,6 @@ getArgPointer(J9UpcallNativeSignature *nativeSig, void *argListPtr, I_32 argIdx)
 printf("YYYYY getArgPointer : nativeSig=%p, argListPtr=%p, argIdx=%d\n", nativeSig, argListPtr, argIdx);
 
 	Assert_VM_true((argIdx >= 0) && (argIdx < lastSigIdx));
-
-	// Testing the return type
-	tempInt = sigArray[lastSigIdx].sizeInByte;
-        switch (sigArray[lastSigIdx].type) {
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_ALL_SP:
-			if (tempInt > (I_32)(8 * sizeof(float))) {
-				stackSlotCount += 1;
-			}
-			break;
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_ALL_DP:
-			if (tempInt > (I_32)(8 * sizeof(double))) {
-				stackSlotCount += 1;
-			}
-			break;
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_OTHER:
-			stackSlotCount += 1;
-			break;
-		default:
-			break;
-	}
 
 	// Loop through the arguments
 	for (I_32 i = 0; i < argIdx; i++) {
