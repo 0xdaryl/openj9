@@ -1273,26 +1273,6 @@ getArgPointer(J9UpcallNativeSignature *nativeSig, void *argListPtr, I_32 argIdx)
 
 	Assert_VM_true((argIdx >= 0) && (argIdx < lastSigIdx));
 
-	// Testing the return type
-	tempInt = sigArray[lastSigIdx].sizeInByte;
-	switch (sigArray[lastSigIdx].type) {
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_ALL_SP:
-			if (tempInt > (I_32)(8 * sizeof(float))) {
-				stackSlotCount += 1;
-			}
-			break;
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_ALL_DP:
-			if (tempInt > (I_32)(8 * sizeof(double))) {
-				stackSlotCount += 1;
-			}
-			break;
-		case J9_FFI_UPCALL_SIG_TYPE_STRUCT_AGGREGATE_OTHER:
-			stackSlotCount += 1;
-			break;
-		default:
-			break;
-	}
-
 	// Loop through the arguments
 	for (I_32 i = 0; i < argIdx; i++) {
 		// Testing this argument
