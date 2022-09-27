@@ -4725,21 +4725,28 @@ void J9::X86::TreeEvaluator::inlineRecursiveMonitor(
       TR::Node *node,
       TR::CodeGenerator *cg,
       TR::LabelSymbol *fallThruLabel,
+      TR::LabelSymbol *fallThruWithCounterUpdateLabel,
       TR::LabelSymbol *jitMonitorEnterOrExitSnippetLabel,
       TR::LabelSymbol *inlineRecursiveSnippetLabel,
       TR::Register *objectReg,
       int lwOffset,
+      TR::LabelSymbol *snippetRestartLabel,
       bool reservingLock)
    {
    //Code generated:
-   // mov lockWordReg, [obj+lwOffset]
-   // add lockWordReg, INC_DEC_VALUE/-INC_DEC_VALUE  ---> lock word with increased recursive count
-   // mov lockWordMaskedReg, NON_INC_DEC_MASK
-   // and lockWordMaskedReg, lockWordReg  ---> lock word masked out counter bits
-   // cmp lockWordMaskedReg, ebp
-   // jne jitMonitorEnterOrExitSnippetLabel
-   // mov [obj+lwOffset], lockWordReg
-   // jmp fallThruLabel
+   //
+   // outlinedStartLabel:
+   //    mov lockWordReg, [obj+lwOffset]
+   //    add lockWordReg, INC_DEC_VALUE/-INC_DEC_VALUE  ---> lock word with increased recursive count
+   //    mov lockWordMaskedReg, NON_INC_DEC_MASK
+   //    and lockWordMaskedReg, lockWordReg  ---> lock word masked out counter bits
+   //    cmp lockWordMaskedReg, ebp
+   //    jne jitMonitorEnterOrExitSnippetLabel
+   //    mov [obj+lwOffset], lockWordReg
+   //    jmp fallThruWithCounterUpdateLabel
+   // snippetRestartLabel:
+   //    jmp fallThruLabel
+   // outlinedEndLabel:
 
    TR_J9VMBase *fej9 = (TR_J9VMBase *)(cg->fe());
    TR::LabelSymbol *outlinedStartLabel = generateLabelSymbol(cg);
@@ -4767,14 +4774,17 @@ void J9::X86::TreeEvaluator::inlineRecursiveMonitor(
    generateLabelInstruction(TR::InstOpCode::JNE4, node, jitMonitorEnterOrExitSnippetLabel, cg);
    generateMemRegInstruction(TR::InstOpCode::SMemReg(use64bitOp), node, generateX86MemoryReference(objectReg, lwOffset, cg), lockWordReg, cg);
 
+   generateLabelInstruction(TR::InstOpCode::JMP4, node, fallThruWithCounterUpdateLabel, cg);
+
    TR::RegisterDependencyConditions *restartDeps = generateRegisterDependencyConditions((uint8_t)0, 4, cg);
    restartDeps->addPostCondition(objectReg, TR::RealRegister::NoReg, cg);
    restartDeps->addPostCondition(vmThreadReg, TR::RealRegister::ebp, cg);
    restartDeps->addPostCondition(lockWordMaskedReg, TR::RealRegister::NoReg, cg);
    restartDeps->addPostCondition(lockWordReg, TR::RealRegister::NoReg, cg);
    restartDeps->stopAddingConditions();
+   generateLabelInstruction(TR::InstOpCode::label, node, snippetRestartLabel, restartDeps, cg);
 
-   generateLabelInstruction(TR::InstOpCode::JMP4, node, fallThruLabel, restartDeps, cg);
+   generateLabelInstruction(TR::InstOpCode::JMP4, node, fallThruLabel, cg);
 
    cg->stopUsingRegister(lockWordReg);
    cg->stopUsingRegister(lockWordMaskedReg);
@@ -4923,6 +4933,7 @@ J9::X86::TreeEvaluator::VMmonentEvaluator(
 
    TR::LabelSymbol *startLabel = generateLabelSymbol(cg);
    TR::LabelSymbol *fallThruLabel = generateLabelSymbol(cg);
+   TR::LabelSymbol *snippetFallThruLabel = inlineRecursive ? generateLabelSymbol(cg) : fallThruLabel;
    TR::LabelSymbol *inlinedMonEnterFallThruLabel = generateLabelSymbol(cg);
 
    startLabel->setStartInternalControlFlow();
@@ -5005,7 +5016,7 @@ J9::X86::TreeEvaluator::VMmonentEvaluator(
       }
    else
       outlinedHelperCall = new (cg->trHeapMemory()) TR_OutlinedInstructions(helperCallNode, TR::call, NULL,
-                                                         snippetLabel, (exitLabel) ? exitLabel : fallThruLabel, cg);
+                                                         snippetLabel, (exitLabel) ? exitLabel : snippetFallThruLabel, cg);
 
    if (helperCallNode != node)
       helperCallNode->recursivelyDecReferenceCount();
@@ -5027,7 +5038,7 @@ J9::X86::TreeEvaluator::VMmonentEvaluator(
       TR::LabelSymbol *inlineRecursiveSnippetLabel = generateLabelSymbol(cg);
       TR::LabelSymbol *jitMonitorEnterSnippetLabel = snippetLabel;
       snippetLabel = inlineRecursiveSnippetLabel;
-      TR::TreeEvaluator::inlineRecursiveMonitor(node, cg, inlinedMonEnterFallThruLabel, jitMonitorEnterSnippetLabel, inlineRecursiveSnippetLabel, objectReg, lwOffset, reservingLock);
+      TR::TreeEvaluator::inlineRecursiveMonitor(node, cg, fallThruLabel, inlinedMonEnterFallThruLabel, jitMonitorEnterSnippetLabel, inlineRecursiveSnippetLabel, objectReg, lwOffset, snippetFallThruLabel, reservingLock);
       }
 
    // Compare the monitor slot in the object against zero.  If it succeeds
@@ -5561,6 +5572,7 @@ TR::Register
    else                      maxInstructions = 10;
 
    startLabel->setStartInternalControlFlow();
+   TR::LabelSymbol *snippetFallThruLabel = inlineRecursive ? generateLabelSymbol(cg): fallThruLabel;
    fallThruLabel->setEndInternalControlFlow();
    generateLabelInstruction(TR::InstOpCode::label, node, startLabel, cg);
 
@@ -5654,7 +5666,7 @@ TR::Register
          node->setSymbolReference(comp->getSymRefTab()->findOrCreateRuntimeHelper(helper, true, true, true));
          }
       }
-   TR_OutlinedInstructions *outlinedHelperCall = new (cg->trHeapMemory()) TR_OutlinedInstructions(node, TR::call, NULL, snippetLabel, fallThruLabel, cg);
+   TR_OutlinedInstructions *outlinedHelperCall = new (cg->trHeapMemory()) TR_OutlinedInstructions(node, TR::call, NULL, snippetLabel, snippetFallThruLabel, cg);
    cg->getOutlinedInstructionsList().push_front(outlinedHelperCall);
    cg->generateDebugCounter(
       outlinedHelperCall->getFirstInstruction(),
@@ -5666,7 +5678,7 @@ TR::Register
       TR::LabelSymbol *inlineRecursiveSnippetLabel = generateLabelSymbol(cg);
       TR::LabelSymbol *jitMonitorExitSnippetLabel = snippetLabel;
       snippetLabel = inlineRecursiveSnippetLabel;
-      TR::TreeEvaluator::inlineRecursiveMonitor(node, cg, inlinedMonExitFallThruLabel, jitMonitorExitSnippetLabel, inlineRecursiveSnippetLabel, objectReg, lwOffset, reservingLock);
+      TR::TreeEvaluator::inlineRecursiveMonitor(node, cg, fallThruLabel, inlinedMonExitFallThruLabel, jitMonitorExitSnippetLabel, inlineRecursiveSnippetLabel, objectReg, lwOffset, snippetFallThruLabel, reservingLock);
       }
 
    bool reservingDecrementNeeded = false;
