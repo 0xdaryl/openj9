@@ -65,7 +65,7 @@
 #include "runtime/CodeCacheManager.hpp"
 #include "env/CHTable.hpp"
 #include "env/PersistentCHTable.hpp"
-
+// Yup
 #define OPT_DETAILS "O^O CODE GENERATION: "
 
 J9::CodeGenerator::CodeGenerator() :
