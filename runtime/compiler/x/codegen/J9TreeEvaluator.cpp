@@ -4774,7 +4774,7 @@ void J9::X86::TreeEvaluator::inlineRecursiveMonitor(
    generateLabelInstruction(TR::InstOpCode::JNE4, node, jitMonitorEnterOrExitSnippetLabel, cg);
    generateMemRegInstruction(TR::InstOpCode::SMemReg(use64bitOp), node, generateX86MemoryReference(objectReg, lwOffset, cg), lockWordReg, cg);
 
-   generateLabelInstruction(TR::InstOpCode::JMP4, node, fallThruWithCounterUpdateLabel, cg);
+//   generateLabelInstruction(TR::InstOpCode::JMP4, node, fallThruWithCounterUpdateLabel, cg);
 
    TR::RegisterDependencyConditions *restartDeps = generateRegisterDependencyConditions((uint8_t)0, 4, cg);
    restartDeps->addPostCondition(objectReg, TR::RealRegister::NoReg, cg);
