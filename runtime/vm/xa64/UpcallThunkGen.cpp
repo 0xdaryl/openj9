@@ -903,7 +903,7 @@ createUpcallThunk(J9UpcallMetaData *metaData)
 
 	// Determines whether a debugger breakpoint is inserted at the start of each thunk.
 	// This is only useful for debugging.
-	I_32 breakOnEntry = 0;
+	I_32 breakOnEntry = 1;
 
 	if (breakOnEntry) {
 		thunkSize += INT3_LENGTH;
