@@ -92,6 +92,7 @@
 #include "optimizer/LocalOpts.hpp"
 #include "optimizer/MonitorElimination.hpp"
 #include "ras/Debug.hpp"
+#include "ras/Logger.hpp"
 #include "runtime/J9Profiler.hpp"
 #include "runtime/J9Runtime.hpp"
 
@@ -243,7 +244,7 @@ int32_t TR_EscapeAnalysis::perform()
       return 0;
 
    static char *doESCNonQuiet = feGetEnv("TR_ESCAPENONQUIET");
-   if (doESCNonQuiet && comp()->getOutFile() == NULL)
+   if (doESCNonQuiet && !comp()->getLoggingEnabled())
       return 0;
 
    int32_t nodeCount = 0;
@@ -656,7 +657,7 @@ int32_t TR_EscapeAnalysis::performAnalysisOnce()
    if (trace())
       {
       traceMsg(comp(), "Starting Escape Analysis pass %d\n", manager()->numPassesCompleted());
-      comp()->dumpMethodTrees("Trees before Escape Analysis");
+      comp()->dumpMethodTrees(comp()->log(), "Trees before Escape Analysis");
       }
 
    _useDefInfo                 = NULL; // Build these only if required
@@ -1492,7 +1493,7 @@ int32_t TR_EscapeAnalysis::performAnalysisOnce()
 
    if (trace())
       {
-      comp()->dumpMethodTrees("Trees after Escape Analysis");
+      comp()->dumpMethodTrees(comp()->log(), "Trees after Escape Analysis");
       traceMsg(comp(), "Ending Escape Analysis");
       }
 
@@ -1797,7 +1798,7 @@ void TR_EscapeAnalysis::findCandidates()
 
    if (trace())
       {
-      comp()->dumpMethodTrees("Trees after finding candidates");
+      comp()->dumpMethodTrees(comp()->log(), "Trees after finding candidates");
       }
    }
 
@@ -2452,7 +2453,10 @@ bool TR_EscapeAnalysis::collectValueNumbersOfIndirectAccessesToObject(TR::Node *
                         _vnTemp->set(_valueNumberInfo->getValueNumber(storeBase));
                         while (*_vnTemp2 != *_vnTemp)
                            {
-                           _vnTemp->print(comp());
+                           if (trace())
+                              {
+                              _vnTemp->print(comp()->log(), comp());
+                              }
                            *_vnTemp2 = *_vnTemp;
                            int32_t i;
                            for (i = _useDefInfo->getNumDefOnlyNodes()-1; i >= 0; --i)
@@ -5117,8 +5121,6 @@ int32_t TR_EscapeAnalysis::sniffCall(TR::Node *callNode, TR::ResolvedMethodSymbo
    vcount_t visitCount = comp()->getVisitCount();
    if (!methodSymbol->getFirstTreeTop())
       {
-      //comp()->setVisitCount(1);
-
       dumpOptDetails(comp(), "O^O ESCAPE ANALYSIS: Peeking into the IL to check for escaping objects \n");
 
       bool ilgenFailed = false;
@@ -5127,7 +5129,6 @@ int32_t TR_EscapeAnalysis::sniffCall(TR::Node *callNode, TR::ResolvedMethodSymbo
          ilgenFailed = (NULL == methodSymbol->getResolvedMethod()->genMethodILForPeekingEvenUnderMethodRedefinition(methodSymbol, comp()));
       else
          ilgenFailed = (NULL == methodSymbol->getResolvedMethod()->genMethodILForPeeking(methodSymbol, comp()));
-      //comp()->setVisitCount(visitCount);
 
       /*
        * Under HCR we cannot generally peek methods because the method could be
@@ -5215,10 +5216,8 @@ int32_t TR_EscapeAnalysis::sniffCall(TR::Node *callNode, TR::ResolvedMethodSymbo
 
       if (trace())
          {
-    //comp()->setVisitCount(1);
          for (TR::TreeTop *tt = methodSymbol->getFirstTreeTop(); tt; tt = tt->getNextTreeTop())
-            getDebug()->print(comp()->getOutFile(), tt);
-         //comp()->setVisitCount(visitCount);
+            getDebug()->print(comp()->log(), tt);
          }
       }
    else
@@ -8744,7 +8743,7 @@ TR_FlowSensitiveEscapeAnalysis::TR_FlowSensitiveEscapeAnalysis(TR::Compilation *
          if (_blockAnalysisInfo[i])
             {
             traceMsg(comp, "\nSolution for block_%d: ",i);
-            _blockAnalysisInfo[i]->print(comp);
+            _blockAnalysisInfo[i]->print(comp->log(), comp);
             }
          }
       traceMsg(comp, "\nEnding FlowSensitiveEscapeAnalysis analysis\n");
@@ -8882,7 +8881,7 @@ TR_FlowSensitiveEscapeAnalysis::TR_FlowSensitiveEscapeAnalysis(TR::Compilation *
        if (trace())
          {
          traceMsg(comp, "Successors : \n");
-         successors->print(comp);
+         successors->print(comp->log(), comp);
          traceMsg(comp, "\n");
          }
 
@@ -8911,7 +8910,7 @@ TR_FlowSensitiveEscapeAnalysis::TR_FlowSensitiveEscapeAnalysis(TR::Compilation *
             if (trace())
                {
                traceMsg(comp, "Predecessors of next succ %d : \n", nextSucc);
-               preds->print(comp);
+               preds->print(comp->log(), comp);
                traceMsg(comp, "\n");
                }
 
@@ -8954,7 +8953,7 @@ TR_FlowSensitiveEscapeAnalysis::TR_FlowSensitiveEscapeAnalysis(TR::Compilation *
             if (trace())
                {
                traceMsg(comp, "Scratch : \n");
-               _scratch->print(comp);
+               _scratch->print(comp->log(), comp);
                traceMsg(comp, "\n");
                }
 
@@ -9321,12 +9320,12 @@ void TR_FlowSensitiveEscapeAnalysis::analyzeTreeTopsInBlockStructure(TR_BlockStr
          traceMsg(comp(), "\n  Block %d:\n", blockNum);
          traceMsg(comp(), "     Normal set ");
          if (_regularInfo)
-            _regularInfo->print(comp());
+            _regularInfo->print(comp()->log(), comp());
          else
             traceMsg(comp(), "{}");
          traceMsg(comp(), "\n     Exception set ");
          if (_exceptionInfo)
-            _exceptionInfo->print(comp());
+            _exceptionInfo->print(comp()->log(), comp());
          else
             traceMsg(comp(), "{}");
          }
@@ -9752,7 +9751,7 @@ bool TR_LocalFlushElimination::examineNode(TR::Node *node, TR::TreeTop *tt, TR::
                   traceMsg(comp(), "Also analyzing for nodeHasSync node %p; nodeHasVolatile %d\n", node, nodeHasVolatile);
                   }
                traceMsg(comp(), "Allocation info at this stage : \n");
-               _allocationInfo->print(comp());
+               _allocationInfo->print(comp()->log(), comp());
                traceMsg(comp(), "\n");
                }
 
