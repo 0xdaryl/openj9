@@ -69,6 +69,7 @@
 #include "optimizer/TransformUtil.hpp"
 #include "optimizer/UseDefInfo.hpp"
 #include "ras/Debug.hpp"
+#include "ras/Logger.hpp"
 #include "omrformatconsts.h"
 #if defined(J9VM_OPT_JITSERVER)
 #include "env/JITServerAllocationRegion.hpp"
@@ -233,7 +234,7 @@ TR_CISCNode::getName(TR_CISCOps op, TR::Compilation * comp)
 // Debug print to file
 //*****************************************************************************************
 void
-TR_CISCNode::dump(TR::FILE *pOutFile, TR::Compilation * comp)
+TR_CISCNode::dump(TR::Logger *log, TR::Compilation *comp)
    {
    int32_t i;
    char buf[256];
@@ -1232,7 +1233,7 @@ TR_CISCGraph::initializeGraphs(TR::Compilation *c)
    }
 
 void
-TR_CISCGraph::dump(TR::FILE *pOutFile, TR::Compilation * comp)
+TR_CISCGraph::dump(TR::Logger *log, TR::Compilation *comp)
    {
    traceMsg(comp, "CISCGraph of %s\n",_titleOfCISC);
    _aspects.print(comp, false);
@@ -1252,14 +1253,14 @@ TR_CISCGraph::dump(TR::FILE *pOutFile, TR::Compilation * comp)
    traceMsg(comp, " ptr id dagId(L=Loop) succ children (chains) (dest) (hintChildren) (flags) (TRNodeInfo)\n");
    for (n = ni.getFirst(); n; n = ni.getNext())
       {
-      n->dump(pOutFile, comp);
+      n->dump(log, comp);
       }
 
    traceMsg(comp, "\nOrder by Data\n");
    ni.set(&_orderByData);
    for (n = ni.getFirst(); n; n = ni.getNext())
       {
-      n->dump(pOutFile, comp);
+      n->dump(log, comp);
       }
    }
 
@@ -3077,7 +3078,7 @@ int32_t TR_CISCTransformer::perform()
       if (trace())
          {
          traceMsg(comp(), "Starting CISCTransformer\n");
-         comp()->dumpMethodTrees("Trees before transforming CISC instructions");
+         comp()->dumpMethodTrees(comp()->getLogger(), "Trees before transforming CISC instructions");
          }
 
       ListIterator<TR_RegionStructure> loopIt(&loopCandidates);
@@ -3287,7 +3288,7 @@ int32_t TR_CISCTransformer::perform()
          setCurrentLoop(nextLoop);
 
          if (trace())
-            graph->dump(comp()->getOutFile(), comp());
+            graph->dump(comp()->getLogger(), comp());
 
          bool modifiedThisLoop = false;
          _candidatesForShowing.init();
@@ -3303,7 +3304,7 @@ int32_t TR_CISCTransformer::perform()
                   if (trace())
                      {
                      traceMsg(comp(), "Transformed %s\n", prepared->getTitle());
-                     comp()->dumpMethodTrees("Trees after transforming CISC instruction");
+                     comp()->dumpMethodTrees(comp()->getLogger(), "Trees after transforming CISC instruction");
                      }
                   break;
                   }
@@ -3326,9 +3327,10 @@ int32_t TR_CISCTransformer::perform()
 
          if (trace())
             {
+            TR::Logger *log = comp()->getLogger();
             traceMsg(comp(), "Ending CISCTransformer\n");
-            comp()->dumpFlowGraph();
-            comp()->dumpMethodTrees("Trees after transforming CISC instructions");
+            comp()->dumpFlowGraph(log);
+            comp()->dumpMethodTrees(log, "Trees after transforming CISC instructions");
             }
          }
 
@@ -4717,7 +4719,7 @@ TR_CISCTransformer::showT2P()
                   }
                else
                   {
-                  t->dump(comp()->getOutFile(), comp());
+                  t->dump(comp()->getLogger(), comp());
                   }
                }
             }
@@ -4908,7 +4910,7 @@ TR_CISCTransformer::analyzeArrayHeaderConst()
          }
       if (modify && trace())
          {
-         _T->dump(comp()->getOutFile(), comp());
+         _T->dump(comp()->getLogger(), comp());
          }
       i++;
       }
@@ -5058,7 +5060,7 @@ TR_CISCTransformer::areAllNodesIncluded(TR_CISCNodeRegion *r)
       if (!bv.isEmpty())
          {
          traceMsg(comp(), "Cannot find pNodes: ");
-         bv.print(comp(), comp()->getOutFile());
+         bv.print(comp()->getLogger(), comp());
          traceMsg(comp(), "\n");
          }
       }
@@ -6871,7 +6873,7 @@ TR_CISCTransformer::analyzeByteBoolTable(TR_CISCNode *boolTable, uint8_t *table2
             if (getT2PheadRep(id) == boolTable)
                {
                traceMsg(comp(), "%3d:%3d:",id,bv[id]->elementCount());
-               bv[id]->print(comp());
+               bv[id]->print(comp()->getLogger(), comp());
                traceMsg(comp(), "\n");
                }
             }
@@ -6953,7 +6955,7 @@ TR_CISCTransformer::analyzeCharBoolTable(TR_CISCNode *boolTable, uint8_t *table6
             if (getT2PheadRep(id) == boolTable)
                {
                traceMsg(comp(), "%3d:%3d:", id, bv[id]->elementCount());
-               bv[id]->print(comp());
+               bv[id]->print(comp()->getLogger(), comp());
                traceMsg(comp(), "\n");
                }
             }
@@ -7561,7 +7563,7 @@ TR_CISCTransformer::computeTopologicalEmbedding(TR_CISCGraph *P, TR_CISCGraph *T
    if (trace())
       {
       traceMsg(comp(), "loopid %d: ", _bblistBody.getListHead()->getData()->getNumber());
-      P->dump(comp()->getOutFile(), comp());
+      P->dump(comp()->getLogger(), comp());
       }
    _P = P;
    _T = T;
@@ -7619,7 +7621,7 @@ TR_CISCTransformer::computeTopologicalEmbedding(TR_CISCGraph *P, TR_CISCGraph *T
    simpleOptimization();
    if (trace())
       {
-      T->dump(comp()->getOutFile(), comp());
+      T->dump(comp()->getLogger(), comp());
       }
 
    // Analyze whether each candidate of array header constant is appropriate compared to the idiom.

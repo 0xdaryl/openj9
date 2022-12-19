@@ -58,6 +58,7 @@
 #include "optimizer/Structure.hpp"
 #include "optimizer/StructuralAnalysis.hpp"
 #include "ras/Debug.hpp"
+#include "ras/Logger.hpp"
 #include "runtime/ExternalProfiler.hpp"
 #include "runtime/J9Profiler.hpp"
 
@@ -143,7 +144,7 @@ J9::CFG::setFrequencies()
          if (comp()->getOption(TR_TraceBFGeneration))
             {
             traceMsg(comp(), "CFG of %s after setting frequencies using JITProfiling\n", self()->getMethodSymbol()->signature(comp()->trMemory()));
-            comp()->dumpFlowGraph(self());
+            comp()->dumpFlowGraph(comp()->getLogger(), self());
             }
          if (this == comp()->getFlowGraph() && comp()->getInlinedCalls() > 0)
             {
@@ -193,7 +194,7 @@ J9::CFG::setFrequencies()
          _max_edge_freq = MAX_STATIC_EDGE_FREQ;
          self()->setBlockAndEdgeFrequenciesBasedOnStructure();
          if (comp()->getOption(TR_TraceBFGeneration))
-            comp()->dumpMethodTrees("Trees after setting frequencies from structures", comp()->getMethodSymbol());
+            comp()->dumpMethodTrees(comp()->getLogger(), "Trees after setting frequencies from structures", comp()->getMethodSymbol());
          }
 
       if (comp()->getOption(TR_VerbosePseudoRandom))

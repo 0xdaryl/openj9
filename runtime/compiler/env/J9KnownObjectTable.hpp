@@ -47,6 +47,7 @@ class TR_J9VMBase;
 namespace J9 { class ObjectModel; }
 class TR_VMFieldsInfo;
 class TR_BitVector;
+namespace TR { class Logger; }
 
 #if defined(J9VM_OPT_JITSERVER)
 struct
@@ -97,7 +98,7 @@ public:
    uintptr_t *getPointerLocation(Index index);
    bool isNull(Index index);
 
-   void dumpTo(TR::FILE *file, TR::Compilation *comp);
+   void dumpTo(TR::Logger *log, TR::Compilation *comp);
 
    Index getOrCreateIndexAt(uintptr_t *objectReferenceLocation);
    Index getOrCreateIndexAt(uintptr_t *objectReferenceLocation, bool isArrayWithConstantElements);
@@ -116,7 +117,7 @@ public:
 
 private:
 
-   void dumpObjectTo(TR::FILE *file, Index i, const char *fieldName, const char *sep,  TR::Compilation *comp, TR_BitVector &visited, TR_VMFieldsInfo **fieldsInfoByIndex, int32_t depth);
+   void dumpObjectTo(TR::Logger *log, Index i, const char *fieldName, const char *sep,  TR::Compilation *comp, TR_BitVector &visited, TR_VMFieldsInfo **fieldsInfoByIndex, int32_t depth);
    };
 
 }

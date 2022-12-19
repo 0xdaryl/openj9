@@ -80,6 +80,7 @@
 #include "infra/Monitor.hpp"
 #include "infra/String.hpp"
 #include "ras/InternalFunctions.hpp"
+#include "ras/Logger.hpp"
 #include "runtime/asmprotos.h"
 #include "runtime/CodeCache.hpp"
 #include "runtime/CodeCacheManager.hpp"
@@ -9293,7 +9294,7 @@ TR::CompilationInfoPerThreadBase::wrappedCompile(J9PortLibrary *portLib, void * 
 
          if (debug("traceInfo") && optionSetIndex > 0)
             {
-            if (compiler->getOutFile() != NULL)
+            if (compiler->getLoggingEnabled())
                diagnostic("Forced Option Set %d\n", optionSetIndex);
             }
          }
@@ -9651,7 +9652,7 @@ TR::CompilationInfoPerThreadBase::compile(
             CompilationTrace(TR::Compilation &compiler) : _compiler(compiler)
                {
                TR_ASSERT(_compiler.getHotnessName(_compiler.getMethodHotness()), "expected to have a hotness string");
-               if (_compiler.getOutFile() != NULL && _compiler.getOption(TR_TraceAll))
+               if (_compiler.getOption(TR_TraceAll))
                   {
                   traceMsg(&_compiler, "<compile\n");
                   traceMsg(&_compiler, "\tmethod=\"%s\"\n", _compiler.signature());
@@ -9669,7 +9670,7 @@ TR::CompilationInfoPerThreadBase::compile(
                }
             ~CompilationTrace() throw()
                {
-               if (_compiler.getOutFile() != NULL && _compiler.getOption(TR_TraceAll))
+               if (_compiler.getOption(TR_TraceAll))
                   traceMsg(&_compiler, "</compile>\n\n");
                }
          private:
@@ -9959,7 +9960,7 @@ TR::CompilationInfoPerThreadBase::compile(
          public:
             TraceMethodMetadata(TR::Compilation &compiler) :
                _compiler(compiler),
-               _trace(compiler.getOutFile() != NULL && compiler.getOption(TR_TraceAll))
+               _trace(compiler.getOption(TR_TraceAll))
                {
                if (_trace)
                   traceMsg(&_compiler, "<metadata>\n");
@@ -10782,8 +10783,8 @@ void TR::CompilationInfoPerThreadBase::logCompilationSuccess(
       J9JavaVM * javaVM = _jitConfig->javaVM;
       // Dump mixed mode disassembly listing.
       //
-      if (compiler->getOutFile() != NULL && compiler->getOption(TR_TraceAll))
-         compiler->getDebug()->dumpMixedModeDisassembly();
+      if (compiler->getOption(TR_TraceAll))
+         compiler->getDebug()->dumpMixedModeDisassembly(compiler->getLogger());
 
       if (!vm.isAOT_DEPRECATED_DO_NOT_USE())
          {
@@ -10815,9 +10816,9 @@ void TR::CompilationInfoPerThreadBase::logCompilationSuccess(
       uintptr_t translationTime = currentTime - getTimeWhenCompStarted();
       if (TR::Options::_largeTranslationTime > 0 && translationTime > (uintptr_t)TR::Options::_largeTranslationTime)
          {
-         if (compiler->getOutFile() != NULL)
-            trfprintf(compiler->getOutFile(), "Compilation took %d usec\n", (int32_t)translationTime);
-         compiler->dumpMethodTrees("Post optimization trees for large computing method");
+         if (compiler->getLoggingEnabled())
+            compiler->getLogger()->printf("Compilation took %d usec\n", (int32_t)translationTime);
+         compiler->dumpMethodTrees(compiler->getLogger(), "Post optimization trees for large computing method");
          }
       if (_onSeparateThread)
          {

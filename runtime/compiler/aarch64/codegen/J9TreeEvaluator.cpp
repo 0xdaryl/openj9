@@ -4257,7 +4257,7 @@ J9::ARM64::TreeEvaluator::ArrayStoreCHKEvaluator(TR::Node *node, TR::CodeGenerat
       if (comp->getOption(TR_TraceCG))
          {
          traceMsg(comp, "%s: Creating and evaluating the following tree to generate the necessary helper call for this node\n", node->getOpCode().getName());
-         cg->getDebug()->print(comp->getOutFile(), helperCallNode);
+         cg->getDebug()->print(comp->getLogger(), helperCallNode);
          }
 
       bool nopASC = node->getArrayStoreClassInNode() && comp->performVirtualGuardNOPing() &&

@@ -456,9 +456,7 @@ class OMR_EXTENSIBLE Options : public OMR::OptionsConnector
 
    static void  printPID();
 
-
-
-
+   TR::Logger *createLoggerForLogFile(TR::FILE *file);
 
 
    static const char *kcaOffsets(const char *option, void *, TR::OptionTable *entry);
