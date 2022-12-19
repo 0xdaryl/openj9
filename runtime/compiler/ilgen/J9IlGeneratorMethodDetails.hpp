@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2021 IBM Corp. and others
+ * Copyright (c) 2000, 2023 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -51,6 +51,7 @@ class TR_J9VMBase;
 class TR_ResolvedMethod;
 namespace TR { class Compilation; }
 namespace TR { class IlGeneratorMethodDetails; }
+namespace TR { class Logger; }
 namespace TR { class ResolvedMethodSymbol; }
 namespace TR { class SymbolReferenceTable;}
 
@@ -133,9 +134,9 @@ public:
 
    bool sameMethod(TR::IlGeneratorMethodDetails & other);
 
-   void print(TR_FrontEnd *fe, TR::FILE *file);
+   void print(TR::Logger *log, TR_FrontEnd *fe);
 
-   virtual void printDetails(TR_FrontEnd *fe, TR::FILE *file);
+   virtual void printDetails(TR::Logger *log, TR_FrontEnd *fe);
 
 protected:
 

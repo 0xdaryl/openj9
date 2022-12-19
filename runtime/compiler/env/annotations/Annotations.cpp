@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2018 IBM Corp. and others
+ * Copyright (c) 2000, 2023 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -33,10 +33,14 @@
 #include "il/Node.hpp"
 #include "il/Node_inlines.hpp"
 #include "env/IO.hpp"
+#include "ras/Logger.hpp"
 
 void
-TR_Debug::printAnnotationInfoEntry(J9AnnotationInfo * annotationInfo,
-                                   J9AnnotationInfoEntry *annotationInfoEntryPtr,int32_t indentationLevel)
+TR_Debug::printAnnotationInfoEntry(
+      TR::Logger *log,
+      J9AnnotationInfo * annotationInfo,
+      J9AnnotationInfoEntry *annotationInfoEntryPtr,
+      int32_t indentationLevel)
    {
    J9UTF8 *annotationName;
    const int bufLen=1024;
@@ -55,14 +59,14 @@ TR_Debug::printAnnotationInfoEntry(J9AnnotationInfo * annotationInfo,
    switch(flag)
       {
       case ANNOTATION_TYPE_CLASS:
-	 annotationTypeName="class";
-	 break;
+         annotationTypeName="class";
+         break;
 
       case ANNOTATION_TYPE_FIELD:{
          int32_t len;
          J9UTF8 *name      = SRP_GET(annotationInfoEntryPtr->memberName,J9UTF8*);
-	 annotationTypeName="field:";
-	 signatureName=utf8Data(name,len);
+         annotationTypeName="field:";
+         signatureName=utf8Data(name,len);
          strncpy(stringBufferA,signatureName,len);
          stringBufferA[len] = ' ';
          stringBufferA[len+1] = '\0';
@@ -75,52 +79,41 @@ TR_Debug::printAnnotationInfoEntry(J9AnnotationInfo * annotationInfo,
 
          signatureName = stringBufferA;
 
-	 //filterOnName=true;
-	 break;
+         //filterOnName=true;
+         break;
       }
       case ANNOTATION_TYPE_METHOD:
-	 annotationTypeName="method";
-	 filterOnName=true;
-	 break;
+         annotationTypeName="method";
+         filterOnName=true;
+         break;
 
       case ANNOTATION_TYPE_ANNOTATION:{
          int32_t len;
          J9UTF8 *name      = SRP_GET(annotationInfoEntryPtr->annotationType,J9UTF8*);
-	 annotationTypeName="annotation:";
-	 signatureName=utf8Data(name,len);
+         annotationTypeName="annotation:";
+         signatureName=utf8Data(name,len);
          strncpy(stringBufferA,signatureName,len);
          stringBufferA[len] = '\0';
          signatureName = stringBufferA;
-	 break;
-	 }
+         break;
+         }
       default:
-	 if ((flag & ~ANNOTATION_PARM_MASK) == ANNOTATION_TYPE_PARAMETER)
-	    {
-	    sprintf(annNameBuffer,"parm(%d)",(flag & ANNOTATION_PARM_MASK)>> ANNOTATION_PARM_SHIFT);
-	    TR_ASSERT( strlen(annNameBuffer) < ANNO_NAMEBUF_LEN, "buffer length somehow exceeded\n");
-	    annotationTypeName=annNameBuffer;
-	    filterOnName=true;
-	    break;
-	    }
+         if ((flag & ~ANNOTATION_PARM_MASK) == ANNOTATION_TYPE_PARAMETER)
+            {
+            sprintf(annNameBuffer,"parm(%d)",(flag & ANNOTATION_PARM_MASK)>> ANNOTATION_PARM_SHIFT);
+            TR_ASSERT( strlen(annNameBuffer) < ANNO_NAMEBUF_LEN, "buffer length somehow exceeded\n");
+            annotationTypeName=annNameBuffer;
+            filterOnName=true;
+            break;
+            }
          else
-	    annotationTypeName = "unknown";
+            annotationTypeName = "unknown";
       }
 
-   if (filterOnName){
+   if (filterOnName)
+      {
       J9UTF8 *name      = SRP_GET(annotationInfoEntryPtr->memberName,J9UTF8*);
       J9UTF8 *signature = SRP_GET(annotationInfoEntryPtr->memberSignature,J9UTF8*);
-
-     //trfprintf(_file,"name=%s sig=%s\n",utf8Data(name),utf8Data(signature));
-
-      //int32_t classNameLength;
-      //const char *annotatedClass = utf8Data(SRP_GET(annotationInfo->className,J9UTF8*),classNameLength);
-
-      //if (strncmp(methodName,annotatedClass,classNameLength) ||
-      //   strncmp(methodName+classNameLength+1,utf8Data(name),name->length) ||
-      //   strncmp(methodName+name->length+classNameLength+1,utf8Data(signature),signature->length))
-      //   {
-      //   return;
-      //   }
       }
 
    J9AnnotationState state;
@@ -132,24 +125,24 @@ TR_Debug::printAnnotationInfoEntry(J9AnnotationInfo * annotationInfo,
       int32_t tag = *ptr & ANNOTATION_TAG_MASK;
 
 
-      for (int32_t j=0;j< indentationLevel;++j) trfprintf(_file,"\t");
+      for (int32_t j=0;j< indentationLevel;++j) log->printc('\t');
       int32_t len;
       char *dataName = utf8Data(namePtr,len);
 
-      trfprintf(_file,"\ttype=%s%s %.*s=",annotationTypeName,signatureName,len,dataName);
+      log->printf("\ttype=%s%s %.*s=", annotationTypeName, signatureName, len, dataName);
 
       ++ptr;// point at data
 
       switch(tag)
          {
-         case 'B': trfprintf(_file,"%d\n",*(int32_t *)ptr);break;
-         case 'C': trfprintf(_file,"%d\n",*(int32_t*)ptr);break;
-         case 'D': trfprintf(_file,"%e\n",*(double*)ptr);break;
-         case 'F': trfprintf(_file,"%f\n",*(float*)ptr);break;
-         case 'I':trfprintf(_file,"%d\n",*(int32_t*)ptr);break;
-         case 'J':trfprintf(_file,"%lld\n",*(int64_t*)ptr);break;
-         case 'S':trfprintf(_file,"%d\n",*(int32_t*)ptr);break;
-         case 'Z':trfprintf(_file,"%d\n",*(int32_t*)ptr);break;
+         case 'B': log->printf("%d\n", *(int32_t *)ptr); break;
+         case 'C': log->printf("%d\n", *(int32_t*)ptr); break;
+         case 'D': log->printf("%e\n", *(double*)ptr); break;
+         case 'F': log->printf("%f\n", *(float*)ptr); break;
+         case 'I': log->printf("%d\n", *(int32_t*)ptr); break;
+         case 'J': log->printf("%lld\n", *(int64_t*)ptr); break;
+         case 'S': log->printf("%d\n", *(int32_t*)ptr); break;
+         case 'Z': log->printf("%d\n", *(int32_t*)ptr); break;
          case 'e':
             {
             J9SRP *typeNamePtr = (J9SRP* )ptr++;
@@ -158,9 +151,8 @@ TR_Debug::printAnnotationInfoEntry(J9AnnotationInfo * annotationInfo,
             J9UTF8 *valueName = (J9UTF8 *)SRP_PTR_GET(valueNamePtr,J9UTF8*);
             int32_t dataLen,typeLen;
             char *vName = utf8Data(valueName,dataLen);
-            char * tName = utf8Data(typeName,typeLen);
-            trfprintf(_file,"%.*s enum_type=\"%.*s\"\n",dataLen,vName,typeLen,tName);
-
+            char *tName = utf8Data(typeName,typeLen);
+            log->printf("%.*s enum_type=\"%.*s\"\n",dataLen,vName,typeLen,tName);
             break;
             }
          case 'c':
@@ -169,28 +161,26 @@ TR_Debug::printAnnotationInfoEntry(J9AnnotationInfo * annotationInfo,
             J9SRP *stringNamePtr = (J9SRP* )ptr;
             int32_t len;
             char *dataName = utf8Data(SRP_PTR_GET(stringNamePtr,J9UTF8*),len);
-            trfprintf(_file,"\"%.*s\"\n",len,dataName);
+            log->printf("\"%.*s\"\n",len,dataName);
             break;
             }
-
          case '@':
             {
             J9AnnotationInfoEntry *infoPtr = SRP_PTR_GET(ptr,J9AnnotationInfoEntry *);
             int32_t j,mLen,sLen;
-            for (j=0;j< indentationLevel;++j) trfprintf(_file,"\t");
-            trfprintf(_file,"(nested annotation)\n\n");
+            for (j=0;j< indentationLevel;++j) log->printc('\t');
+            log->prints("(nested annotation)\n\n");
             char * mName=  utf8Data(SRP_GET(annotationInfoEntryPtr->memberName,J9UTF8*),mLen);
 
             char *sName = utf8Data(SRP_GET(annotationInfoEntryPtr->memberSignature,J9UTF8*),sLen);
-            trfprintf(_file, "\t<annotations name=\"%.*s %.*s\">\n",mLen,mName,sLen,sName);
+            log->printf("\t<annotations name=\"%.*s %.*s\">\n",mLen,mName,sLen,sName);
 
-            printAnnotationInfoEntry( annotationInfo,infoPtr,++indentationLevel);
+            printAnnotationInfoEntry(log, annotationInfo, infoPtr, ++indentationLevel);
 
-            for (j=0;j< indentationLevel;++j) trfprintf(_file,"\t");
-               trfprintf(_file, "</annotations>\n\n");
+            for (j=0;j< indentationLevel;++j) log->printc('\t');
+               log->prints("</annotations>\n\n");
             break;
             }
-
          case '[':
             {
             uint32_t arraySize = *ptr++;
@@ -202,17 +192,17 @@ TR_Debug::printAnnotationInfoEntry(J9AnnotationInfo * annotationInfo,
 
             for (int32_t i =0; i < upperLimit;++i)
                {
-               if (((i+1) % 12) == 0) trfprintf(_file,"\n\t\t");
+               if (((i+1) % 12) == 0) log->prints("\n\t\t");
 
-               trfprintf(_file,"%x ",*ptr++);
+               log->printf("%x ",*ptr++);
                }
-            if (truncateOutput) trfprintf(_file," (truncated)...");
-            trfprintf(_file,"\n");
+            if (truncateOutput) log->prints(" (truncated)...");
+            log->prints("\n");
             break;
             }
 
          default:
-            trfprintf(_file,"Unknown tag:%x %c\n",tag,tag);
+            log->printf("Unknown tag:%x %c\n",tag,tag);
          }
 
 
@@ -228,26 +218,25 @@ TR_Debug::printAnnotationInfoEntry(J9AnnotationInfo * annotationInfo,
                                                                J9_FINDCLASS_FLAG_EXISTING_ONLY);
    if (defaultEntry)
       {
-      trfprintf(_file,"\n");
+      log->prints("\n");
       int32_t j;
-      for (j=0;j< indentationLevel;++j) trfprintf(_file,"\t");
-      trfprintf(_file,"Default values:\n");
+      for (j=0;j< indentationLevel;++j) log->printc('\t');
+      log->prints("Default values:\n");
 
-      printAnnotationInfoEntry(annotationInfo,defaultEntry,indentationLevel);
+      printAnnotationInfoEntry(log, annotationInfo, defaultEntry, indentationLevel);
       }
    }
 
 
-
 void
-TR_Debug::printByteCodeAnnotations()
+TR_Debug::printByteCodeAnnotations(TR::Logger *log)
    {
 
    //JVM support for JXE is broken right now.  Disable temporarily
 
    if (_comp->compileRelocatableCode())
       {
-      trfprintf(_file,"AOT support of annotations temporarily disabled\n");
+      log->prints("AOT support of annotations temporarily disabled\n");
       return;
       }
 
@@ -263,14 +252,12 @@ TR_Debug::printByteCodeAnnotations()
    numAnnotations= intFunc->getAllAnnotationsFromAnnotationInfo(annotationInfo,&annotationInfoEntryPtr);
    TR_ASSERT( numAnnotations, "Should have at least one annotation\n");
 
-   trfprintf(_file, "\n<annotations name=\"%s\">\n", _comp->getCurrentMethod()->signature(comp()->trMemory(), heapAlloc));
+   log->printf("\n<annotations name=\"%s\">\n", _comp->getCurrentMethod()->signature(comp()->trMemory(), heapAlloc));
    for (i = 0;i < numAnnotations;++i)
       {
-
-      printAnnotationInfoEntry( annotationInfo,annotationInfoEntryPtr,0);
+      printAnnotationInfoEntry(log,  annotationInfo, annotationInfoEntryPtr, 0);
       annotationInfoEntryPtr++;
       }
 
-   trfprintf(_file, "</annotations>\n");
+   log->prints("</annotations>\n");
    }
-

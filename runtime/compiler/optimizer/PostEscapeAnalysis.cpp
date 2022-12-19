@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2019, 2019 IBM Corp. and others
+ * Copyright (c) 2019, 2023 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -29,6 +29,7 @@
 #include "optimizer/TransformUtil.hpp"
 #include "optimizer/Optimizer.hpp"
 #include "optimizer/OptimizationManager.hpp"
+#include "ras/Logger.hpp"
 
 int32_t TR_PostEscapeAnalysis::perform()
    {
@@ -82,7 +83,7 @@ int32_t TR_PostEscapeAnalysis::perform()
 
    if (comp()->trace(OMR::escapeAnalysis))
       {
-      comp()->dumpMethodTrees("Trees after Post-Escape Analysis");
+      comp()->dumpMethodTrees(comp()->getLogger(), "Trees after Post-Escape Analysis");
       }
 
    return 1;

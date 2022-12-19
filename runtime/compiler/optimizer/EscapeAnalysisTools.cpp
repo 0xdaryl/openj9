@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2019, 2020 IBM Corp. and others
+ * Copyright (c) 2019, 2023 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -27,6 +27,7 @@
 #include "il/TreeTop.hpp"
 #include "il/SymbolReference.hpp"
 #include "il/AutomaticSymbol.hpp"
+#include "ras/Logger.hpp"
 
 TR_EscapeAnalysisTools::TR_EscapeAnalysisTools(TR::Compilation *comp)
   {
@@ -85,7 +86,7 @@ void TR_EscapeAnalysisTools::insertFakeEscapeForOSR(TR::Block *block, TR::Node *
    if (_comp->trace(OMR::escapeAnalysis) && induceDefiningMap)
       {
       traceMsg(_comp, "definingMap at induceCall n%dn %d:%d\n", induceCall->getGlobalIndex(), induceCall->getByteCodeInfo().getCallerIndex(), induceCall->getByteCodeInfo().getByteCodeIndex());
-      _comp->getOSRCompilationData()->printMap(induceDefiningMap);
+      _comp->getOSRCompilationData()->printMap(_comp->getLogger(), induceDefiningMap);
       }
 
    // Gather all live autos and pending pushes at this point for inlined methods in _loads

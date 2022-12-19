@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2021, 2022 IBM Corp. and others
+ * Copyright (c) 2021, 2023 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -27,6 +27,7 @@
 #include "il/Node_inlines.hpp"
 #include "il/SymbolReference.hpp"
 #include "optimizer/VectorAPIExpansion.hpp"
+#include "ras/Logger.hpp"
 
 
 const char *
@@ -451,10 +452,10 @@ TR_VectorAPIExpansion::findAllAliases(int32_t classId, int32_t id)
           _aliasTable[id]._classId = id;  // in their own empty class
       return;
       }
-   if (_trace)
+   if (_trace && comp()->getLoggingEnabled())
       {
        traceMsg(comp(), "Iterating through aliases for #%d:\n", id);
-      _aliasTable[id]._aliases->print(comp());
+      _aliasTable[id]._aliases->print(comp()->getLogger(), comp());
       traceMsg(comp(), "\n");
       }
 
@@ -728,10 +729,10 @@ TR_VectorAPIExpansion::validateVectorAliasClasses()
       if (_aliasTable[id]._classId != id)
          continue;  // not an alias class or is already invalid
 
-      if (_aliasTable[id]._aliases && _trace)
+      if (_aliasTable[id]._aliases && _trace && comp()->getLoggingEnabled())
          {
          traceMsg(comp(), "Verifying class: %d\n", id);
-         _aliasTable[id]._aliases->print(comp());
+         _aliasTable[id]._aliases->print(comp()->getLogger(), comp());
          traceMsg(comp(), "\n");
          }
 
@@ -957,7 +958,7 @@ TR_VectorAPIExpansion::expandVectorAPI()
       }
 
    if (_trace)
-      comp()->dumpMethodTrees("After Vectorization");
+      comp()->dumpMethodTrees(comp()->getLogger(), "After Vectorization");
 
    return 1;
    }

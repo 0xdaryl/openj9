@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2022 IBM Corp. and others
+ * Copyright (c) 2000, 2023 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -70,6 +70,7 @@
 #include "control/CompilationRuntime.hpp"
 #include "runtime/HWProfiler.hpp"
 #include "omrformatconsts.h"
+#include "ras/Logger.hpp"
 
 typedef std::set<TR_GCStackMap*, std::less<TR_GCStackMap*>, TR::typed_allocator<TR_GCStackMap*, TR::Region&>> GCStackMapSet;
 
@@ -1742,9 +1743,9 @@ createMethodMetaData(
       data->riData = bytecodePCToIAMapLocation;
       }
 
-   if (comp->getOption(TR_TraceCG) && comp->getOutFile() != NULL)
+   if (comp->getOption(TR_TraceCG))
       {
-      comp->getDebug()->print(data, vmMethod, fourByteOffsets);
+      comp->getDebug()->print(comp->getLogger(), data, vmMethod, fourByteOffsets);
       }
 
    return data;

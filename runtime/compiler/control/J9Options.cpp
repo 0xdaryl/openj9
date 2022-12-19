@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2022 IBM Corp. and others
+ * Copyright (c) 2000, 2023 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -55,6 +55,7 @@
 #include "env/j9methodServer.hpp"
 #include "control/JITServerCompilationThread.hpp"
 #endif /* defined(J9VM_OPT_JITSERVER) */
+#include "ras/Logger.hpp"
 
 #if defined(J9VM_OPT_SHARED_CLASSES)
 #include "j9jitnls.h"
@@ -3063,6 +3064,12 @@ bool J9::Options::feLatePostProcess(void * base, TR::OptionSet * optionSet)
    }
 
 
+TR::Logger *
+J9::Options::createLoggerForLogFile(TR::FILE *file)
+   {
+   return TR::StreamLogger::create(file->_stream);
+   }
+
 void
 J9::Options::printPID()
    {
@@ -3186,6 +3193,7 @@ J9::Options::packOptions(const TR::Options *origOptions)
    options->_startOptions = NULL;
    options->_envOptions = NULL;
    options->_logFile = NULL;
+   options->_logger = NULL;
    options->_optFileName = NULL;
    options->_customStrategy = NULL;
    options->_customStrategySize = 0;
@@ -3343,7 +3351,7 @@ J9::Options::writeLogFileFromServer(const std::string& logFileContent)
 TR_Debug *createDebugObject(TR::Compilation *);
 
 // JITServer: Create a log file for each client compilation request
-// Side effect: set _logFile
+// Side effect: set _logFile, _logger
 // At the client: Triggered when a remote compilation is followed by a local compilation.
 //                suffixNumber is the compilationSequenceNumber used for the remote compilation.
 // At the server: suffixNumber is set as 0.
@@ -3384,8 +3392,9 @@ J9::Options::closeLogFileForClientOptions()
    {
    if (_logFile)
       {
-      TR::Options::closeLogFile(_fe, _logFile);
+      TR::Options::closeLogFile(_fe, _logFile, _logger);
       _logFile = NULL;
+      _logger = NULL;
       }
    }
 #endif /* defined(J9VM_OPT_JITSERVER) */

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2022 IBM Corp. and others
+ * Copyright (c) 2000, 2023 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -31,6 +31,7 @@
 #include "env/j9method.h"
 #include "env/VMJ9.h"
 #include "env/VerboseLog.hpp"
+#include "ras/Logger.hpp"
 
 #if defined(OSX) && defined(AARCH64)
 #include <pthread.h> // for pthread_jit_write_protect_np
@@ -186,9 +187,10 @@ TR_J2IThunkTable::getThunk(char *signature, TR_FrontEnd *fe, bool isForCurrentRu
    if (!result)
       {
       char terseSignature[260]; // 256 args + 1 return type + null terminator
-      dumpTo(fe, TR::IO::Stderr);
+      TR::Logger *log = TR::StreamLogger::Stderr;
+      dumpTo(log, fe);
       getTerseSignature(terseSignature, sizeof(terseSignature), signature);
-      trfprintf(TR::IO::Stderr, "\nERROR: Failed to find J2I thunk for %s signature %.*s\n", terseSignature, computeSignatureLength(signature), signature);
+      log->printf("\nERROR: Failed to find J2I thunk for %s signature %.*s\n", terseSignature, computeSignatureLength(signature), signature);
       TR_ASSERT(result != NULL, "Expected a J2I thunk for %s signature %.*s", terseSignature, computeSignatureLength(signature), signature);
       }
    return result;
@@ -253,31 +255,31 @@ TR_J2IThunkTable::addThunk(
 
 void
 TR_J2IThunkTable::Node::dumpTo(
+      TR::Logger *log,
       TR_FrontEnd *fe,
-      TR::FILE *file,
       TR_PersistentArray<Node> &nodeArray,
       int indent)
    {
    static const char typeChars[] = "VIJFDL";
    if (_thunk)
-      trfprintf(file, " %s @%p\n", _thunk->terseSignature(), _thunk);
+      log->printf(" %s @%p\n", _thunk->terseSignature(), _thunk);
    else
-      trfprintf(file, "\n");
+      log->prints("\n");
    for (int32_t typeIndex = 0; typeIndex < NUM_TYPE_CHARS; typeIndex++)
       {
       if (_children[typeIndex])
          {
-         trfprintf(file, "%*s%c @%d:", indent*3, "", typeChars[typeIndex], _children[typeIndex]);
-         nodeArray[_children[typeIndex]].dumpTo(fe, file, nodeArray, indent+1);
+         log->printf("%*s%c @%d:", indent*3, "", typeChars[typeIndex], _children[typeIndex]);
+         nodeArray[_children[typeIndex]].dumpTo(log, fe, nodeArray, indent+1);
          }
       }
    }
 
 
 void
-TR_J2IThunkTable::dumpTo(TR_FrontEnd *fe, TR::FILE *file)
+TR_J2IThunkTable::dumpTo(TR::Logger *log, TR_FrontEnd *fe)
    {
    OMR::CriticalSection criticalSection(_monitor);
-   trfprintf(file, "J2IThunkTable \"%s\":", _name);
-   root()->dumpTo(fe, file, _nodes, 1);
+   log->printf("J2IThunkTable \"%s\":", _name);
+   root()->dumpTo(log, fe, _nodes, 1);
    }

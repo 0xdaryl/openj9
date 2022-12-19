@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2022 IBM Corp. and others
+ * Copyright (c) 2000, 2023 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -47,6 +47,7 @@
 #include "runtime/RuntimeAssumptions.hpp"
 #include "env/J9JitMemory.hpp"
 #include "optimizer/HCRGuardAnalysis.hpp"
+#include "ras/Logger.hpp"
 
 #define OPT_DETAILS "O^O VALUE PROPAGATION: "
 
@@ -3464,7 +3465,7 @@ J9::ValuePropagation::createTypeHintConstraint(TR_ResolvedMethod *owningMethod, 
          const char *signature = TR::Compiler->cls.classSignature_DEPRECATED(comp(), likelySubtype, length, comp()->trMemory());
          traceMsg(comp(), "%s: %.*s constraint %s: ", __FUNCTION__, length, signature, constraint ? constraint->name() : "NULL");
          if (constraint)
-            constraint->print(comp(), comp()->getOutFile());
+            constraint->print(comp()->getLogger(), comp());
          traceMsg(comp(), "\n");
          }
       }

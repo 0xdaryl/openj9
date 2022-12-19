@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2019 IBM Corp. and others
+ * Copyright (c) 2000, 2023 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -25,6 +25,7 @@
 
 #include "optimizer/VPConstraint.hpp"
 
+namespace TR { class Logger; }
 
 // NOTE: when adding new TR_BCDSignConstraint types
 //       - update TR_BCDSignConstraintNames in VPConstraint.cpp when adding
@@ -139,7 +140,7 @@ class VP_BCDSign : public TR::VPConstraint
    virtual TR::VPConstraint *intersect1(TR::VPConstraint *other, OMR::ValuePropagation *vp);
    virtual TR::VPConstraint *merge1(TR::VPConstraint *other, OMR::ValuePropagation *vp);
 
-   virtual void print(TR::Compilation *, TR::FILE *);
+   virtual void print(TR::Logger *log, TR::Compilation *comp);
    virtual const char *name();
 
    protected:

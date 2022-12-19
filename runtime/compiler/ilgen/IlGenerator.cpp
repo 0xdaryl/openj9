@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2022 IBM Corp. and others
+ * Copyright (c) 2000, 2023 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -40,6 +40,7 @@
 #include "ilgen/J9ByteCodeIlGenerator.hpp"
 #include "optimizer/BoolArrayStoreTransformer.hpp"
 #include "ras/DebugCounter.hpp"
+#include "ras/Logger.hpp"
 #include "optimizer/TransformUtil.hpp"
 #include "env/JSR292Methods.h"
 
@@ -2008,8 +2009,6 @@ TR_J9ByteCodeIlGenerator::genDLTransfer(TR::Block *firstBlock)
 void
 TR_J9ByteCodeIlGenerator::inlineJitCheckIfFinalizeObject(TR::Block *firstBlock)
    {
-
-   ///comp()->dumpMethodTrees("before inlineJitCheckIfFinalizeObject", _methodSymbol);
    TR::SymbolReference *finalizeSymRef = comp()->getSymRefTab()->findOrCreateRuntimeHelper(TR_jitCheckIfFinalizeObject, true, true, true);
    int32_t origNumBlocks = cfg()->getNextNodeNumber();
 
@@ -2077,7 +2076,6 @@ TR_J9ByteCodeIlGenerator::inlineJitCheckIfFinalizeObject(TR::Block *firstBlock)
             TR::Block *callBlock = cmp->getBranchDestination()->getNode()->getBlock();
             callBlock->setIsCold(false);
             callBlock->setFrequency(MAX_COLD_BLOCK_COUNT+1);
-            ///comp()->dumpMethodTrees("after inlineJitCheckIfFinalizeObject", _methodSymbol);
             break;
             }
          }
@@ -2707,7 +2705,7 @@ void TR_J9ByteCodeIlGenerator::expandInvokeSpecialInterface(TR::TreeTop *tree)
          "expanding invokespecial in interface method at n%un\n",
          tree->getNode()->getGlobalIndex());
       if (verbose)
-         comp()->dumpMethodTrees("Trees before expanding invokespecial", _methodSymbol);
+         comp()->dumpMethodTrees(comp()->getLogger(), "Trees before expanding invokespecial", _methodSymbol);
       }
 
    TR::Node * const parent = tree->getNode();
@@ -2808,7 +2806,7 @@ void TR_J9ByteCodeIlGenerator::expandInvokeSpecialInterface(TR::TreeTop *tree)
    cfg()->addEdge(failBlock, cfg()->getEnd());
 
    if (trace && verbose)
-      comp()->dumpMethodTrees("Trees after expanding invokespecial", _methodSymbol);
+      comp()->dumpMethodTrees(comp()->getLogger(), "Trees after expanding invokespecial", _methodSymbol);
 
    _bcIndex = rememberedBcIndex;
    }
@@ -3168,7 +3166,7 @@ void TR_J9ByteCodeIlGenerator::expandMethodHandleInvokeCall(TR::TreeTop *tree)
       {
       traceMsg(comp(), "Found MethodHandle invoke call n%dn %p to expand\n", callNode->getGlobalIndex(), callNode);
       traceMsg(comp(), "   /--- Tree before expanding n%dn --------------------\n", callNode->getGlobalIndex());
-      comp()->getDebug()->printWithFixedPrefix(comp()->getOutFile(), ttNode, 1, true, true, "      ");
+      comp()->getDebug()->printWithFixedPrefix(comp()->getLogger(), ttNode, 1, true, true, "      ");
       traceMsg(comp(), "\n");
       }
 
@@ -3234,7 +3232,7 @@ void TR_J9ByteCodeIlGenerator::expandMethodHandleInvokeCall(TR::TreeTop *tree)
       TR::TreeTop *tt = prevTree->getNextTreeTop();
       do
          {
-         comp()->getDebug()->printWithFixedPrefix(comp()->getOutFile(), tt->getNode(), 1, true, true, "      ");
+         comp()->getDebug()->printWithFixedPrefix(comp()->getLogger(), tt->getNode(), 1, true, true, "      ");
          traceMsg(comp(), "\n");
          tt = tt->getNextTreeTop();
          } while( tt != nextTree);

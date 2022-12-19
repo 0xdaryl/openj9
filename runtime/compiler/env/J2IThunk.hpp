@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2021 IBM Corp. and others
+ * Copyright (c) 2000, 2023 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -30,6 +30,7 @@
 class TR_J2IThunkTable;
 namespace TR { class CodeGenerator; }
 namespace TR { class Monitor; }
+namespace TR { class Logger; }
 
 class TR_J2IThunk
    {
@@ -89,7 +90,7 @@ class TR_J2IThunkTable
 
       Node *get(char *terseSignature, TR_PersistentArray<Node> &nodeArray, bool createIfMissing);
 
-      void dumpTo(TR_FrontEnd *fe, TR::FILE *file, TR_PersistentArray<Node> &nodeArray, int indent);
+      void dumpTo(TR::Logger *log, TR_FrontEnd *fe, TR_PersistentArray<Node> &nodeArray, int indent);
       };
 
    private: // Fields
@@ -119,7 +120,7 @@ class TR_J2IThunkTable
    TR_J2IThunkTable(TR_PersistentMemory *m, char *name);
    TR_PERSISTENT_ALLOC(TR_Memory::JSR292)
 
-   void dumpTo(TR_FrontEnd *fe, TR::FILE *file);
+   void dumpTo(TR::Logger *log, TR_FrontEnd *fe);
 
    private:
 

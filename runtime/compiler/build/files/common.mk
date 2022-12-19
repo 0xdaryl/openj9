@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2022 IBM Corp. and others
+# Copyright (c) 2000, 2023 IBM Corp. and others
 #
 # This program and the accompanying materials are made available under
 # the terms of the Eclipse Public License 2.0 which accompanies this
@@ -255,6 +255,7 @@ JIT_PRODUCT_BACKEND_SOURCES+=\
     omr/compiler/ras/ILValidationUtils.cpp \
     omr/compiler/ras/ILValidator.cpp \
     omr/compiler/ras/LimitFile.cpp \
+    omr/compiler/ras/Logger.cpp \
     omr/compiler/ras/LogTracer.cpp \
     omr/compiler/ras/OptionsDebug.cpp \
     omr/compiler/ras/Tree.cpp

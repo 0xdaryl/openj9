@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2022 IBM Corp. and others
+ * Copyright (c) 2000, 2023 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -56,6 +56,7 @@
 #include "optimizer/Optimizer.hpp"
 #include "optimizer/UseDefInfo.hpp"
 #include "ras/Debug.hpp"
+#include "ras/Logger.hpp"
 
 #define OPT_DETAILS "O^O NEWLOOPREDUCER: "
 #define DISPTRACE(OBJ) ((OBJ)->trace())
@@ -302,10 +303,10 @@ ChangeAlignmentOfRegion(TR_CISCTransformer *trans)
    // Move the region ("from" - "to") to the last
    trans->moveCISCNodes(from, to, NULL);
 
-   if (disptrace && changed)
+   if (disptrace && changed && comp->getLoggingEnabled())
       {
       traceMsg(comp,"After ChangeAlignmentOfRegion\n");
-      T->dump(comp->getOutFile(), comp);
+      T->dump(comp->getLogger(), comp);
       }
    return changed;
    }
@@ -531,10 +532,10 @@ reorderTargetNodesInBB(TR_CISCTransformer *trans)
          }
       if (!anyChanged) break;
       }
-   if (disptrace && changed)
+   if (disptrace && changed && comp->getLoggingEnabled())
       {
       traceMsg(comp,"After reorderTargetNodesInBB\n");
-      T->dump(comp->getOutFile(), comp);
+      T->dump(comp->getLogger(), comp);
       }
    return changed;
    }

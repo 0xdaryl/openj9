@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2022 IBM Corp. and others
+ * Copyright (c) 2000, 2023 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -32,6 +32,7 @@
 #include "optimizer/RematTools.hpp"
 #include "optimizer/TransformUtil.hpp"
 #include "ras/DebugCounter.hpp"
+#include "ras/Logger.hpp"
 #include "infra/Checklist.hpp"
 
 TR_Structure* fakeRegion(TR::Compilation *comp);
@@ -175,7 +176,7 @@ void TR_OSRGuardInsertion::removeRedundantPotentialOSRPointHelperCalls(TR_HCRGua
 
    if (trace())
       {
-      comp()->dumpMethodTrees("Trees after redundant potentialOSRPointHelper call removal", comp()->getMethodSymbol());
+      comp()->dumpMethodTrees(comp()->getLogger(), "Trees after redundant potentialOSRPointHelper call removal", comp()->getMethodSymbol());
       }
    }
 

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2019, 2019 IBM Corp. and others
+ * Copyright (c) 2019, 2023 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -22,6 +22,7 @@
 
 #include "codegen/J9WatchedInstanceFieldSnippet.hpp"
 #include "codegen/Relocation.hpp"
+#include "ras/Logger.hpp"
 
 TR::J9WatchedInstanceFieldSnippet::J9WatchedInstanceFieldSnippet(TR::CodeGenerator *cg, TR::Node *node, J9Method *m, UDATA loc, UDATA os)
    : TR::Snippet(cg, node, generateLabelSymbol(cg), false)
@@ -68,22 +69,22 @@ uint8_t *TR::J9WatchedInstanceFieldSnippet::emitSnippetBody()
    return cursor;
    }
 
-void TR::J9WatchedInstanceFieldSnippet::print(TR::FILE *pOutFile, TR_Debug *debug)
+void TR::J9WatchedInstanceFieldSnippet::print(TR::Logger *log, TR_Debug *debug)
    {
    uint8_t *bufferPos = getSnippetLabel()->getCodeLocation();
 
-   debug->printSnippetLabel(pOutFile, getSnippetLabel(), bufferPos, "J9WatchedInstanceFieldSnippet");
+   debug->printSnippetLabel(log, getSnippetLabel(), bufferPos, "J9WatchedInstanceFieldSnippet");
 
-   debug->printPrefix(pOutFile, NULL, bufferPos, sizeof(J9Method *));
-   trfprintf(pOutFile, "DC   \t%p \t\t# J9Method", *(reinterpret_cast<J9Method **>(bufferPos)));
+   debug->printPrefix(log, NULL, bufferPos, sizeof(J9Method *));
+   log->printf("DC   \t%p \t\t# J9Method", *(reinterpret_cast<J9Method **>(bufferPos)));
    bufferPos += sizeof(J9Method *);
 
-   debug->printPrefix(pOutFile, NULL, bufferPos, sizeof(UDATA));
-   trfprintf(pOutFile, "DC   \t%lu \t\t# location", *(reinterpret_cast<UDATA *>(bufferPos)));
+   debug->printPrefix(log, NULL, bufferPos, sizeof(UDATA));
+   log->printf("DC   \t%lu \t\t# location", *(reinterpret_cast<UDATA *>(bufferPos)));
    bufferPos += sizeof(UDATA);
 
-   debug->printPrefix(pOutFile, NULL, bufferPos, sizeof(UDATA));
-   trfprintf(pOutFile, "DC   \t%lu \t\t# offset", *(reinterpret_cast<UDATA *>(bufferPos)));
+   debug->printPrefix(log, NULL, bufferPos, sizeof(UDATA));
+   log->printf("DC   \t%lu \t\t# offset", *(reinterpret_cast<UDATA *>(bufferPos)));
    bufferPos += sizeof(UDATA);
    }
 

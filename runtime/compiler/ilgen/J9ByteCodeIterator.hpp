@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2020 IBM Corp. and others
+ * Copyright (c) 2000, 2023 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -35,6 +35,8 @@
 #include "env/j9method.h"
 #include "env/VMJ9.h"
 #include "ilgen/J9ByteCode.hpp"
+
+namespace TR { class Logger; }
 
 class TR_J9ByteCodeIterator : public TR_ByteCodeIterator<TR_J9ByteCode, TR_ResolvedJ9Method>
    {
@@ -149,16 +151,16 @@ public:
 protected:
    void stepOverVariableSizeBC();
 
-   void printFirst(int32_t i);
-   void printCPIndex(int32_t i);
-   void printConstant(int32_t i);
-   void printConstant(double d);
-   void printFirstAndConstant(int32_t i, int32_t j);
-   void printJumpIndex(int32_t offset);
+   void printFirst(TR::Logger *log, int32_t i);
+   void printCPIndex(TR::Logger *log, int32_t i);
+   void printConstant(TR::Logger *log, int32_t i);
+   void printConstant(TR::Logger *log, double d);
+   void printFirstAndConstant(TR::Logger *log, int32_t i, int32_t j);
+   void printJumpIndex(TR::Logger *log, int32_t offset);
 
-   void printByteCodePrologue();
-   void printByteCode();
-   void printByteCodeEpilogue();
+   void printByteCodePrologue(TR::Logger *log);
+   void printByteCode(TR::Logger *log);
+   void printByteCodeEpilogue(TR::Logger *log);
 
    TR_J9VMBase *fe()             { return _fe; }
    //TR_ResolvedJ9Method *method() { return _method; }

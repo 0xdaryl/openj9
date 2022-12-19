@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2019, 2021 IBM Corp. and others
+ * Copyright (c) 2019, 2023 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -23,6 +23,7 @@
 #include "codegen/J9WatchedStaticFieldSnippet.hpp"
 #include "codegen/Relocation.hpp"
 #include "il/SymbolReference.hpp"
+#include "ras/Logger.hpp"
 
 TR::J9WatchedStaticFieldSnippet::J9WatchedStaticFieldSnippet(TR::CodeGenerator *cg, TR::Node *node, J9Method *m, UDATA loc, void *fieldAddress, J9Class *fieldClass)
    : TR::Snippet(cg, node, generateLabelSymbol(cg), false)
@@ -91,7 +92,7 @@ uint8_t *TR::J9WatchedStaticFieldSnippet::emitSnippetBody()
             __LINE__,
             node);
          }
-      // relocations for TR_ClassAddress are needed for AOT/AOTaaS compiles and not needed for regular JIT and JITServer compiles. 
+      // relocations for TR_ClassAddress are needed for AOT/AOTaaS compiles and not needed for regular JIT and JITServer compiles.
       // cg->needClassAndMethodPointerRelocations() tells us whether a relocation is needed depending on the type of compile being performed.
       else if (cg()->needClassAndMethodPointerRelocations())
          {
@@ -111,26 +112,26 @@ uint8_t *TR::J9WatchedStaticFieldSnippet::emitSnippetBody()
    return cursor;
    }
 
-void TR::J9WatchedStaticFieldSnippet::print(TR::FILE *pOutFile, TR_Debug *debug)
+void TR::J9WatchedStaticFieldSnippet::print(TR::Logger *log, TR_Debug *debug)
    {
    uint8_t *bufferPos = getSnippetLabel()->getCodeLocation();
 
-   debug->printSnippetLabel(pOutFile, getSnippetLabel(), bufferPos, "J9WatchedStaticFieldSnippet");
+   debug->printSnippetLabel(log, getSnippetLabel(), bufferPos, "J9WatchedStaticFieldSnippet");
 
-   debug->printPrefix(pOutFile, NULL, bufferPos, sizeof(J9Method *));
-   trfprintf(pOutFile, "DC   \t%p \t\t# J9Method", *(reinterpret_cast<J9Method **>(bufferPos)));
+   debug->printPrefix(log, NULL, bufferPos, sizeof(J9Method *));
+   log->printf("DC   \t%p \t\t# J9Method", *(reinterpret_cast<J9Method **>(bufferPos)));
    bufferPos += sizeof(J9Method *);
 
-   debug->printPrefix(pOutFile, NULL, bufferPos, sizeof(UDATA));
-   trfprintf(pOutFile, "DC   \t%lu \t\t# location", *(reinterpret_cast<UDATA *>(bufferPos)));
+   debug->printPrefix(log, NULL, bufferPos, sizeof(UDATA));
+   log->printf("DC   \t%lu \t\t# location", *(reinterpret_cast<UDATA *>(bufferPos)));
    bufferPos += sizeof(UDATA);
 
-   debug->printPrefix(pOutFile, NULL, bufferPos, sizeof(void *));
-   trfprintf(pOutFile, "DC   \t%p \t\t# fieldAddress", *(reinterpret_cast<void **>(bufferPos)));
+   debug->printPrefix(log, NULL, bufferPos, sizeof(void *));
+   log->printf("DC   \t%p \t\t# fieldAddress", *(reinterpret_cast<void **>(bufferPos)));
    bufferPos += sizeof(void *);
 
-   debug->printPrefix(pOutFile, NULL, bufferPos, sizeof(J9Class *));
-   trfprintf(pOutFile, "DC   \t%p \t\t# fieldClass", *(reinterpret_cast<J9Class **>(bufferPos)));
+   debug->printPrefix(log, NULL, bufferPos, sizeof(J9Class *));
+   log->printf("DC   \t%p \t\t# fieldClass", *(reinterpret_cast<J9Class **>(bufferPos)));
    bufferPos += sizeof(J9Class *);
    }
 

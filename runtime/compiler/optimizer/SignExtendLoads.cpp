@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2021 IBM Corp. and others
+ * Copyright (c) 2000, 2023 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -41,6 +41,7 @@
 #include "infra/List.hpp"
 #include "optimizer/Optimization_inlines.hpp"
 #include "ras/Debug.hpp"
+#include "ras/Logger.hpp"
 
 #define OPT_DETAILS "O^O SIGN EXTENDING LOADS TRANSFORMATION: "
 
@@ -740,11 +741,11 @@ int32_t TR_SignExtendLoads::perform()
    TR::StackMemoryRegion stackMemoryRegion(*trMemory());
 
    if (trace())
-     {
-       traceMsg(comp(), "Starting Sign Extention of Loads\n");
-       traceMsg(comp(), "\nCFG before loop simplification:\n");
-       getDebug()->print(comp()->getOutFile(), comp()->getFlowGraph());
-     }
+      {
+      traceMsg(comp(), "Starting Sign Extention of Loads\n");
+      traceMsg(comp(), "\nCFG before loop simplification:\n");
+      getDebug()->print(comp()->getLogger(), comp()->getFlowGraph());
+      }
 
    TR::TreeTop* currentTree = comp()->getStartTree();
    TR::TreeTop* prevTree = NULL;
