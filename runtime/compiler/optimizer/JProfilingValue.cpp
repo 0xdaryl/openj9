@@ -36,6 +36,7 @@
 #include "control/RecompilationInfo.hpp"
 #include "codegen/CodeGenerator.hpp"
 #include "optimizer/TransformUtil.hpp"
+#include "ras/Logger.hpp"
 
 /**
  * Get the operation for direct store for a type.
@@ -183,7 +184,7 @@ TR_JProfilingValue::perform()
 
    cleanUpAndAddProfilingCandidates();
    if (trace())
-      comp()->dumpMethodTrees("After Cleaning up Trees");
+      comp()->dumpMethodTrees(comp()->getLogger(), "After Cleaning up Trees");
    lowerCalls();
 
    if (comp()->isProfilingCompilation())
@@ -365,7 +366,7 @@ TR_JProfilingValue::lowerCalls()
          // Remove the original trees and continue from the tree after the profiling
          TR::TransformUtil::removeTree(comp(), cursor);
          if (trace())
-            comp()->dumpMethodTrees("After Adding Profiling Trees");
+            comp()->dumpMethodTrees(comp()->getLogger(), "After Adding Profiling Trees");
          }
       cursor = nextTreeTop;
       }

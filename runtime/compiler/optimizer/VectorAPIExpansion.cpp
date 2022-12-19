@@ -27,6 +27,7 @@
 #include "il/Node_inlines.hpp"
 #include "il/SymbolReference.hpp"
 #include "optimizer/VectorAPIExpansion.hpp"
+#include "ras/Logger.hpp"
 
 
 const char *
@@ -528,10 +529,10 @@ TR_VectorAPIExpansion::findAllAliases(int32_t classId, int32_t id,
       return;
       }
 
-   if (_trace)
+   if (_trace && comp()->getLoggingEnabled())
       {
       traceMsg(comp(), "Iterating through %saliases for #%d:\n", tempAliases ? "temp " : "", id);
-      (_aliasTable[id].*aliasesField)->print(comp());
+      (_aliasTable[id].*aliasesField)->print(comp()->getLogger(), comp());
       traceMsg(comp(), "\n");
       }
 
@@ -843,10 +844,10 @@ TR_VectorAPIExpansion::validateVectorAliasClasses(TR_BitVector * vectorAliasTabl
       if ((_aliasTable[id].*classField) != id)
          continue;  // not an alias class or is already invalid
 
-      if (_aliasTable[id].*aliasesField && _trace)
+      if (_aliasTable[id].*aliasesField && _trace && comp()->getLoggingEnabled())
          {
          traceMsg(comp(), "Verifying %sclass: %d\n", tempClasses ? "temp " : "", id);
-         (_aliasTable[id].*aliasesField)->print(comp());
+         (_aliasTable[id].*aliasesField)->print(comp()->getLogger(), comp());
          traceMsg(comp(), "\n");
          }
 
@@ -1105,7 +1106,7 @@ TR_VectorAPIExpansion::expandVectorAPI()
       }
 
    if (_trace)
-      comp()->dumpMethodTrees("After Vectorization");
+      comp()->dumpMethodTrees(comp()->getLogger(), "After Vectorization");
 
    return 1;
    }

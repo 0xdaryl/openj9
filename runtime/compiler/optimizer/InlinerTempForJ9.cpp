@@ -64,6 +64,7 @@
 #include "ras/DebugCounter.hpp"
 #include "j9consts.h"
 #include "optimizer/TransformUtil.hpp"
+#include "ras/Logger.hpp"
 
 namespace TR { class SimpleRegex; }
 
@@ -600,10 +601,10 @@ TR_J9InlinerPolicy::createTempsForUnsafePutGet(TR::Node*& unsafeAddress,
                       1, 1, unsafeAddress, newSymbolReference);
    TR::TreeTop *storeTree = TR::TreeTop::create(comp(), storeNode);
 
-   if (tracer()->debugLevel())
+   if (tracer()->debugLevel() && comp()->getLoggingEnabled())
       {
       debugTrace(tracer(), "\tIn createTempsForUnsafePutGet.  inserting store Tree before callNodeTT:\n");
-      comp()->getDebug()->print(comp()->getOutFile(), storeTree);
+      comp()->getDebug()->print(comp()->getLogger(), storeTree);
       }
 
    callNodeTreeTop->insertTreeTopsBeforeMe(storeTree);
@@ -626,10 +627,10 @@ TR_J9InlinerPolicy::createTempsForUnsafePutGet(TR::Node*& unsafeAddress,
                                1, 1, offset, newSymbolReference);
    storeTree = TR::TreeTop::create(comp(), storeNode);
 
-   if (tracer()->debugLevel())
+   if (tracer()->debugLevel() && comp()->getLoggingEnabled())
       {
       traceMsg(comp(), "\tIn createTempsForUnsafePutGet.  inserting store Tree before callNodeTT 2:\n");
-      comp()->getDebug()->print(comp()->getOutFile(), storeTree);
+      comp()->getDebug()->print(comp()->getLogger(), storeTree);
       }
 
    callNodeTreeTop->insertTreeTopsBeforeMe(storeTree);
@@ -1141,11 +1142,11 @@ TR_J9InlinerPolicy::createUnsafePutWithOffset(TR::ResolvedMethodSymbol *calleeSy
       }
 
    TR::Node * unsafeAddress = createUnsafeAddressWithOffset(unsafeCall);
-   if (tracer()->debugLevel())
+   if (tracer()->debugLevel() && comp()->getLoggingEnabled())
       {
       debugTrace(tracer(), "\t After createUnsafeAddressWithOffset, unsafeAddress = %p : \n", unsafeAddress);
       TR::TreeTop *tmpUnsafeAddressTT = TR::TreeTop::create(comp(), unsafeAddress);
-      comp()->getDebug()->print(comp()->getOutFile(), tmpUnsafeAddressTT);
+      comp()->getDebug()->print(comp()->getLogger(), tmpUnsafeAddressTT);
       }
 
    TR::Node* valueWithoutConversion = unsafeCall->getChild(3);
@@ -1181,39 +1182,39 @@ TR_J9InlinerPolicy::createUnsafePutWithOffset(TR::ResolvedMethodSymbol *calleeSy
 
    callNodeTreeTop->setNode(unsafeNode);
 
-   if (tracer()->debugLevel())
+   if (tracer()->debugLevel() && comp()->getLoggingEnabled())
       {
       debugTrace(tracer(), "\t After callNodeTreeTop setNode callNodeTreeTop dump:\n");
-      comp()->getDebug()->print(comp()->getOutFile(), callNodeTreeTop);
+      comp()->getDebug()->print(comp()->getLogger(), callNodeTreeTop);
       debugTrace(tracer(), "\t After callNodeTreeTop setNode oldCallNodeTreeTop dump oldCallNodeTreeTop->getNode->getChild = %p:\n", oldCallNodeTreeTop->getNode() ? oldCallNodeTreeTop->getNode()->getFirstChild() : 0);
-      comp()->getDebug()->print(comp()->getOutFile(), oldCallNodeTreeTop);
+      comp()->getDebug()->print(comp()->getLogger(), oldCallNodeTreeTop);
       }
 
 
    TR::TreeTop* directAccessTreeTop = genDirectAccessCodeForUnsafeGetPut(unsafeNode, false, false);
 
-   if (tracer()->debugLevel())
+   if (tracer()->debugLevel() && comp()->getLoggingEnabled())
       {
       debugTrace(tracer(), "\t After genDirectAccessCodeForUnsafeGetPut, directAccessTreeTop dump:\n");
-      comp()->getDebug()->print(comp()->getOutFile(), directAccessTreeTop);
+      comp()->getDebug()->print(comp()->getLogger(), directAccessTreeTop);
       }
 
    TR::TreeTop* arrayDirectAccessTreeTop = conversionNeeded
       ? genDirectAccessCodeForUnsafeGetPut(unsafeNodeWithConversion, conversionNeeded, false)
       : NULL;
 
-   if (tracer()->debugLevel() && conversionNeeded)
+   if (tracer()->debugLevel() && conversionNeeded && comp()->getLoggingEnabled())
       {
       debugTrace(tracer(), "\t After genDirectAccessCodeForUnsafeGetPut, arrayDirectAccessTreeTop dump:\n");
-      comp()->getDebug()->print(comp()->getOutFile(), arrayDirectAccessTreeTop);
+      comp()->getDebug()->print(comp()->getLogger(), arrayDirectAccessTreeTop);
       }
 
    TR::TreeTop* indirectAccessTreeTop = genIndirectAccessCodeForUnsafeGetPut(callNodeTreeTop->getNode(), unsafeAddress);
 
-   if (tracer()->debugLevel())
+   if (tracer()->debugLevel() && comp()->getLoggingEnabled())
       {
       debugTrace(tracer(), "\t After genIndirectAccessCodeForUnsafeGetPut, indirectAccessTreeTop dump:\n");
-      comp()->getDebug()->print(comp()->getOutFile(), indirectAccessTreeTop);
+      comp()->getDebug()->print(comp()->getLogger(), indirectAccessTreeTop);
       }
 
    if (indirectAccessTreeTop && indirectAccessTreeTop->getNode() && indirectAccessTreeTop->getNode()->getOpCode().isWrtBar())
@@ -1228,10 +1229,10 @@ TR_J9InlinerPolicy::createUnsafePutWithOffset(TR::ResolvedMethodSymbol *calleeSy
    bool needNotLowTagged = javaLangClass != NULL  || conversionNeeded ;
    TR::TreeTop *lowTagCmpTree = genClassCheckForUnsafeGetPut(offset, needNotLowTagged);
 
-   if (tracer()->debugLevel())
+   if (tracer()->debugLevel() && comp()->getLoggingEnabled())
       {
       debugTrace(tracer(), "\t After genClassCheckForUnsafeGetPut, lowTagCmpTree dump:\n");
-      comp()->getDebug()->print(comp()->getOutFile(), lowTagCmpTree);
+      comp()->getDebug()->print(comp()->getLogger(), lowTagCmpTree);
       }
 
    TR::Block * joinBlock =
@@ -2280,7 +2281,7 @@ bool TR_J9InlinerPolicy::_tryToGenerateILForMethod (TR::ResolvedMethodSymbol* ca
       if (comp()->trace(OMR::inlining))
          {
          traceMsg(comp(), "ILGen of [%p] using request: ", callNode);
-         ilGenRequest.print(comp()->fe(), comp()->getOutFile(), "\n");
+         ilGenRequest.print(comp()->getLogger(), comp()->fe(), "\n");
          }
       success = calleeSymbol->genIL(comp()->fe(), comp(), comp()->getSymRefTab(), ilGenRequest);
       }
@@ -2289,7 +2290,7 @@ bool TR_J9InlinerPolicy::_tryToGenerateILForMethod (TR::ResolvedMethodSymbol* ca
       TR::InliningIlGenRequest ilGenRequest(ilGenMethodDetails, callerSymbol);
       if (comp()->trace(OMR::inlining))
          {
-         ilGenRequest.print(comp()->fe(), comp()->getOutFile(), "\n");
+         ilGenRequest.print(comp()->getLogger(), comp()->fe(), "\n");
          }
       success =  calleeSymbol->genIL(comp()->fe(), comp(), comp()->getSymRefTab(), ilGenRequest);
       }
@@ -6234,7 +6235,7 @@ TR_J9TransformInlinedFunction::wrapCalleeInTryRegion(bool isSynchronized, bool p
       calleeCFG->addNode(b);
 
    if (comp()->trace(OMR::inlining))
-      comp()->dumpMethodTrees("Callee Trees", _calleeSymbol);
+      comp()->dumpMethodTrees(comp()->getLogger(), "Callee Trees", _calleeSymbol);
    }
 
 TR::TreeTop *
