@@ -189,6 +189,7 @@ TR_J9ByteCodeIterator::findFloatingPointInstruction()
 void
 TR_J9ByteCodeIterator::printByteCodePrologue(TR::Logger *log)
    {
+TIMER_FUNC(TR_J9ByteCodeIterator_printByteCodePrologue)
    log->prints("\n"
       "        +------------- Byte Code Index\n"
       "        |  +-------------------- OpCode\n"
@@ -203,6 +204,7 @@ TR_J9ByteCodeIterator::printByteCodePrologue(TR::Logger *log)
 void
 TR_J9ByteCodeIterator::printByteCodeEpilogue(TR::Logger *log)
    {
+TIMER_FUNC(TR_J9ByteCodeIterator_printByteCodeEpilogue)
    log->prints("\n\n");
    comp()->getDebug()->printByteCodeAnnotations(log);
    }
@@ -210,42 +212,49 @@ TR_J9ByteCodeIterator::printByteCodeEpilogue(TR::Logger *log)
 void
 TR_J9ByteCodeIterator::printFirst(TR::Logger *log, int32_t i)
    {
+TIMER_FUNC(TR_J9ByteCodeIterator_printFirst)
    log->printf("%5i", i);
    }
 
 void
 TR_J9ByteCodeIterator::printCPIndex(TR::Logger *log, int32_t i)
    {
+TIMER_FUNC(TR_J9ByteCodeIterator_printCPIndex)
    log->printf("%13s%5i", "", i);
    }
 
 void
 TR_J9ByteCodeIterator::printConstant(TR::Logger *log, int32_t i)
    {
+TIMER_FUNC(TR_J9ByteCodeIterator_printConstant_int32)
    log->printf("%11s%12i  ", "", i);
    }
 
 void
 TR_J9ByteCodeIterator::printConstant(TR::Logger *log, double d)
    {
+TIMER_FUNC(TR_J9ByteCodeIterator_printConstant_double)
    log->printf("%11s%12e  ", "", d);
    }
 
 void
 TR_J9ByteCodeIterator::printFirstAndConstant(TR::Logger *log, int32_t i, int32_t j)
    {
+TIMER_FUNC(TR_J9ByteCodeIterator_printFirstAndConstant)
    log->printf("%5i%6s%12i  ", i, "", j);
    }
 
 void
 TR_J9ByteCodeIterator::printJumpIndex(TR::Logger *log, int32_t offset)
    {
+TIMER_FUNC(TR_J9ByteCodeIterator_printJumpIndex)
    log->printf("%5i,%5d,%11s ", offset, offset + bcIndex(), "");
    }
 
 void
 TR_J9ByteCodeIterator::printByteCode(TR::Logger *log)
    {
+TIMER_FUNC(TR_J9ByteCodeIterator_printByteCode)
    uint8_t opcode = nextByte(0);
 
    log->printf("\n   %6i, %-15s      ", bcIndex(), ((TR_J9VMBase *)fe())->getByteCodeName(opcode));

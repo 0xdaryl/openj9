@@ -186,6 +186,7 @@ TR_AddressInfo::getMethodsList(TR::Compilation *comp, TR_ResolvedMethod *callerM
 template <> void
 TR_LinkedListProfilerInfo<TR_ByteInfo>::dumpInfo(TR::Logger *log)
    {
+TIMER_FUNC(TR_LinkedListProfilerInfo_dumpInfo)
    OMR::CriticalSection lock(vpMonitor);
 
    log->printf("   Linked List Profiling Info %p\n", this);

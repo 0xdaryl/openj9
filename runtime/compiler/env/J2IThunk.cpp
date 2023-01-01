@@ -260,6 +260,7 @@ TR_J2IThunkTable::Node::dumpTo(
       TR_PersistentArray<Node> &nodeArray,
       int indent)
    {
+TIMER_FUNC(TR_J2IThunkTable_dumpTo_nodeArray)
    static const char typeChars[] = "VIJFDL";
    if (_thunk)
       log->printf(" %s @%p\n", _thunk->terseSignature(), _thunk);
@@ -279,6 +280,7 @@ TR_J2IThunkTable::Node::dumpTo(
 void
 TR_J2IThunkTable::dumpTo(TR::Logger *log, TR_FrontEnd *fe)
    {
+TIMER_FUNC(TR_J2IThunkTable_dumpTo)
    OMR::CriticalSection criticalSection(_monitor);
    log->printf("J2IThunkTable \"%s\":", _name);
    root()->dumpTo(log, fe, _nodes, 1);

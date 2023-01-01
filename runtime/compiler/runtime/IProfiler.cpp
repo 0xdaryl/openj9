@@ -116,6 +116,7 @@ static uint32_t memoryConsumed = 0;
 static
 void printHashedCallSite(TR::Logger *log, TR_IPHashedCallSite *hcs, void *tag = NULL)
    {
+TIMER_FUNC(printHashedCallSite_IPHashedCallSite)
    J9UTF8 * nameUTF8;
    J9UTF8 * signatureUTF8;
    J9UTF8 * methodClazzUTRF8;
@@ -1917,6 +1918,7 @@ TR_IProfiler::getSearchPCFromMethodAndBCIndex(TR_OpaqueMethodBlock *method, uint
    // Diagnostic in case of error
    if (pc == 0 && comp->getLoggingEnabled())
       {
+TIMER_FUNC(TR_IProfiler_getSearchPCFromMethodAndBCIndex)
       TR::Logger *log = comp->getLogger();
       TR_Stack<int32_t> & stack = comp->getInlinedCallStack();
       int len = comp->getInlinedCallStack().size();

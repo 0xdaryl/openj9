@@ -257,6 +257,7 @@ JIT_PRODUCT_BACKEND_SOURCES+=\
     omr/compiler/ras/LimitFile.cpp \
     omr/compiler/ras/Logger.cpp \
     omr/compiler/ras/LogTracer.cpp \
+    omr/compiler/ras/MeteredFunction.cpp \
     omr/compiler/ras/OptionsDebug.cpp \
     omr/compiler/ras/Tree.cpp
 

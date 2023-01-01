@@ -280,6 +280,7 @@ J9::KnownObjectTable::dumpObjectTo(
       TR_VMFieldsInfo **fieldsInfoByIndex,
       int32_t depth)
    {
+TIMER_FUNC(J9_KnownObjectTable_dumpObjectTo)
    TR_ASSERT_FATAL(!comp->isOutOfProcessCompilation(), "dumpObjectTo() should not be executed at the server.");
 
    TR_J9VMBase *j9fe = (TR_J9VMBase*)self()->fe();
@@ -396,6 +397,7 @@ J9::KnownObjectTable::getKnownObjectTableDumpInfo(std::vector<TR_KnownObjectTabl
 void
 J9::KnownObjectTable::dumpTo(TR::Logger *log, TR::Compilation *comp)
    {
+TIMER_FUNC(J9_KnownObjectTable_dumpTo)
    TR::KnownObjectTable::Index endIndex = self()->getEndIndex();
 #if defined(J9VM_OPT_JITSERVER)
    if (comp->isOutOfProcessCompilation())

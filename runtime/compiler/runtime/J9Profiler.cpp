@@ -1572,6 +1572,7 @@ TR_ValueProfileInfo::getOrCreateProfilerInfo(
 void
 TR_ValueProfileInfo::resetLowFreqValues(TR::Logger *log)
    {
+TIMER_FUNC(TR_ValueProfileInfo_resetLowFreqValues)
    for (TR_AbstractProfilerInfo *valueInfo = _values[HashTableProfiler]; valueInfo; valueInfo = valueInfo->getNext())
       {
       TR_AbstractHashTableProfilerInfo *hashTable = static_cast<TR_AbstractHashTableProfilerInfo*>(valueInfo);
@@ -2704,6 +2705,7 @@ TR_PersistentProfileInfo::findOrCreateValueProfileInfo(TR::Compilation *comp)
 
 void TR_ValueProfileInfo::dumpInfo(TR::Logger *log)
    {
+TIMER_FUNC(TR_ValueProfileInfo_dumpInfo)
    log->prints("\nDumping value profile info\n");
    for (size_t i = 0; i < LastProfiler; ++i)
       {
@@ -2714,6 +2716,7 @@ void TR_ValueProfileInfo::dumpInfo(TR::Logger *log)
 
 void TR_BlockFrequencyInfo::dumpInfo(TR::Logger *log)
    {
+TIMER_FUNC(TR_BlockFrequencyInfo_dumpInfo)
    log->prints("\nDumping block frequency info\n");
    for (int32_t i = 0; i < _numBlocks; i++)
       log->printf("   Block index = %d, caller = %d, frequency = %d\n", _blocks[i].getByteCodeIndex(), _blocks[i].getCallerIndex(), _frequencies[i]);
@@ -2722,6 +2725,7 @@ void TR_BlockFrequencyInfo::dumpInfo(TR::Logger *log)
 
 void TR_CatchBlockProfileInfo::dumpInfo(TR::Logger *log)
    {
+TIMER_FUNC(TR_CatchBlockProfieInfo_dumpInfo)
    if (_catchCounter || _throwCounter)
       log->printf("\nDumping catch block info\n   catch %7d throw %7d\n", _catchCounter, _throwCounter);
    }
@@ -2729,6 +2733,7 @@ void TR_CatchBlockProfileInfo::dumpInfo(TR::Logger *log)
 
 void TR_CallSiteInfo::dumpInfo(TR::Logger *log)
    {
+TIMER_FUNC(TR_CallSiteInfo_dumpInfo)
    log->prints("\nDumping call site info\n");
    for (int32_t i = 0; i < _numCallSites; i++)
       log->printf("   Call site index = %d, method = %p, parent = %d\n", _callSites[i]._byteCodeInfo.getByteCodeIndex(), _callSites[i]._methodInfo, _callSites[i]._byteCodeInfo.getCallerIndex());
@@ -2782,6 +2787,7 @@ TR_CallSiteInfo * TR_CallSiteInfo::deserialize(uint8_t * &buffer)
 
 void TR_PersistentProfileInfo::dumpInfo(TR::Logger *log)
    {
+TIMER_FUNC(TR_PersistentProfileInfo_dumpInfo)
    if (_callSiteInfo)
       _callSiteInfo->dumpInfo(log);
 

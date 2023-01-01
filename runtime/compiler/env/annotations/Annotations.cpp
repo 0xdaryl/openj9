@@ -42,6 +42,7 @@ TR_Debug::printAnnotationInfoEntry(
       J9AnnotationInfoEntry *annotationInfoEntryPtr,
       int32_t indentationLevel)
    {
+TIMER_FUNC(TR_Debug_printAnnotationInfoEntry)
    J9UTF8 *annotationName;
    const int bufLen=1024;
    char stringBufferA[bufLen];
@@ -231,6 +232,7 @@ TR_Debug::printAnnotationInfoEntry(
 void
 TR_Debug::printByteCodeAnnotations(TR::Logger *log)
    {
+TIMER_FUNC(TR_Debug_printByteCodeAnnotations)
 
    //JVM support for JXE is broken right now.  Disable temporarily
 

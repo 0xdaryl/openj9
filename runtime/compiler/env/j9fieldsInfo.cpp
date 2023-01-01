@@ -78,6 +78,7 @@ TR_VMField::TR_VMField(TR::Compilation * comp, J9Class *aClazz, J9ROMFieldShape 
 
 void TR_VMField::print(TR::Logger *log, TR_FrontEnd *fe)
    {
+TIMER_FUNC(TR_VMField_print)
    log->printf("name=%s signature=%s modifiers=0x%p offset=%d\n", name, signature, modifiers, offset);
    }
 

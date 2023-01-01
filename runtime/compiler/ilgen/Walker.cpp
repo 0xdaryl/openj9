@@ -110,6 +110,7 @@
 
 static void printStack(TR::Logger *log, TR::Compilation *comp, TR_Stack<TR::Node*> *stack, const char *message)
    {
+TIMER_FUNC(Walker_printStack)
    // TODO: This should be in the debug DLL
    if (stack->isEmpty())
       {
@@ -142,6 +143,7 @@ static void printStack(TR::Logger *log, TR::Compilation *comp, TR_Stack<TR::Node
 
 static void printTrees(TR::Logger *log, TR::Compilation *comp, TR::TreeTop *firstTree, TR::TreeTop *stopTree, const char *message)
    {
+TIMER_FUNC(Walker_printTrees)
    // TODO: This should be in the debug DLL
    if (firstTree == stopTree)
       {
