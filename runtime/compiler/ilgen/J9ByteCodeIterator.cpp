@@ -189,7 +189,7 @@ TR_J9ByteCodeIterator::findFloatingPointInstruction()
 void
 TR_J9ByteCodeIterator::printByteCodePrologue(TR::Logger *log)
    {
-TIMER_FUNC(TR_J9ByteCodeIterator_printByteCodePrologue)
+TIMER_FUNC(TR_J9ByteCodeIterator_printByteCodePrologue, _compilation)
    log->prints("\n"
       "        +------------- Byte Code Index\n"
       "        |  +-------------------- OpCode\n"
@@ -204,7 +204,7 @@ TIMER_FUNC(TR_J9ByteCodeIterator_printByteCodePrologue)
 void
 TR_J9ByteCodeIterator::printByteCodeEpilogue(TR::Logger *log)
    {
-TIMER_FUNC(TR_J9ByteCodeIterator_printByteCodeEpilogue)
+TIMER_FUNC(TR_J9ByteCodeIterator_printByteCodeEpilogue, _compilation)
    log->prints("\n\n");
    comp()->getDebug()->printByteCodeAnnotations(log);
    }
@@ -212,49 +212,49 @@ TIMER_FUNC(TR_J9ByteCodeIterator_printByteCodeEpilogue)
 void
 TR_J9ByteCodeIterator::printFirst(TR::Logger *log, int32_t i)
    {
-TIMER_FUNC(TR_J9ByteCodeIterator_printFirst)
+TIMER_FUNC(TR_J9ByteCodeIterator_printFirst, _compilation)
    log->printf("%5i", i);
    }
 
 void
 TR_J9ByteCodeIterator::printCPIndex(TR::Logger *log, int32_t i)
    {
-TIMER_FUNC(TR_J9ByteCodeIterator_printCPIndex)
+TIMER_FUNC(TR_J9ByteCodeIterator_printCPIndex, _compilation)
    log->printf("%13s%5i", "", i);
    }
 
 void
 TR_J9ByteCodeIterator::printConstant(TR::Logger *log, int32_t i)
    {
-TIMER_FUNC(TR_J9ByteCodeIterator_printConstant_int32)
+TIMER_FUNC(TR_J9ByteCodeIterator_printConstant_int32, _compilation)
    log->printf("%11s%12i  ", "", i);
    }
 
 void
 TR_J9ByteCodeIterator::printConstant(TR::Logger *log, double d)
    {
-TIMER_FUNC(TR_J9ByteCodeIterator_printConstant_double)
+TIMER_FUNC(TR_J9ByteCodeIterator_printConstant_double, _compilation)
    log->printf("%11s%12e  ", "", d);
    }
 
 void
 TR_J9ByteCodeIterator::printFirstAndConstant(TR::Logger *log, int32_t i, int32_t j)
    {
-TIMER_FUNC(TR_J9ByteCodeIterator_printFirstAndConstant)
+TIMER_FUNC(TR_J9ByteCodeIterator_printFirstAndConstant, _compilation)
    log->printf("%5i%6s%12i  ", i, "", j);
    }
 
 void
 TR_J9ByteCodeIterator::printJumpIndex(TR::Logger *log, int32_t offset)
    {
-TIMER_FUNC(TR_J9ByteCodeIterator_printJumpIndex)
+TIMER_FUNC(TR_J9ByteCodeIterator_printJumpIndex, _compilation)
    log->printf("%5i,%5d,%11s ", offset, offset + bcIndex(), "");
    }
 
 void
 TR_J9ByteCodeIterator::printByteCode(TR::Logger *log)
    {
-TIMER_FUNC(TR_J9ByteCodeIterator_printByteCode)
+TIMER_FUNC(TR_J9ByteCodeIterator_printByteCode, _compilation)
    uint8_t opcode = nextByte(0);
 
    log->printf("\n   %6i, %-15s      ", bcIndex(), ((TR_J9VMBase *)fe())->getByteCodeName(opcode));

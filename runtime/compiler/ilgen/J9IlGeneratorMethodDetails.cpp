@@ -205,7 +205,7 @@ IlGeneratorMethodDetails::getIlGenerator(TR::ResolvedMethodSymbol *methodSymbol,
 void
 IlGeneratorMethodDetails::print(TR::Logger *log, TR_FrontEnd *fe)
    {
-TIMER_FUNC(IlGeneratorMethodDetails_print)
+//TIMER_FUNC(IlGeneratorMethodDetails_print)
    log->printf("%s(", self()->name());
    self()->printDetails(log, fe);
    log->printc(')');
@@ -215,7 +215,7 @@ TIMER_FUNC(IlGeneratorMethodDetails_print)
 void
 IlGeneratorMethodDetails::printDetails(TR::Logger *log, TR_FrontEnd *fe)
    {
-TIMER_FUNC(IlGeneratorMethodDetails_printDetails)
+//TIMER_FUNC(IlGeneratorMethodDetails_printDetails)
    const char *sig = fe->sampleSignature((TR_OpaqueMethodBlock *)(self()->getMethod()));
    if (sig)
       log->prints(sig);
@@ -242,7 +242,7 @@ IlGeneratorMethodDetailsOverrideForReplay::changeMethod(
 void
 NewInstanceThunkDetails::printDetails(TR::Logger *log, TR_FrontEnd *fe)
    {
-TIMER_FUNC(NewInstanceThunkDetails_printDetails)
+//TIMER_FUNC(NewInstanceThunkDetails_printDetails)
    int32_t len;
    TR_J9VMBase *fej9 = (TR_J9VMBase *)fe;
    char *className = fej9->getClassNameChars((TR_OpaqueClassBlock *)getClass(), len);
@@ -253,7 +253,7 @@ TIMER_FUNC(NewInstanceThunkDetails_printDetails)
 void
 MethodInProgressDetails::printDetails(TR::Logger *log, TR_FrontEnd *fe)
    {
-TIMER_FUNC(MethodInProgressDetails_printDetails)
+//TIMER_FUNC(MethodInProgressDetails_printDetails)
    log->printf("DLT %d,%s", getByteCodeIndex(), fe->sampleSignature((TR_OpaqueMethodBlock *)getMethod()));
    }
 
@@ -290,7 +290,7 @@ ArchetypeSpecimenDetails::getIlGenerator(TR::ResolvedMethodSymbol *methodSymbol,
 void
 MethodHandleThunkDetails::printDetails(TR::Logger *log, TR_FrontEnd *fe)
    {
-TIMER_FUNC(MethodHandleThunkDetails_printDetails)
+//TIMER_FUNC(MethodHandleThunkDetails_printDetails)
 #if 0
    // annoying: knot can only be accessed from the compilation object which isn't always handy: wait for thread locals
    TR::KnownObjectTable *knot = fe->getKnownObjectTable();

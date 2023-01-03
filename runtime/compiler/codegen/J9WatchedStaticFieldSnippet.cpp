@@ -114,7 +114,7 @@ uint8_t *TR::J9WatchedStaticFieldSnippet::emitSnippetBody()
 
 void TR::J9WatchedStaticFieldSnippet::print(TR::Logger *log, TR_Debug *debug)
    {
-TIMER_FUNC(TR_J9WatchedStaticFieldSnippet_print)
+TIMER_FUNC(TR_J9WatchedStaticFieldSnippet_print, cg()->comp())
    uint8_t *bufferPos = getSnippetLabel()->getCodeLocation();
 
    debug->printSnippetLabel(log, getSnippetLabel(), bufferPos, "J9WatchedStaticFieldSnippet");
