@@ -194,6 +194,9 @@ J9::Z::CodeGenerator::initialize()
       cg->setEnableRIOverPrivateLinkage(false);  // Disable RI over private linkage, since RION/OFF will be controlled over J2I / I2J.
       }
 
+   // Can generate code for BCD IL opcodes
+   cg->setSupportsBCDILOpCodes();
+
    /*
     * "Statically" initialize the FE-specific tree evaluator functions.
     * This code only needs to execute once per JIT lifetime.

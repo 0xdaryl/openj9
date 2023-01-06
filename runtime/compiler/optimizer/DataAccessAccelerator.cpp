@@ -88,6 +88,12 @@ TR_DataAccessAccelerator::TR_DataAccessAccelerator(TR::OptimizationManager* mana
 
 int32_t TR_DataAccessAccelerator::perform()
    {
+
+   if (comp()->cg()->getSupportsBCDILOpCodes())
+      {
+      return 0;
+      }
+
    int32_t result = 0;
 
    if (!comp()->getOption(TR_DisableIntrinsics) &&
