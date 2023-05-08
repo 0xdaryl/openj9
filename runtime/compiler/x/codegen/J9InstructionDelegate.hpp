@@ -36,6 +36,11 @@ namespace J9 { typedef J9::X86::InstructionDelegate InstructionDelegateConnector
 #include "compiler/codegen/J9InstructionDelegate.hpp"
 #include "infra/Annotations.hpp"
 
+#include <stdint.h>
+
+namespace TR { class X86ImmInstruction; }
+namespace TR { class X86ImmSnippetInstruction; }
+
 namespace J9
 {
 
@@ -48,6 +53,10 @@ protected:
 
    InstructionDelegate() {}
 
+public:
+
+   static void createMetaDataForCodeAddress(TR::X86ImmInstruction *instr, uint8_t *cursor);
+   static void createMetaDataForCodeAddress(TR::X86ImmSnippetInstruction *instr, uint8_t *cursor);
    };
 
 }

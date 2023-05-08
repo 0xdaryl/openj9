@@ -29,6 +29,7 @@ j9jit_files(
 	x/codegen/GuardedDevirtualSnippet.cpp
 	x/codegen/J9AheadOfTimeCompile.cpp
 	x/codegen/J9CodeGenerator.cpp
+	x/codegen/J9InstructionDelegate.cpp
 	x/codegen/J9Linkage.cpp
 	x/codegen/J9LinkageUtils.cpp
 	x/codegen/J9Snippet.cpp
