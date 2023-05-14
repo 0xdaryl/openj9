@@ -297,3 +297,172 @@ J9::X86::InstructionDelegate::createMetaDataForCodeAddress(TR::X86RegImmInstruct
          }
       }
    }
+
+void
+J9::X86::InstructionDelegate::createMetaDataForCodeAddress(TR::X86RegImmSymInstruction *instr, uint8_t *cursor)
+   {
+   TR::CodeGenerator *cg = instr->cg();
+   TR::Compilation *comp = cg->comp();
+   TR::Node *instrNode = instr->getNode();
+
+   if (std::find(comp->getStaticHCRPICSites()->begin(), comp->getStaticHCRPICSites()->end(), instr) != comp->getStaticHCRPICSites()->end())
+      {
+      cg->jitAdd32BitPicToPatchOnClassRedefinition(((void *)(uintptr_t) instr->getSourceImmediateAsAddress()), (void *) cursor);
+      }
+
+   TR::Symbol *symbol = instr->getSymbolReference()->getSymbol();
+   TR::SymbolType symbolKind = TR::SymbolType::typeClass;
+
+   switch (instr->getReloKind())
+      {
+      case TR_ConstantPool:
+         TR_ASSERT(symbol->isConst() || symbol->isConstantPoolAddress(), "unknown symbol type for TR_ConstantPool relocation %p\n", instr);
+         cg->addExternalRelocation(
+            TR::ExternalRelocation::create(
+               cursor,
+               (uint8_t *)instr->getSymbolReference()->getOwningMethod(comp)->constantPool(),
+               instrNode ? (uint8_t *)(intptr_t)instrNode->getInlinedSiteIndex() : (uint8_t *)-1,
+               (TR_ExternalRelocationTargetKind)instr->getReloKind(),
+               cg),
+            __FILE__,
+            __LINE__,
+            instrNode);
+         break;
+
+      case TR_ClassAddress:
+      case TR_ClassObject:
+         {
+         if (cg->needClassAndMethodPointerRelocations())
+            {
+            TR_ASSERT(!(instr->getSymbolReference()->isUnresolved() && !symbol->isClassObject()), "expecting a resolved symbol for this instruction class!\n");
+
+            *(int32_t *)cursor = (int32_t)TR::Compiler->cls.persistentClassPointerFromClassPointer(comp, (TR_OpaqueClassBlock*)(uintptr_t)instr->getSourceImmediate());
+            if (comp->getOption(TR_UseSymbolValidationManager))
+               {
+               cg->addExternalRelocation(
+                  TR::ExternalRelocation::create(
+                     cursor,
+                     (uint8_t *)(uintptr_t)instr->getSourceImmediate(),
+                     (uint8_t *)TR::SymbolType::typeClass,
+                     TR_SymbolFromManager,
+                     cg),
+                  __FILE__,
+                  __LINE__,
+                  instrNode);
+               }
+            else
+               {
+               cg->addExternalRelocation(
+                  TR::ExternalRelocation::create(
+                     cursor,
+                     (uint8_t *)instr->getSymbolReference(),
+                     instrNode ? (uint8_t *)(intptr_t)instrNode->getInlinedSiteIndex() : (uint8_t *)-1,
+                     (TR_ExternalRelocationTargetKind)instr->getReloKind(),
+                     cg),
+                  __FILE__,
+                  __LINE__,
+                  instrNode);
+               }
+            }
+         }
+         break;
+
+      case TR_MethodObject:
+      case TR_DataAddress:
+         TR_ASSERT(!(instr->getSymbolReference()->isUnresolved() && !symbol->isClassObject()), "expecting a resolved symbol for this instruction class!\n");
+
+         cg->addExternalRelocation(
+            TR::ExternalRelocation::create(
+               cursor,
+               (uint8_t *)instr->getSymbolReference(),
+               instrNode ? (uint8_t *)(intptr_t)instrNode->getInlinedSiteIndex() : (uint8_t *)-1,
+               (TR_ExternalRelocationTargetKind)instr->getReloKind(),
+               cg),
+            __FILE__,
+            __LINE__,
+            instrNode);
+         break;
+
+      case TR_MethodPointer:
+         if (instrNode && instrNode->getInlinedSiteIndex() == -1 &&
+             (void *)(uintptr_t) instr->getSourceImmediate() == comp->getCurrentMethod()->resolvedMethodAddress())
+            {
+            instr->setReloKind(TR_RamMethod);
+            }
+         symbolKind = TR::SymbolType::typeMethod;
+         // intentional fall-through
+      case TR_ClassPointer:
+         if (comp->getOption(TR_UseSymbolValidationManager))
+            {
+            cg->addExternalRelocation(
+               TR::ExternalRelocation::create(
+                  cursor,
+                  (uint8_t *)(uintptr_t)instr->getSourceImmediate(),
+                  (uint8_t *)symbolKind,
+                  TR_SymbolFromManager,
+                  cg),
+               __FILE__,
+               __LINE__,
+               instrNode);
+            }
+         else
+            {
+            cg->addExternalRelocation(
+               TR::ExternalRelocation::create(
+                  cursor,
+                  (uint8_t*)instrNode,
+                  (TR_ExternalRelocationTargetKind)instr->getReloKind(),
+                  cg),
+               __FILE__,
+               __LINE__,
+               instrNode);
+            }
+         break;
+
+      case TR_DebugCounter:
+         {
+         TR::DebugCounterBase *counter = comp->getCounterFromStaticAddress(instr->getSymbolReference());
+         if (counter == NULL)
+            {
+            comp->failCompilation<TR::CompilationException>("Could not generate relocation for debug counter for a TR::X86RegImmSymInstruction\n");
+            }
+
+         TR::DebugCounter::generateRelocation(comp, cursor, instrNode, counter);
+         }
+         break;
+
+      case TR_BlockFrequency:
+         {
+         TR_RelocationRecordInformation *recordInfo = (TR_RelocationRecordInformation *)comp->trMemory()->allocateMemory(sizeof( TR_RelocationRecordInformation), heapAlloc);
+         recordInfo->data1 = (uintptr_t)instr->getSymbolReference();
+         recordInfo->data2 = 0; // seqKind
+         cg->addExternalRelocation(
+            TR::ExternalRelocation::create(
+               cursor,
+               (uint8_t *)recordInfo,
+               TR_BlockFrequency,
+               cg),
+            __FILE__,
+            __LINE__,
+            instrNode);
+         }
+         break;
+
+      case TR_RecompQueuedFlag:
+         {
+         cg->addExternalRelocation(
+            TR::ExternalRelocation::create(
+               cursor,
+               NULL,
+               TR_RecompQueuedFlag,
+               cg),
+            __FILE__,
+            __LINE__,
+            instrNode);
+         }
+         break;
+
+      default:
+         TR_ASSERT(0, "invalid relocation kind for a TR::X86RegImmSymInstruction");
+      }
+   }

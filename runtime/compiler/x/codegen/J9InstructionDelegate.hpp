@@ -41,6 +41,7 @@ namespace J9 { typedef J9::X86::InstructionDelegate InstructionDelegateConnector
 namespace TR { class X86ImmInstruction; }
 namespace TR { class X86ImmSnippetInstruction; }
 namespace TR { class X86RegImmInstruction; }
+namespace TR { class X86RegImmSymInstruction; }
 
 namespace J9
 {
@@ -59,6 +60,7 @@ public:
    static void createMetaDataForCodeAddress(TR::X86ImmInstruction *instr, uint8_t *cursor);
    static void createMetaDataForCodeAddress(TR::X86ImmSnippetInstruction *instr, uint8_t *cursor);
    static void createMetaDataForCodeAddress(TR::X86RegImmInstruction *instr, uint8_t *cursor);
+   static void createMetaDataForCodeAddress(TR::X86RegImmSymInstruction *instr, uint8_t *cursor);
    };
 
 }
