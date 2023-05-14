@@ -42,6 +42,7 @@ namespace TR { class X86ImmInstruction; }
 namespace TR { class X86ImmSnippetInstruction; }
 namespace TR { class X86RegImmInstruction; }
 namespace TR { class X86RegImmSymInstruction; }
+namespace TR { class X86RegRegImmInstruction; }
 
 namespace J9
 {
@@ -61,6 +62,7 @@ public:
    static void createMetaDataForCodeAddress(TR::X86ImmSnippetInstruction *instr, uint8_t *cursor);
    static void createMetaDataForCodeAddress(TR::X86RegImmInstruction *instr, uint8_t *cursor);
    static void createMetaDataForCodeAddress(TR::X86RegImmSymInstruction *instr, uint8_t *cursor);
+   static void createMetaDataForCodeAddress(TR::X86RegRegImmInstruction *instr, uint8_t *cursor);
    };
 
 }
