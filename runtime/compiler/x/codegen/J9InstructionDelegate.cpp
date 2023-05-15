@@ -481,3 +481,83 @@ J9::X86::InstructionDelegate::createMetaDataForCodeAddress(TR::X86RegRegImmInstr
          }
       }
    }
+
+void
+J9::X86::InstructionDelegate::createMetaDataForCodeAddress(TR::X86MemImmInstruction *instr, uint8_t *cursor)
+   {
+   TR::CodeGenerator *cg = instr->cg();
+   TR::Compilation *comp = cg->comp();
+   TR::Node *instrNode = instr->getNode();
+
+   if (instr->getOpCode().hasIntImmediate())
+      {
+      // TODO: PIC registration code only works for 32-bit platforms as static PIC address is
+      // a 32 bit quantity
+      //
+      bool staticPIC = false;
+      if (std::find(comp->getStaticPICSites()->begin(), comp->getStaticPICSites()->end(), instr) != comp->getStaticPICSites()->end())
+         {
+         TR_ASSERT(instr->getOpCode().hasIntImmediate(), "StaticPIC: class pointer cannot be smaller than 4 bytes");
+         staticPIC = true;
+         }
+
+      // HCR register HCR pic sites in TR::X86MemImmInstruction::generateBinaryEncoding
+      bool staticHCRPIC = false;
+      if (std::find(comp->getStaticHCRPICSites()->begin(), comp->getStaticHCRPICSites()->end(), instr) != comp->getStaticHCRPICSites()->end())
+         {
+         TR_ASSERT(instr->getOpCode().hasIntImmediate(), "StaticPIC: class pointer cannot be smaller than 4 bytes");
+         staticHCRPIC = true;
+         }
+
+      bool staticMethodPIC = false;
+      if (std::find(comp->getStaticMethodPICSites()->begin(), comp->getStaticMethodPICSites()->end(), instr) != comp->getStaticMethodPICSites()->end())
+         staticMethodPIC = true;
+
+      if (staticPIC)
+         {
+         cg->jitAdd32BitPicToPatchOnClassUnload(((void *)(uintptr_t) instr->getSourceImmediateAsAddress()), (void *) cursor);
+         }
+
+      if (staticHCRPIC)
+         {
+         cg->jitAdd32BitPicToPatchOnClassRedefinition(((void *)(uintptr_t) instr->getSourceImmediateAsAddress()), (void *) cursor);
+         }
+
+      if (staticMethodPIC)
+         {
+         void *classPointer = (void *) cg->fe()->createResolvedMethod(cg->trMemory(), (TR_OpaqueMethodBlock *)(uintptr_t) instr->getSourceImmediateAsAddress(), comp->getCurrentMethod())->classOfMethod();
+         cg->jitAdd32BitPicToPatchOnClassUnload(classPointer, (void *) cursor);
+         }
+
+      if (instr->getReloKind() == TR_ClassAddress && cg->needClassAndMethodPointerRelocations())
+         {
+         TR_ASSERT(instrNode, "node expected to be non-NULL here");
+         if (comp->getOption(TR_UseSymbolValidationManager))
+            {
+            cg->addExternalRelocation(
+               TR::ExternalRelocation::create(
+                  cursor,
+                  (uint8_t *)(uintptr_t)instr->getSourceImmediate(),
+                  (uint8_t *)TR::SymbolType::typeClass,
+                  TR_SymbolFromManager,
+                  cg),
+               __FILE__,
+               __LINE__,
+               instrNode);
+            }
+         else
+            {
+            cg->addExternalRelocation(
+               TR::ExternalRelocation::create(
+                  cursor,
+                  (uint8_t *)instrNode->getSymbolReference(),
+                  (uint8_t *)(intptr_t)instrNode->getInlinedSiteIndex(),
+                  TR_ClassAddress,
+                  cg),
+               __FILE__,
+               __LINE__,
+               instrNode);
+            }
+         }
+      }
+   }
