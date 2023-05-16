@@ -135,6 +135,260 @@ J9::X86::InstructionDelegate::createMetaDataForCodeAddress(TR::X86ImmSnippetInst
       }
    }
 
+void
+J9::X86::InstructionDelegate::createMetaDataForCodeAddress(TR::X86ImmSymInstruction *instr, uint8_t *cursor)
+   {
+   TR::CodeGenerator *cg = instr->cg();
+   TR::Compilation *comp = cg->comp();
+   TR::Node *instrNode = instr->getNode();
+
+   if (instr->getOpCode().hasIntImmediate())
+      {
+      TR::Symbol *sym = instr->getSymbolReference()->getSymbol();
+
+      if (std::find(comp->getStaticHCRPICSites()->begin(), comp->getStaticHCRPICSites()->end(), instr) != comp->getStaticHCRPICSites()->end())
+         {
+         cg->jitAdd32BitPicToPatchOnClassRedefinition(((void *)(uintptr_t) instr->getSourceImmediateAsAddress()), (void *) cursor);
+         }
+
+      if (instr->getOpCode().isCallImmOp() || instr->getOpCode().isBranchOp())
+         {
+         if (!comp->isRecursiveMethodTarget(sym))
+            {
+            TR::LabelSymbol *labelSym = sym->getLabelSymbol();
+
+            if (labelSym)
+               {
+               cg->addRelocation(new (cg->trHeapMemory()) TR::LabelRelative32BitRelocation(cursor, labelSym));
+               }
+            else
+               {
+               TR::MethodSymbol *methodSym = sym->getMethodSymbol();
+               TR::ResolvedMethodSymbol *resolvedMethodSym = sym->getResolvedMethodSymbol();
+               TR_ResolvedMethod *resolvedMethod = resolvedMethodSym ? resolvedMethodSym->getResolvedMethod() : 0;
+
+               if (methodSym && methodSym->isHelper())
+                  {
+                  cg->addProjectSpecializedRelocation(
+                     cursor,
+                     (uint8_t *)instr->getSymbolReference(),
+                     NULL,
+                     TR_HelperAddress,
+                     __FILE__,
+                     __LINE__,
+                     instrNode);
+                  }
+               else if (methodSym && methodSym->isJNI() && instrNode && instrNode->isPreparedForDirectJNI())
+                  {
+                  static const int methodJNITypes = 4;
+                  static const int reloTypes[methodJNITypes] = {TR_JNIVirtualTargetAddress, 0 /*Interfaces*/, TR_JNIStaticTargetAddress, TR_JNISpecialTargetAddress};
+                  int rType = methodSym->getMethodKind()-1;  //method kinds are 1-based
+                  TR_ASSERT(reloTypes[rType], "There shouldn't be direct JNI interface calls!");
+
+                  uint8_t *startOfInstruction = instr->getBinaryEncoding();
+                  uint8_t *startOfImmediate = cursor;
+                  intptr_t diff = reinterpret_cast<intptr_t>(startOfImmediate) - reinterpret_cast<intptr_t>(startOfInstruction);
+                  TR_ASSERT_FATAL(diff > 0, "Address of immediate %p less than address of instruction %p\n",
+                                  startOfImmediate, startOfInstruction);
+
+                  TR_RelocationRecordInformation *info =
+                     reinterpret_cast<TR_RelocationRecordInformation *>(
+                        comp->trMemory()->allocateHeapMemory(sizeof(TR_RelocationRecordInformation)));
+                  info->data1 = static_cast<uintptr_t>(diff);
+                  info->data2 = reinterpret_cast<uintptr_t>(instrNode->getSymbolReference());
+                  int16_t inlinedSiteIndex = instrNode ? instrNode->getInlinedSiteIndex() : -1;
+                  info->data3 = static_cast<uintptr_t>(inlinedSiteIndex);
+
+                  cg->addExternalRelocation(
+                     TR::ExternalRelocation::create(
+                        startOfInstruction,
+                        reinterpret_cast<uint8_t *>(info),
+                        static_cast<TR_ExternalRelocationTargetKind>(reloTypes[rType]),
+                        cg),
+                     __FILE__,
+                     __LINE__,
+                     instrNode);
+                  }
+               else if (resolvedMethod)
+                  {
+                  cg->addProjectSpecializedRelocation(
+                     cursor,
+                     (uint8_t *)instr->getSymbolReference()->getMethodAddress(),
+                     NULL,
+                     TR_MethodCallAddress,
+                     __FILE__,
+                     __LINE__,
+                     instrNode);
+                  }
+               else
+                  {
+                  cg->addProjectSpecializedRelocation(
+                     cursor,
+                     (uint8_t *)instr->getSymbolReference(),
+                     NULL,
+                     TR_RelativeMethodAddress,
+                     __FILE__,
+                     __LINE__,
+                     instrNode);
+                  }
+               }
+            }
+         }
+      else if (instr->getOpCodeValue() == TR::InstOpCode::DDImm4)
+         {
+         cg->addExternalRelocation(
+            TR::ExternalRelocation::create(
+               cursor,
+               (uint8_t *)(uintptr_t)instr->getSourceImmediate(),
+               instrNode ? (uint8_t *)(intptr_t)instrNode->getInlinedSiteIndex() : (uint8_t *)-1,
+               TR_ConstantPool,
+               cg),
+            __FILE__,
+            __LINE__,
+            instrNode);
+         }
+      else if (instr->getOpCodeValue() == TR::InstOpCode::PUSHImm4)
+         {
+         TR::Symbol *symbol = instr->getSymbolReference()->getSymbol();
+         if (symbol->isConst())
+            {
+            cg->addExternalRelocation(
+               TR::ExternalRelocation::create(
+                  cursor,
+                  (uint8_t *)instr->getSymbolReference()->getOwningMethod(comp)->constantPool(),
+                  instrNode ? (uint8_t *)(intptr_t)instrNode->getInlinedSiteIndex() : (uint8_t *)-1,
+                  TR_ConstantPool,
+                  cg),
+               __FILE__,
+               __LINE__,
+               instrNode);
+            }
+         else if (symbol->isClassObject())
+            {
+            if (cg->needClassAndMethodPointerRelocations())
+               {
+               if (comp->getOption(TR_UseSymbolValidationManager))
+                  {
+                  cg->addExternalRelocation(
+                     TR::ExternalRelocation::create(
+                        cursor,
+                        (uint8_t *)(uintptr_t)instr->getSourceImmediate(),
+                        (uint8_t *)TR::SymbolType::typeClass,
+                        TR_SymbolFromManager,
+                        cg),
+                     __FILE__,
+                     __LINE__,
+                     instrNode);
+                  }
+               else
+                  {
+                  cg->addExternalRelocation(
+                     TR::ExternalRelocation::create(
+                        cursor,
+                        (uint8_t *)instr->getSymbolReference(),
+                        instrNode ? (uint8_t *)(intptr_t)instrNode->getInlinedSiteIndex() : (uint8_t *)-1,
+                        TR_ClassAddress,
+                        cg),
+                     __FILE__,
+                     __LINE__,
+                     instrNode);
+                  }
+               }
+            }
+         else if (symbol->isMethod())
+            {
+            cg->addExternalRelocation(
+               TR::ExternalRelocation::create(
+                  cursor,
+                  (uint8_t *)instr->getSymbolReference(),
+                  instrNode ? (uint8_t *)(intptr_t)instrNode->getInlinedSiteIndex() : (uint8_t *)-1,
+                  TR_MethodObject,
+                  cg),
+               __FILE__,
+               __LINE__,
+               instrNode);
+            }
+         else
+            {
+            TR::StaticSymbol *staticSym = sym->getStaticSymbol();
+            if (staticSym && staticSym->isCompiledMethod())
+               {
+               cg->addExternalRelocation(
+                  TR::ExternalRelocation::create(
+                     cursor,
+                     0,
+                     TR_RamMethod,
+                     cg),
+                  __FILE__,
+                  __LINE__,
+                  instrNode);
+               }
+            else if (staticSym && staticSym->isStartPC())
+               {
+               cg->addExternalRelocation(
+                  TR::ExternalRelocation::create(
+                     cursor,
+                     (uint8_t *) (staticSym->getStaticAddress()),
+                     TR_AbsoluteMethodAddress,
+                     cg),
+                  __FILE__,
+                  __LINE__,
+                  instrNode);
+               }
+            else if (sym->isDebugCounter())
+               {
+               TR::DebugCounterBase *counter = comp->getCounterFromStaticAddress(instr->getSymbolReference());
+               if (counter == NULL)
+                  {
+                  comp->failCompilation<TR::CompilationException>("Could not generate relocation for debug counter for a TR::X86ImmSymInstruction\n");
+                  }
+               TR::DebugCounter::generateRelocation(comp, cursor, instrNode, counter);
+               }
+            else if (sym->isBlockFrequency())
+               {
+               TR_RelocationRecordInformation *recordInfo =
+                  (TR_RelocationRecordInformation *)comp->trMemory()->allocateMemory(sizeof(TR_RelocationRecordInformation), heapAlloc);
+               recordInfo->data1 = (uintptr_t)instr->getSymbolReference();
+               recordInfo->data2 = 0; // seqKind
+               cg->addExternalRelocation(
+                  TR::ExternalRelocation::create(
+                     cursor,
+                     (uint8_t *)recordInfo,
+                     TR_BlockFrequency,
+                     cg),
+                  __FILE__,
+                  __LINE__,
+                  instrNode);
+               }
+            else if (sym->isRecompQueuedFlag())
+               {
+               cg->addExternalRelocation(
+                  TR::ExternalRelocation::create(
+                     cursor,
+                     NULL,
+                     TR_RecompQueuedFlag,
+                     cg),
+                  __FILE__,
+                  __LINE__,
+                  instrNode);
+               }
+            else
+               {
+               cg->addExternalRelocation(
+                  TR::ExternalRelocation::create(
+                     cursor,
+                     (uint8_t *)instr->getSymbolReference(),
+                     instrNode ? (uint8_t *)(intptr_t)instrNode->getInlinedSiteIndex() : (uint8_t *)-1,
+                     TR_DataAddress,
+                     cg),
+                  __FILE__,
+                  __LINE__,
+                  instrNode);
+               }
+            }
+         }
+      }
+   }
 
 void
 J9::X86::InstructionDelegate::createMetaDataForCodeAddress(TR::X86RegImmInstruction *instr, uint8_t *cursor)
