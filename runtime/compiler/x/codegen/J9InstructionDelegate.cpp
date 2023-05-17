@@ -975,3 +975,259 @@ J9::X86::InstructionDelegate::createMetaDataForCodeAddress(TR::X86RegMemImmInstr
          }
       }
    }
+
+void
+J9::X86::InstructionDelegate::createMetaDataForCodeAddress(TR::AMD64RegImm64Instruction *instr, uint8_t *cursor)
+   {
+   TR::CodeGenerator *cg = instr->cg();
+   TR::Compilation *comp = cg->comp();
+   TR::Node *instrNode = instr->getNode();
+
+   bool staticPIC = false;
+   if (std::find(comp->getStaticPICSites()->begin(), comp->getStaticPICSites()->end(), instr) != comp->getStaticPICSites()->end())
+      {
+      staticPIC = true;
+      }
+
+   bool staticHCRPIC = false;
+   if (std::find(comp->getStaticHCRPICSites()->begin(), comp->getStaticHCRPICSites()->end(), instr) != comp->getStaticHCRPICSites()->end())
+      {
+      staticHCRPIC = true;
+      }
+
+   bool staticMethodPIC = false;
+   if (std::find(comp->getStaticMethodPICSites()->begin(), comp->getStaticMethodPICSites()->end(), instr) != comp->getStaticMethodPICSites()->end())
+      {
+      staticMethodPIC = true;
+      }
+
+   TR::SymbolReference *methodSymRef = instrNode->getOpCode().hasSymbolReference() ? instrNode->getSymbolReference() : NULL;
+
+   if (cg->needRelocationsForHelpers())
+      {
+      if (instrNode->getOpCode().hasSymbolReference() &&
+          methodSymRef &&
+          (methodSymRef->getReferenceNumber() == TR_referenceArrayCopy ||
+          methodSymRef->getReferenceNumber() == TR_prepareForOSR))
+         {
+         // The reference number is set in J9X86Evaluator.cpp/VMarrayStoreCheckArrayCopyEvaluator
+         cg->addExternalRelocation(
+            TR::ExternalRelocation::create(
+               cursor,
+               (uint8_t *)methodSymRef,
+               TR_AbsoluteHelperAddress,
+               cg),
+            __FILE__,
+            __LINE__,
+            instrNode);
+         }
+      }
+
+   if (comp->fej9()->needRelocationsForStatics())
+      {
+      switch (instr->getReloKind())
+         {
+         case TR_HEAP_BASE_FOR_BARRIER_RANGE:
+            cg->addExternalRelocation(
+               TR::ExternalRelocation::create(
+                  cursor,
+                  (uint8_t*)TR_HeapBaseForBarrierRange0,
+                  TR_GlobalValue,
+                  cg),
+               __FILE__,
+               __LINE__,
+               instrNode);
+            break;
+         case TR_HEAP_SIZE_FOR_BARRIER_RANGE:
+            cg->addExternalRelocation(
+               TR::ExternalRelocation::create(
+                  cursor,
+                  (uint8_t*)TR_HeapSizeForBarrierRange0,
+                  TR_GlobalValue,
+                  cg),
+               __FILE__,
+               __LINE__,
+               instrNode);
+            break;
+         case TR_ACTIVE_CARD_TABLE_BASE:
+            cg->addExternalRelocation(
+               TR::ExternalRelocation::create(
+                  cursor,
+                  (uint8_t*)TR_ActiveCardTableBase,
+                  TR_GlobalValue,
+                  cg),
+               __FILE__,
+               __LINE__,
+               instrNode);
+            break;
+         }
+      }
+
+   if (comp->fej9()->needClassAndMethodPointerRelocations())
+      {
+      if (((instrNode->getOpCodeValue() == TR::aconst) && instrNode->isMethodPointerConstant() && instr->needsAOTRelocation()) || staticHCRPIC)
+         {
+         cg->addExternalRelocation(
+            TR::ExternalRelocation::create(
+               cursor,
+               NULL,
+               TR_RamMethod,
+               cg),
+            __FILE__,
+            __LINE__,
+            instrNode);
+         }
+      else
+         {
+         TR::SymbolType symbolKind = TR::SymbolType::typeClass;
+         switch (instr->getReloKind())
+            {
+            case TR_ClassAddress:
+               {
+               TR_ASSERT(instrNode, "node assumed to be non-NULL here");
+               if (comp->getOption(TR_UseSymbolValidationManager))
+                  {
+                  cg->addExternalRelocation(
+                     TR::ExternalRelocation::create(
+                        cursor,
+                        (uint8_t *)instr->getSourceImmediate(),
+                        (uint8_t *)TR::SymbolType::typeClass,
+                        TR_SymbolFromManager,
+                        cg),
+                     __FILE__,
+                     __LINE__,
+                     instrNode);
+                  }
+               else
+                  {
+                  cg->addExternalRelocation(
+                     TR::ExternalRelocation::create(
+                        cursor,
+                        (uint8_t *)methodSymRef,
+                        (uint8_t *)(intptr_t)instrNode->getInlinedSiteIndex(),
+                        TR_ClassAddress,
+                        cg),
+                     __FILE__,
+                     __LINE__,
+                     instrNode);
+                  }
+               }
+               break;
+
+            case TR_MethodPointer:
+               if (instrNode && instrNode->getInlinedSiteIndex() == -1 &&
+                   (void *) instr->getSourceImmediate() == comp->getCurrentMethod()->resolvedMethodAddress())
+                  {
+                  instr->setReloKind(TR_RamMethod);
+                  }
+               // intentional fall-through
+            case TR_RamMethod:
+               symbolKind = TR::SymbolType::typeMethod;
+               // intentional fall-through
+            case TR_ClassPointer:
+               if (comp->getOption(TR_UseSymbolValidationManager))
+                  {
+                  cg->addExternalRelocation(
+                     TR::ExternalRelocation::create(
+                        cursor,
+                        (uint8_t *)instr->getSourceImmediate(),
+                        (uint8_t *)symbolKind,
+                        TR_SymbolFromManager,
+                        cg),
+                     __FILE__,
+                     __LINE__,
+                     instrNode);
+                  }
+               else
+                  {
+                  cg->addExternalRelocation(
+                     TR::ExternalRelocation::create(
+                        cursor,
+                        (uint8_t*)instrNode,
+                        (TR_ExternalRelocationTargetKind) instr->getReloKind(),
+                        cg),
+                     __FILE__,
+                     __LINE__,
+                     instrNode);
+                  }
+               break;
+
+            case TR_StaticRamMethodConst:
+            case TR_VirtualRamMethodConst:
+            case TR_SpecialRamMethodConst:
+               cg->addExternalRelocation(
+                  TR::ExternalRelocation::create(
+                     cursor,
+                     (uint8_t *) instrNode->getSymbolReference(),
+                     instrNode ? (uint8_t *)(intptr_t)instrNode->getInlinedSiteIndex() : (uint8_t *)-1,
+                     (TR_ExternalRelocationTargetKind) instr->getReloKind(),
+                     cg),
+                  __FILE__,
+                  __LINE__,
+                  instrNode);
+               break;
+
+            case TR_JNIStaticTargetAddress:
+            case TR_JNISpecialTargetAddress:
+            case TR_JNIVirtualTargetAddress:
+               {
+               uint8_t *startOfInstruction = instr->getBinaryEncoding();
+               uint8_t *startOfImmediate = cursor;
+               intptr_t diff = reinterpret_cast<intptr_t>(startOfImmediate) - reinterpret_cast<intptr_t>(startOfInstruction);
+
+               TR_ASSERT_FATAL(diff > 0, "Address of immediate %p less than address of instruction %p\n",
+                               startOfImmediate, startOfInstruction);
+
+               TR_RelocationRecordInformation *info =
+                  reinterpret_cast<TR_RelocationRecordInformation *>(
+                     comp->trMemory()->allocateHeapMemory(sizeof(TR_RelocationRecordInformation)));
+               info->data1 = static_cast<uintptr_t>(diff);
+               info->data2 = reinterpret_cast<uintptr_t>(instrNode->getSymbolReference());
+               int16_t inlinedSiteIndex = instrNode ? instrNode->getInlinedSiteIndex() : -1;
+               info->data3 = static_cast<uintptr_t>(inlinedSiteIndex);
+
+               cg->addExternalRelocation(
+                  TR::ExternalRelocation::create(
+                     startOfInstruction,
+                     reinterpret_cast<uint8_t *>(info),
+                     static_cast<TR_ExternalRelocationTargetKind>(instr->getReloKind()),
+                     cg),
+                  __FILE__,
+                  __LINE__,
+                  instrNode);
+               }
+               break;
+            }
+         }
+      }
+
+   if (staticPIC)
+      {
+      cg->jitAddPicToPatchOnClassUnload(((void *) instr->getSourceImmediate()), (void *) cursor);
+      }
+
+   if (staticHCRPIC)
+      {
+      cg->addExternalRelocation(
+         TR::ExternalRelocation::create(
+            (uint8_t *)cursor,
+            (uint8_t *)instr->getSourceImmediate(),
+            TR_HCR,
+            cg),
+         __FILE__,
+         __LINE__,
+         instrNode);
+
+      cg->jitAddPicToPatchOnClassRedefinition(((void *) instr->getSourceImmediate()), (void *) cursor);
+      }
+
+   if (staticMethodPIC)
+      {
+      void *classPointer = (void *) cg->fe()->createResolvedMethod(
+         cg->trMemory(),
+         (TR_OpaqueMethodBlock *) instr->getSourceImmediate(),
+         comp->getCurrentMethod())->classOfMethod();
+
+      cg->jitAddPicToPatchOnClassUnload(classPointer, (void *) cursor);
+      }
+   }
