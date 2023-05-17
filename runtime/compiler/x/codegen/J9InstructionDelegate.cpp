@@ -945,3 +945,18 @@ J9::X86::InstructionDelegate::createMetaDataForCodeAddress(TR::X86MemImmSymInstr
          instrNode);
       }
    }
+
+void
+J9::X86::InstructionDelegate::createMetaDataForCodeAddress(TR::X86MemRegImmInstruction *instr, uint8_t *cursor)
+   {
+   TR::CodeGenerator *cg = instr->cg();
+   TR::Compilation *comp = cg->comp();
+
+   if (instr->getOpCode().hasIntImmediate())
+      {
+      if (std::find(comp->getStaticHCRPICSites()->begin(), comp->getStaticHCRPICSites()->end(), instr) != comp->getStaticHCRPICSites()->end())
+         {
+         cg->jitAdd32BitPicToPatchOnClassRedefinition(((void *)(uintptr_t) instr->getSourceImmediateAsAddress()), (void *) cursor);
+         }
+      }
+   }
