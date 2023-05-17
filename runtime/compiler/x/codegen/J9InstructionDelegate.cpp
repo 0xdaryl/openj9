@@ -815,3 +815,133 @@ J9::X86::InstructionDelegate::createMetaDataForCodeAddress(TR::X86MemImmInstruct
          }
       }
    }
+
+void
+J9::X86::InstructionDelegate::createMetaDataForCodeAddress(TR::X86MemImmSymInstruction *instr, uint8_t *cursor)
+   {
+   TR::CodeGenerator *cg = instr->cg();
+   TR::Compilation *comp = cg->comp();
+   TR::Node *instrNode = instr->getNode();
+   TR::SymbolReference *instrSymRef = instr->getSymbolReference();
+
+   if (std::find(comp->getStaticHCRPICSites()->begin(), comp->getStaticHCRPICSites()->end(), instr) != comp->getStaticHCRPICSites()->end())
+      {
+      cg->jitAdd32BitPicToPatchOnClassRedefinition(((void *)(uintptr_t) instr->getSourceImmediateAsAddress()), (void *) cursor);
+      }
+
+   TR::Symbol *symbol = instrSymRef->getSymbol();
+
+   TR_ASSERT(!(instrSymRef->isUnresolved() && !symbol->isClassObject()),
+      "expecting a resolved symbol for this instruction class!\n");
+
+   if (symbol->isConst())
+      {
+      cg->addExternalRelocation(
+         TR::ExternalRelocation::create(
+            cursor,
+            (uint8_t *)instrSymRef->getOwningMethod(comp)->constantPool(),
+            instrNode ? (uint8_t *)(intptr_t)instrNode->getInlinedSiteIndex() : (uint8_t *)-1,
+            TR_ConstantPool,
+            cg),
+         __FILE__,
+         __LINE__,
+         instrNode);
+      }
+   else if (symbol->isClassObject())
+      {
+      TR_ASSERT(instrNode, "No node where expected!");
+      if (cg->needClassAndMethodPointerRelocations())
+         {
+         *(int32_t *)cursor = (int32_t)TR::Compiler->cls.persistentClassPointerFromClassPointer(comp, (TR_OpaqueClassBlock*)(uintptr_t)instr->getSourceImmediate());
+         if (comp->getOption(TR_UseSymbolValidationManager))
+            {
+            cg->addExternalRelocation(
+               TR::ExternalRelocation::create(
+                  cursor,
+                  (uint8_t *)(uintptr_t)instr->getSourceImmediate(),
+                  (uint8_t *)TR::SymbolType::typeClass,
+                  TR_SymbolFromManager,
+                  cg),
+               __FILE__,
+               __LINE__,
+               instrNode);
+            }
+         else
+            {
+            cg->addExternalRelocation(
+               TR::ExternalRelocation::create(
+                  cursor,
+                  (uint8_t *)instrSymRef,
+                  instrNode ? (uint8_t *)(intptr_t)instrNode->getInlinedSiteIndex() : (uint8_t *)-1,
+                  TR_ClassAddress,
+                  cg),
+               __FILE__,
+               __LINE__,
+               instrNode);
+            }
+         }
+      }
+   else if (symbol->isMethod())
+      {
+      cg->addExternalRelocation(
+         TR::ExternalRelocation::create(
+            cursor,
+            (uint8_t *)instrSymRef,
+            instrNode ? (uint8_t *)(intptr_t)instrNode->getInlinedSiteIndex() : (uint8_t *)-1,
+            TR_MethodObject,
+            cg),
+         __FILE__,
+         __LINE__,
+         instrNode);
+      }
+   else if (symbol->isDebugCounter())
+      {
+      TR::DebugCounterBase *counter = comp->getCounterFromStaticAddress(instrSymRef);
+      if (counter == NULL)
+         {
+         comp->failCompilation<TR::CompilationException>("Could not generate relocation for debug counter for a TR::X86MemImmSymInstruction\n");
+         }
+
+      TR::DebugCounter::generateRelocation(comp, cursor, instrNode, counter);
+      }
+   else if (symbol->isBlockFrequency())
+      {
+      TR_RelocationRecordInformation *recordInfo = ( TR_RelocationRecordInformation *)comp->trMemory()->allocateMemory(sizeof( TR_RelocationRecordInformation), heapAlloc);
+      recordInfo->data1 = (uintptr_t)instrSymRef;
+      recordInfo->data2 = 0; // seqKind
+      cg->addExternalRelocation(
+         TR::ExternalRelocation::create(
+            cursor,
+            (uint8_t *)recordInfo,
+            TR_BlockFrequency,
+            cg),
+         __FILE__,
+         __LINE__,
+         instrNode);
+      }
+   else if (symbol->isRecompQueuedFlag())
+      {
+      cg->addExternalRelocation(
+         TR::ExternalRelocation::create(
+            cursor,
+            NULL,
+            TR_RecompQueuedFlag,
+            cg),
+         __FILE__,
+         __LINE__,
+         instrNode);
+      }
+   else
+      {
+      cg->addExternalRelocation(
+         TR::ExternalRelocation::create(
+            cursor,
+            (uint8_t *)instrSymRef,
+            instrNode ? (uint8_t *)(intptr_t)instrNode->getInlinedSiteIndex() : (uint8_t *)-1,
+            TR_DataAddress,
+            cg),
+         __FILE__,
+         __LINE__,
+         instrNode);
+      }
+   }
