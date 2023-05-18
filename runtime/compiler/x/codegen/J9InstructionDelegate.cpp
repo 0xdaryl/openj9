@@ -1231,3 +1231,139 @@ J9::X86::InstructionDelegate::createMetaDataForCodeAddress(TR::AMD64RegImm64Inst
       cg->jitAddPicToPatchOnClassUnload(classPointer, (void *) cursor);
       }
    }
+
+void
+J9::X86::InstructionDelegate::createMetaDataForCodeAddress(TR::AMD64RegImm64SymInstruction *instr, uint8_t *cursor)
+   {
+   TR::CodeGenerator *cg = instr->cg();
+   TR::Compilation *comp = cg->comp();
+   TR::Node *instrNode = instr->getNode();
+   TR::SymbolReference *instrSymRef = instr->getSymbolReference();
+
+   if (instrSymRef->getSymbol()->isLabel())
+      {
+      // Assumes a 64-bit absolute relocation (i.e., not relative).
+      //
+      cg->addRelocation(new (cg->trHeapMemory()) TR::LabelAbsoluteRelocation(cursor, instrSymRef->getSymbol()->castToLabelSymbol()));
+
+      switch (instr->getReloKind())
+         {
+         case TR_AbsoluteMethodAddress:
+            cg->addExternalRelocation(
+               TR::ExternalRelocation::create(
+                  cursor,
+                  NULL,
+                  TR_AbsoluteMethodAddress,
+                  cg),
+               __FILE__,
+               __LINE__,
+               instrNode);
+            break;
+
+         default:
+            break;
+         }
+      }
+   else
+      {
+      switch (instr->getReloKind())
+         {
+         case TR_ConstantPool:
+            cg->addExternalRelocation(
+               TR::ExternalRelocation::create(
+                  cursor,
+                  (uint8_t *)instrSymRef->getOwningMethod(comp)->constantPool(),
+                  instrNode ? (uint8_t *)(intptr_t)instrNode->getInlinedSiteIndex() : (uint8_t *)-1,
+                  (TR_ExternalRelocationTargetKind) instr->getReloKind(),
+                  cg),
+               __FILE__,
+               __LINE__,
+               instrNode);
+            break;
+
+         case TR_DataAddress:
+         case TR_StaticDefaultValueInstance:
+            {
+            if (cg->needRelocationsForStatics())
+               {
+               cg->addExternalRelocation(
+                  TR::ExternalRelocation::create(
+                     cursor,
+                     (uint8_t *) instrSymRef,
+                     (uint8_t *)instrNode ? (uint8_t *)(intptr_t) instrNode->getInlinedSiteIndex() : (uint8_t *)-1,
+                     (TR_ExternalRelocationTargetKind) instr->getReloKind(),
+                     cg),
+                  __FILE__,
+                  __LINE__,
+                  instrNode);
+               }
+            break;
+            }
+
+         case TR_NativeMethodAbsolute:
+            {
+            if (comp->getOption(TR_EmitRelocatableELFFile))
+               {
+               TR_ResolvedMethod *target = instrSymRef->getSymbol()->castToResolvedMethodSymbol()->getResolvedMethod();
+               cg->addStaticRelocation(
+                  TR::StaticRelocation(
+                     cursor,
+                     target->externalName(cg->trMemory()),
+                     TR::StaticRelocationSize::word64,
+                     TR::StaticRelocationType::Absolute));
+               }
+            break;
+            }
+
+         case TR_DebugCounter:
+            {
+            if (cg->needRelocationsForStatics())
+               {
+               TR::DebugCounterBase *counter = comp->getCounterFromStaticAddress(instrSymRef);
+               if (counter == NULL)
+                  {
+                  comp->failCompilation<TR::CompilationException>("Could not generate relocation for debug counter for a TR::AMD64RegImm64SymInstruction\n");
+                  }
+
+               TR::DebugCounter::generateRelocation(comp, cursor, instrNode, counter);
+               }
+            }
+            break;
+
+         case TR_BlockFrequency:
+            {
+            TR_RelocationRecordInformation *recordInfo =
+               (TR_RelocationRecordInformation *)comp->trMemory()->allocateMemory(sizeof(TR_RelocationRecordInformation), heapAlloc);
+            recordInfo->data1 = (uintptr_t)instrSymRef;
+            recordInfo->data2 = 0; // seqKind
+            cg->addExternalRelocation(
+               TR::ExternalRelocation::create(
+                  cursor,
+                  (uint8_t *)recordInfo,
+                  TR_BlockFrequency,
+                  cg),
+               __FILE__,
+               __LINE__,
+               instrNode);
+            }
+            break;
+
+         case TR_RecompQueuedFlag:
+            {
+            cg->addExternalRelocation(
+               TR::ExternalRelocation::create(
+                  cursor,
+                  NULL,
+                  TR_RecompQueuedFlag,
+                  cg),
+               __FILE__,
+               __LINE__,
+               instrNode);
+            }
+            break;
+
+         default:
+            break;
+         }
+      }
+   }
