@@ -1367,3 +1367,21 @@ J9::X86::InstructionDelegate::createMetaDataForCodeAddress(TR::AMD64RegImm64SymI
          }
       }
    }
+
+void
+J9::X86::InstructionDelegate::createMetaDataForCodeAddress(TR::AMD64Imm64Instruction *instr, uint8_t *cursor)
+   {
+   TR::CodeGenerator *cg = instr->cg();
+
+   if (instr->needsAOTRelocation())
+      {
+      cg->addProjectSpecializedRelocation(
+         cursor,
+         0,
+         NULL,
+         TR_BodyInfoAddress,
+         __FILE__,
+         __LINE__,
+         instr->getNode());
+      }
+   }
