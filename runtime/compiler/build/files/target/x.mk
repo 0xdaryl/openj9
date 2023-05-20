@@ -65,6 +65,7 @@ JIT_PRODUCT_SOURCE_FILES+=\
     compiler/x/codegen/J9AheadOfTimeCompile.cpp \
     compiler/x/codegen/J9CodeGenerator.cpp \
     compiler/x/codegen/J9InstructionDelegate.cpp \
+    compiler/x/codegen/J9MemoryReference.cpp \
     compiler/x/codegen/J9Linkage.cpp \
     compiler/x/codegen/J9LinkageUtils.cpp \
     compiler/x/codegen/J9Snippet.cpp \
