@@ -1385,3 +1385,21 @@ J9::X86::InstructionDelegate::createMetaDataForCodeAddress(TR::AMD64Imm64Instruc
          instr->getNode());
       }
    }
+
+void
+J9::X86::InstructionDelegate::createMetaDataForCodeAddress(TR::AMD64Imm64SymInstruction *instr, uint8_t *cursor)
+   {
+   TR::CodeGenerator *cg = instr->cg();
+
+   if (instr->getOpCodeValue() == TR::InstOpCode::DQImm64)
+      {
+      cg->addProjectSpecializedRelocation(
+         cursor,
+         (uint8_t *)(uint64_t)instr->getSourceImmediate(),
+         instr->getNode() ? (uint8_t *)(intptr_t)instr->getNode()->getInlinedSiteIndex() : (uint8_t *)-1,
+         TR_Thunks,
+         __FILE__,
+         __LINE__,
+         instr->getNode());
+      }
+   }
