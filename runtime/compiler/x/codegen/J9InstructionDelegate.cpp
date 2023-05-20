@@ -1403,3 +1403,25 @@ J9::X86::InstructionDelegate::createMetaDataForCodeAddress(TR::AMD64Imm64SymInst
          instr->getNode());
       }
    }
+
+void
+J9::X86::InstructionDelegate::createMetaDataForCodeAddress(TR::X86LabelInstruction *instr, uint8_t *cursor)
+   {
+   TR::CodeGenerator *cg = instr->cg();
+
+   if (!instr->getOpCode().hasRelativeBranchDisplacement() &&
+       !(instr->getOpCodeValue() == TR::InstOpCode::label))
+      {
+      if (instr->getReloType() == TR_AbsoluteMethodAddress)
+         {
+         cg->addProjectSpecializedRelocation(
+            cursor,
+            NULL,
+            NULL,
+            TR_AbsoluteMethodAddress,
+            __FILE__,
+            __LINE__,
+            instr->getNode());
+         }
+      }
+   }

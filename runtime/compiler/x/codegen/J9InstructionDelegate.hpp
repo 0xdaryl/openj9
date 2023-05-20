@@ -52,6 +52,7 @@ namespace TR { class AMD64RegImm64Instruction; }
 namespace TR { class AMD64RegImm64SymInstruction; }
 namespace TR { class AMD64Imm64Instruction; }
 namespace TR { class AMD64Imm64SymInstruction; }
+namespace TR { class X86LabelInstruction; }
 
 namespace J9
 {
@@ -81,6 +82,7 @@ public:
    static void createMetaDataForCodeAddress(TR::AMD64RegImm64SymInstruction *instr, uint8_t *cursor);
    static void createMetaDataForCodeAddress(TR::AMD64Imm64Instruction *instr, uint8_t *cursor);
    static void createMetaDataForCodeAddress(TR::AMD64Imm64SymInstruction *instr, uint8_t *cursor);
+   static void createMetaDataForCodeAddress(TR::X86LabelInstruction *instr, uint8_t *cursor);
    };
 
 }
