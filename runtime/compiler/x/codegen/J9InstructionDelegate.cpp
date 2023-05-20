@@ -1425,3 +1425,18 @@ J9::X86::InstructionDelegate::createMetaDataForCodeAddress(TR::X86LabelInstructi
          }
       }
    }
+
+void
+J9::X86::InstructionDelegate::createMetaDataForCodeAddress(TR::X86FenceInstruction *instr, uint8_t *cursor)
+   {
+   TR::CodeGenerator *cg = instr->cg();
+
+   cg->addProjectSpecializedRelocation(
+      cursor,
+      0,
+      NULL,
+      TR_AbsoluteMethodAddress,
+      __FILE__,
+      __LINE__,
+      instr->getFenceNode());
+   }
