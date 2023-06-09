@@ -19,52 +19,52 @@
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0 OR GPL-2.0 WITH Classpath-exception-2.0 OR LicenseRef-GPL-2.0 WITH Assembly-exception
  *******************************************************************************/
 
-#ifndef J9_X86_SNIPPETDELEGATE_INCL
-#define J9_X86_SNIPPETDELEGATE_INCL
+#include "codegen/SnippetDelegate.hpp"
+#include "codegen/CodeGenerator.hpp"
+#include "codegen/HelperCallSnippet.hpp"
+#include "compile/Compilation.hpp"
+#include "il/StaticSymbol.hpp"
+#include "il/Symbol.hpp"
+#include "infra/Assert.hpp"
+#include "runtime/Runtime.hpp"
 
-/*
- * The following #define and typedef must appear before any #includes in this file
- */
-#ifndef J9_SNIPPETDELEGATE_CONNECTOR
-#define J9_SNIPPETDELEGATE_CONNECTOR
-namespace J9 { namespace X86 { class SnippetDelegate; } }
-namespace J9 { typedef J9::X86::SnippetDelegate SnippetDelegateConnector; }
-#else
-#error J9::X86::SnippetDelegate expected to be a primary connector, but a J9 connector is already defined
-#endif
-
-#include "compiler/codegen/J9SnippetDelegate.hpp"
-#include "infra/Annotations.hpp"
-
-namespace TR { class Node; }
-namespace TR { class X86HelperCallSnippet; }
-
-namespace J9
-{
-
-namespace X86
-{
-
-class OMR_EXTENSIBLE SnippetDelegate : public J9::SnippetDelegate
-   {
-protected:
-
-   SnippetDelegate() {}
-
-public:
-
-   static void createMetaDataForCodeAddress(
+void
+J9::X86::SnippetDelegate::createMetaDataForCodeAddress(
       TR::X86HelperCallSnippet *snippet,
-      uint8_t *cursor);
+      uint8_t *cursor)
+   {
+   TR::CodeGenerator *cg = snippet->cg();
 
-   static void createMetaDataForLoadaddrArg(
+   cg->addExternalRelocation(
+      TR::ExternalRelocation::create(
+         cursor,
+         (uint8_t *)snippet->getDestination(),
+         TR_HelperAddress,
+         cg),
+      __FILE__,
+      __LINE__,
+      snippet->getCallNode());
+   }
+
+void
+J9::X86::SnippetDelegate::createMetaDataForLoadaddrArg(
       TR::X86HelperCallSnippet *snippet,
       uint8_t *cursor,
-      TR::Node *loadAddrNode);
-   };
+      TR::Node *loadAddrNode)
+   {
+   TR::CodeGenerator *cg = snippet->cg();
 
-}
+   TR_ASSERT_FATAL(cg->comp()->target().is32Bit(), "not applicable to 64-bit");
 
-}
+   TR::Symbol *sym = loadAddrNode->getSymbol();
 
-#endif
+   if (cg->comp()->getOption(TR_EnableHCR) && !sym->isClassObject())
+      {
+      TR::StaticSymbol *staticSym = sym->getStaticSymbol();
+      TR_ASSERT_FATAL(staticSym, "expecting a static symbol");
+
+      cg->jitAdd32BitPicToPatchOnClassRedefinition(
+         (void *)(uintptr_t)staticSym->getStaticAddress(),
+         (void *)cursor);
+      }
+   }

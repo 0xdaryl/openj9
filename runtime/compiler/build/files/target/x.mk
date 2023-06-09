@@ -69,6 +69,7 @@ JIT_PRODUCT_SOURCE_FILES+=\
     compiler/x/codegen/J9Linkage.cpp \
     compiler/x/codegen/J9LinkageUtils.cpp \
     compiler/x/codegen/J9Snippet.cpp \
+    compiler/x/codegen/J9SnippetDelegate.cpp \
     compiler/x/codegen/J9TreeEvaluator.cpp \
     compiler/x/codegen/J9UnresolvedDataSnippet.cpp \
     compiler/x/codegen/J9X86Instruction.cpp \

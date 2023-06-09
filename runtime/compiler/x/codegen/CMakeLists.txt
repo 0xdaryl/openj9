@@ -34,6 +34,7 @@ j9jit_files(
 	x/codegen/J9LinkageUtils.cpp
 	x/codegen/J9MemoryReference.cpp
 	x/codegen/J9Snippet.cpp
+	x/codegen/J9SnippetDelegate.cpp
 	x/codegen/J9TreeEvaluator.cpp
 	x/codegen/J9UnresolvedDataSnippet.cpp
 	x/codegen/J9X86Instruction.cpp
