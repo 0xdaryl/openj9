@@ -68,3 +68,58 @@ J9::X86::SnippetDelegate::createMetaDataForLoadaddrArg(
          (void *)cursor);
       }
    }
+
+void
+J9::X86::SnippetDelegate::createMetaDataForCodeAddress(
+      TR::X86DataSnippet *snippet,
+      uint8_t *cursor)
+   {
+   // Add dummy class unload/redefinition assumption
+   //
+   if (snippet->isClassAddress())
+      {
+      TR::CodeGenerator *cg = snippet->cg();
+      TR::Compilation *comp = cg->comp();
+
+      bool needRelocation = TR::Compiler->cls.classUnloadAssumptionNeedsRelocation(comp);
+      if (needRelocation && !comp->compileRelocatableCode())
+         {
+         cg->addExternalRelocation(
+            TR::ExternalRelocation::create(
+               cursor,
+               NULL,
+               TR_ClassUnloadAssumption,
+               cg),
+            __FILE__,
+            __LINE__,
+            snippet->getNode());
+         }
+
+      if (!needRelocation)
+         {
+         if (comp->target().is64Bit())
+            {
+            cg->jitAddPicToPatchOnClassUnload((void*)-1, (void *)cursor);
+            }
+         else
+            {
+            cg->jitAdd32BitPicToPatchOnClassUnload((void*)-1, (void *)cursor);
+            }
+         }
+
+      TR_OpaqueClassBlock *clazz = snippet->getData<TR_OpaqueClassBlock *>();
+      if (clazz && comp->compileRelocatableCode() && comp->getOption(TR_UseSymbolValidationManager))
+         {
+         cg->addExternalRelocation(
+            TR::ExternalRelocation::create(
+               cursor,
+               (uint8_t *)clazz,
+               (uint8_t *)TR::SymbolType::typeClass,
+               TR_SymbolFromManager,
+               cg),
+            __FILE__,
+            __LINE__,
+            snippet->getNode());
+         }
+      }
+   }

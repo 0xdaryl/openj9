@@ -61,6 +61,11 @@ public:
       TR::X86HelperCallSnippet *snippet,
       uint8_t *cursor,
       TR::Node *loadAddrNode);
+
+   static void createMetaDataForCodeAddress(
+      TR::X86DataSnippet *snippet,
+      uint8_t *cursor);
+
    };
 
 }
