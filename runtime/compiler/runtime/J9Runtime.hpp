@@ -81,10 +81,18 @@ void replaceFirstTwoBytesWithData(void *startPC, int32_t startPCToData);
 #endif
 
 #if defined(TR_HOST_ARM64)
+/* GOOD
 #define  OFFSET_REVERT_INTP_FIXED_PORTION                (-12-2*sizeof(intptr_t)) // See generateSwitchToInterpreterPrePrologue()
 #define  OFFSET_SAMPLING_PREPROLOGUE_FROM_STARTPC        (-(16+sizeof(intptr_t)))
 #define  OFFSET_SAMPLING_BRANCH_FROM_STARTPC             (-(12+sizeof(intptr_t)))
 #define  OFFSET_SAMPLING_METHODINFO_FROM_STARTPC         (-(8+sizeof(intptr_t)))
+*/
+
+#define  OFFSET_REVERT_INTP_FIXED_PORTION                ( (intptr_t) (-(12 + 2 * (int32_t)sizeof(intptr_t))) ) // See generateSwitchToInterpreterPrePrologue()
+#define  OFFSET_SAMPLING_PREPROLOGUE_FROM_STARTPC        ( (intptr_t) (-(16 + (int32_t)sizeof(intptr_t))) )
+#define  OFFSET_SAMPLING_BRANCH_FROM_STARTPC             ( (intptr_t) (-(12 + (int32_t)sizeof(intptr_t))) )
+#define  OFFSET_SAMPLING_METHODINFO_FROM_STARTPC         ( (intptr_t) (-(8 + (int32_t)sizeof(intptr_t))) )
+
 #define  OFFSET_SAMPLING_PRESERVED_FROM_STARTPC          (-8)
 #define  OFFSET_COUNTING_BRANCH_FROM_JITENTRY            (9*ARM64_INSTRUCTION_LENGTH)
 #endif
