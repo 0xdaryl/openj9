@@ -301,6 +301,7 @@ static void collectUses(TR::Node *defNode, TR::Compilation *comp, TR_UseDefInfo 
    }
 
 bool TR_SPMDKernelParallelizer::visitTreeTopToSIMDize(TR::TreeTop *tt, TR_SPMDKernelInfo *pSPMDInfo, bool isCheckMode, TR_RegionStructure *loop, CS2::ArrayOf<TR::Node *, TR::Allocator> &useNodesOfDefsInLoop, TR::Compilation *comp, TR_UseDefInfo *useDefInfo, SharedSparseBitVector &defsInLoop, SharedSparseBitVector* usesInLoop, TR_HashTab* reductionHashTab)
+
    {
    TR::Node *node = tt->getNode();
    TR::ILOpCode scalarOp = node->getOpCode();
@@ -395,15 +396,26 @@ bool TR_SPMDKernelParallelizer::visitTreeTopToSIMDize(TR::TreeTop *tt, TR_SPMDKe
                // if the induction variable is not incremented after the soon to be vectorized instructions, then we bail out (see: openj9/issues/9331)
                if (isCheckMode)
                   {
-                  if (!(tt->getNextTreeTop()->getNode()->getOpCode().isBooleanCompare() &&
-                      tt->getNextTreeTop()->getNode()->getOpCode().isBranch() &&
-                      hasPIV(tt->getNextTreeTop()->getNode(), piv)) ||
-                      tt->getNextTreeTop()->getNextTreeTop()->getNode()->getOpCodeValue() != TR::BBEnd)
-                     {
-                     traceMsg(comp, "   Induction variable may be incremented before vectorized operations, "
-                      "this may cause functionally incorrect result. Vectorization not performed. see: openj9/issues/9331.\n");
-                     return false;
-                     }
+                  static bool disableIt = feGetEnv("TR_DisableSPMDIVCheck") ? true : false;
+
+                  if (!disableIt) {
+                     TR::TreeTop *nextTT = tt->getNextTreeTop();
+                     TR::Node *nextNode = nextTT->getNode();
+
+                     if (!(nextNode->getOpCode().isBooleanCompare() &&
+                         nextNode->getOpCode().isBranch() &&
+                         hasPIV(nextNode, piv)) ||
+                         nextTT->getNextTreeTop()->getNode()->getOpCodeValue() != TR::BBEnd)
+                        {
+                        traceMsg(comp, "   Induction variable may be incremented before vectorized operations, "
+                         "this may cause functionally incorrect result. Vectorization not performed. see: openj9/issues/9331 : "
+                         "tt=%p, nextTT=%p, nextNode=%p, hasPIV=%d\n", tt, nextTT, nextNode, hasPIV(nextNode, piv) );
+                        return false;
+                        }
+                  } else {
+                     traceMsg(comp, "   XXXXX Skipping induction variable check\n");
+                  }
+
                   }
 
                // if this is transformation mode and this PIV is used by a vectorized expression and satisfies
