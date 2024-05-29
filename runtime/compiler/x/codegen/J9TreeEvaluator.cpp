@@ -6983,7 +6983,6 @@ static bool genZeroInitForEntireObjectOrHybridArraylet(
             zeroInitScratchReg, cg);
          generateRegImmInstruction(TR::InstOpCode::ADD8RegImms, node, segmentReg, 8, cg);
          generateRegImmInstruction(TR::InstOpCode::SUB8RegImms, node, numBytesToZeroInitReg, 8, cg);
-         generateRegImmInstruction(TR::InstOpCode::CMP8RegImms, node, numBytesToZeroInitReg, 0, cg);
          generateLabelInstruction(TR::InstOpCode::JG4, node, zeroInitLoopLabelSym, cg);
 
          {
