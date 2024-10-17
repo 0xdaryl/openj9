@@ -5486,6 +5486,19 @@ TR_J9InlinerPolicy::supressInliningRecognizedInitialCallee(TR_CallSite* callsite
             return true;
             }
          break;
+      case TR::java_lang_Thread_onSpinWait:
+         static char *doit = feGetEnv("TR_noPauseOnSpinWait");
+         if (!doit)
+            {
+            static char *printit = feGetEnv("TR_showPauseOnSpinWait");
+            if (printit)
+               {
+               printf("PPPPP : suppress inlining onSpinWait : node=%p, %s\n", callNode, comp->signature()); fflush(stdout);
+               }
+
+            return true;
+            }
+         break;
       case TR::sun_misc_Unsafe_allocateInstance:
          // VP transforms this into a plain new if it can get a non-null
          // known object java/lang/Class representing an initialized class
