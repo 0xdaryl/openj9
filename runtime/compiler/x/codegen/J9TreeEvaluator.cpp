@@ -75,6 +75,7 @@
 #include "x/codegen/OutlinedInstructions.hpp"
 #include "x/codegen/HelperCallSnippet.hpp"
 #include "env/CompilerEnv.hpp"
+#include "ras/Logger.hpp"
 #include "runtime/J9Runtime.hpp"
 #include "codegen/J9WatchedStaticFieldSnippet.hpp"
 #include "codegen/X86FPConversionSnippet.hpp"
@@ -1822,7 +1823,7 @@ TR::Register *J9::X86::TreeEvaluator::multianewArrayEvaluator(TR::Node *node, TR
       // trace a message to indicate that inline allocation is disabled for nDims < 2
       if (comp->getOption(TR_TraceCG))
          {
-         traceMsg(comp, "Disabling inline allocations for multianewarray of dim %d\n", nDims);
+         comp->log()->printf("Disabling inline allocations for multianewarray of dim %d\n", nDims);
          }
       TR::ILOpCodes opCode = node->getOpCodeValue();
       TR::Node::recreate(node, TR::acall);
@@ -2823,7 +2824,7 @@ void setImplicitNULLCHKExceptionInfo(TR::Node *node, TR::CodeGenerator *cg)
           isComparisonMemForm)
          {
          if (isTraceCG)
-            traceMsg(comp,"Faulting instruction (previously %p) updated to %p\n",faultingInstruction,cmpInstruction);
+            comp->log()->printf("Faulting instruction (previously %p) updated to %p\n",faultingInstruction,cmpInstruction);
 
          faultingInstruction = cmpInstruction;
          cg->setImplicitExceptionPoint(faultingInstruction);
@@ -2834,7 +2835,7 @@ void setImplicitNULLCHKExceptionInfo(TR::Node *node, TR::CodeGenerator *cg)
       }
 
    if (isTraceCG)
-      traceMsg(comp,"Node %p has foldedimplicitNULLCHK, and a faulting instruction of %p\n",node,faultingInstruction);
+      comp->log()->printf("Node %p has foldedimplicitNULLCHK, and a faulting instruction of %p\n", node, faultingInstruction);
    }
 
 TR::Register *J9::X86::TreeEvaluator::BNDCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg)
@@ -3645,9 +3646,14 @@ TR::Register *J9::X86::TreeEvaluator::readbarEvaluator(TR::Node *node, TR::CodeG
    TR::Compilation *comp = cg->comp();
 
    bool needBranchAroundForNULL = !node->hasFoldedImplicitNULLCHK() && !node->isNonNull();
-   traceMsg(comp, "\nnode %p has folded implicit nullchk: %d\n", node, node->hasFoldedImplicitNULLCHK());
-   traceMsg(comp, "node %p is nonnull: %d\n", node, node->isNonNull());
-   traceMsg(comp, "node %p needs branchAround: %d\n", node, needBranchAroundForNULL);
+
+   if (comp->getOption(TR_TraceCG))
+      {
+      TR::Logger *log = comp->log();
+      log->printf("\nnode %p has folded implicit nullchk: %d\n", node, node->hasFoldedImplicitNULLCHK());
+      log->printf("node %p is nonnull: %d\n", node, node->isNonNull());
+      log->printf("node %p needs branchAround: %d\n", node, needBranchAroundForNULL);
+      }
 
    TR::LabelSymbol *startLabel=NULL;
    TR::LabelSymbol *doneLabel=NULL;
@@ -7486,7 +7492,7 @@ static void handleOffHeapDataForArrays(
        * and contiguous arrays is the same in full refs.
        */
       if (comp->getOption(TR_TraceCG))
-         traceMsg(comp, "Node (%p): Dealing with compressed refs variable length array.\n", node);
+         comp->log()->printf("Node (%p): Dealing with compressed refs variable length array.\n", node);
 
       TR_ASSERT_FATAL_WITH_NODE(node,
          (fej9->getOffsetOfDiscontiguousDataAddrField() - fej9->getOffsetOfContiguousDataAddrField()) == 8,
@@ -7504,7 +7510,7 @@ static void handleOffHeapDataForArrays(
    else if (NULL == sizeReg && node->getFirstChild()->getOpCode().isLoadConst() && node->getFirstChild()->getInt() == 0)
       {
       if (comp->getOption(TR_TraceCG))
-         traceMsg(comp, "Node (%p): Dealing with full/compressed refs fixed length zero size array.\n", node);
+         comp->log()->printf("Node (%p): Dealing with full/compressed refs fixed length zero size array.\n", node);
 
       dataAddrMR = generateX86MemoryReference(targetReg, TR::Compiler->om.discontiguousArrayHeaderSizeInBytes(), cg);
       dataAddrSlotMR = generateX86MemoryReference(targetReg, fej9->getOffsetOfDiscontiguousDataAddrField(), cg);
@@ -7513,7 +7519,7 @@ static void handleOffHeapDataForArrays(
       {
       if (comp->getOption(TR_TraceCG))
          {
-         traceMsg(comp,
+         comp->log()->printf(
             "Node (%p): Dealing with either full/compressed refs fixed length non-zero size array or full refs variable length array.\n",
             node);
          }
@@ -7706,7 +7712,7 @@ J9::X86::TreeEvaluator::VMnewEvaluator(
 
          if (comp->getOption(TR_TraceCG))
             {
-            traceMsg(comp, "%s: evaluate loadaddr: clazz %p classReg %s\n", __FUNCTION__, clazz, classReg ? classReg->getRegisterName(comp) : "<none>");
+            comp->log()->printf("%s: evaluate loadaddr: clazz %p classReg %s\n", __FUNCTION__, clazz, classReg ? classReg->getRegisterName(comp) : "<none>");
             }
          }
 
@@ -7783,12 +7789,12 @@ J9::X86::TreeEvaluator::VMnewEvaluator(
          }
 
       if (comp->getOption(TR_TraceCG))
-         traceMsg(comp, "SKIPZEROINIT: for %p, change the symbol to %p ", node, node->getSymbolReference());
+         comp->log()->printf("SKIPZEROINIT: for %p, change the symbol to %p ", node, node->getSymbolReference());
       }
    else
       {
       if (comp->getOption(TR_TraceCG))
-         traceMsg(comp, "NOSKIPZEROINIT: for %p,  keep symbol as %p ", node, node->getSymbolReference());
+         comp->log()->printf("NOSKIPZEROINIT: for %p,  keep symbol as %p ", node, node->getSymbolReference());
       }
 #endif
 
@@ -7802,7 +7808,7 @@ J9::X86::TreeEvaluator::VMnewEvaluator(
       sizeReg = cg->evaluate(node->getFirstChild());
       allocationSize += dataOffset;
       if (comp->getOption(TR_TraceCG))
-         traceMsg(comp, "allocationSize %d dataOffset %d\n", allocationSize, dataOffset);
+         comp->log()->printf("allocationSize %d dataOffset %d\n", allocationSize, dataOffset);
       }
    else
       {
@@ -10208,7 +10214,7 @@ static void generateWriteBarrierCall(
 static void reportFlag(bool value, char *name, TR::CodeGenerator *cg)
    {
    if (value)
-      traceMsg(cg->comp(), " %s", name);
+      cg->comp()->log()->printf(" %s", name);
    }
 
 static int32_t byteOffsetForMask(int32_t mask, TR::CodeGenerator *cg)
@@ -10296,17 +10302,18 @@ void J9::X86::TreeEvaluator::VMwrtbarRealTimeWithoutStoreEvaluator(
       doInternalControlFlow = true;
       }
 
-   if (comp->getOption(TR_TraceCG) /*&& comp->getOption(TR_TraceOptDetails)*/)
+   if (comp->getOption(TR_TraceCG))
       {
-      traceMsg(comp, " | Real Time Write barrier info:\n");
-      traceMsg(comp, " |   GC mode = %d:%s\n", gcMode, cg->getDebug()->getWriteBarrierKindName(gcMode));
-      traceMsg(comp, " |   Node = %s %s  sourceObject = %s\n",
+      TR::Logger *log = comp->log();
+      log->prints(" | Real Time Write barrier info:\n");
+      log->printf(" |   GC mode = %d:%s\n", gcMode, cg->getDebug()->getWriteBarrierKindName(gcMode));
+      log->printf(" |   Node = %s %s  sourceObject = %s\n",
          cg->getDebug()->getName(node->getOpCodeValue()),
          cg->getDebug()->getName(node),
          sourceObject? cg->getDebug()->getName(sourceObject) : "(none)");
-      traceMsg(comp, " |   Action flags:");
+      log->prints(" |   Action flags:");
          REPORT_FLAG(doInternalControlFlow);
-      traceMsg(comp, "\n");
+      log->println();
       }
 
    //
@@ -10626,15 +10633,16 @@ void J9::X86::TreeEvaluator::VMwrtbarWithoutStoreEvaluator(
          || doSrcIsNullCheck);
       }
 
-   if (comp->getOption(TR_TraceCG) /*&& comp->getOption(TR_TraceOptDetails)*/)
+   if (comp->getOption(TR_TraceCG))
       {
-      traceMsg(comp, " | Write barrier info:\n");
-      traceMsg(comp, " |   GC mode = %d:%s\n", gcMode, cg->getDebug()->getWriteBarrierKindName(gcMode));
-      traceMsg(comp, " |   Node = %s %s  sourceObject = %s\n",
+      TR::Logger *log = comp->log();
+      log->prints(" | Write barrier info:\n");
+      log->printf(" |   GC mode = %d:%s\n", gcMode, cg->getDebug()->getWriteBarrierKindName(gcMode));
+      log->printf(" |   Node = %s %s  sourceObject = %s\n",
          cg->getDebug()->getName(node->getOpCodeValue()),
          cg->getDebug()->getName(node),
          sourceObject? cg->getDebug()->getName(sourceObject) : "(none)");
-      traceMsg(comp, " |   Action flags:");
+      log->prints(" |   Action flags:");
          REPORT_FLAG(doInternalControlFlow);
          REPORT_FLAG(doCheckConcurrentMarkActive);
          REPORT_FLAG(doInlineCardMarkingWithoutOldSpaceCheck);
@@ -10643,7 +10651,7 @@ void J9::X86::TreeEvaluator::VMwrtbarWithoutStoreEvaluator(
          REPORT_FLAG(doIsDestInOldSpaceCheck);
          REPORT_FLAG(isSourceNonNull);
          REPORT_FLAG(doSrcIsNullCheck);
-      traceMsg(comp, "\n");
+      log->println();
       }
 
    //
@@ -11661,7 +11669,7 @@ J9::X86::TreeEvaluator::directCallEvaluator(TR::Node *node, TR::CodeGenerator *c
             static char *printIt = feGetEnv("TR_showPauseOnSpinWait");
             if (printIt && comp->getOption(TR_TraceCG))
                {
-               traceMsg(comp, "insert PAUSE for onSpinWait : node=%p, %s\n", node, comp->signature());
+               comp->log()->printf("insert PAUSE for onSpinWait : node=%p, %s\n", node, comp->signature());
                }
 
             return NULL;
