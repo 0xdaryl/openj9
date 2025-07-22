@@ -6174,10 +6174,12 @@ TR_J9ByteCodeIlGenerator::genMonitorExit(bool isReturn)
    if (isStatic)
       node = TR::Node::createWithSymRef(TR::aloadi, 1, 1, node, symRefTab()->findOrCreateJavaLangClassFromClassSymbolRef());
 
+#if 0
    if (!comp()->getOption(TR_DisableLiveMonitorMetadata))
       {
       genTreeTop(TR::Node::create(TR::monexitfence,0));
       }
+#endif
    node = TR::Node::createWithSymRef(TR::monexit, 1, 1, node, monitorExitSymbolRef);
 
    if (isReturn)
@@ -6205,6 +6207,13 @@ TR_J9ByteCodeIlGenerator::genMonitorExit(bool isReturn)
 
    genTreeTop(node);
    _methodSymbol->setMayContainMonitors(true);
+
+#if 1
+   if (!comp()->getOption(TR_DisableLiveMonitorMetadata))
+      {
+      genTreeTop(TR::Node::create(TR::monexitfence,0));
+      }
+#endif
    }
 
 //----------------------------------------------
