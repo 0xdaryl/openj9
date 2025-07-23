@@ -1636,12 +1636,10 @@ J9::CodeGenerator::doInstructionSelection()
 
       ListIterator<TR::AutomaticSymbol> locals(&self()->comp()->getMethodSymbol()->getAutomaticList());
       for (TR::AutomaticSymbol * a = locals.getFirst(); a; a = locals.getNext())
-         {
          if (a->holdsMonitoredObject())
             {
             if(traceLiveMon)
                traceMsg(self()->comp(),"\tSymbol %p contains monitored object\n",a);
-
             if (!liveLocals)
                {
                if(traceLiveMon)
@@ -1655,7 +1653,6 @@ J9::CodeGenerator::doInstructionSelection()
                numMonitorLocals = a->getLiveLocalIndex() + 1;
                }
             }
-         }
 
       if (numMonitorLocals)
          {
@@ -2178,8 +2175,7 @@ J9::CodeGenerator::doInstructionSelection()
                if (traceLiveMon)
                   traceMsg(self()->comp(), "monitor %p went dead at node %p\n", node->getSymbol(), node);
                }
-
-            // no need to generate code for this store
+           // no need to generate code for this store
             //
             doEvaluation = false;
             }
