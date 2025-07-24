@@ -1345,7 +1345,13 @@ TR::Register *J9::X86::TreeEvaluator::monentEvaluator(TR::Node *node, TR::CodeGe
        cg->supportsStaticMemoryRematerialization())
       TR::TreeEvaluator::removeLiveDiscardableStatics(cg);
 
-   return TR::TreeEvaluator::VMmonentEvaluator(node, cg);
+   cg->cacheLiveGPRs(node);
+
+   TR::Register *reg = TR::TreeEvaluator::VMmonentEvaluator(node, cg);
+
+   cg->cacheLiveGPRs(node);
+
+   return reg;
    }
 
 TR::Register *J9::X86::TreeEvaluator::monexitEvaluator(TR::Node *node, TR::CodeGenerator *cg)
@@ -1354,7 +1360,13 @@ TR::Register *J9::X86::TreeEvaluator::monexitEvaluator(TR::Node *node, TR::CodeG
        cg->supportsStaticMemoryRematerialization())
       TR::TreeEvaluator::removeLiveDiscardableStatics(cg);
 
-   return TR::TreeEvaluator::VMmonexitEvaluator(node, cg);
+   cg->cacheLiveGPRs(node);
+
+   TR::Register *reg = TR::TreeEvaluator::VMmonexitEvaluator(node, cg);
+
+   cg->cacheLiveGPRs(node);
+
+   return reg;
    }
 
 TR::Register *J9::X86::TreeEvaluator::asynccheckEvaluator(TR::Node *node, TR::CodeGenerator *cg)
