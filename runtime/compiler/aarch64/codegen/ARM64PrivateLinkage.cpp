@@ -124,6 +124,75 @@ uint32_t J9::ARM64::PrivateLinkage::_globalRegisterNumberToRealRegisterMap[] =
    TR::RealRegister::v0
    };
 
+uint32_t J9::ARM64::PrivateLinkage::_powerPickRegister_globalRegisterNumberToRealRegisterMap[] =
+   {
+   // GPRs
+   TR::RealRegister::x8,   // 0   volatile
+   TR::RealRegister::x9,   // 1   volatile
+
+   TR::RealRegister::x7,   // 2   argument
+   TR::RealRegister::x6,   // 3   argument
+   TR::RealRegister::x5,   // 4   argument
+   TR::RealRegister::x4,   // 5   argument
+   TR::RealRegister::x3,   // 6   argument
+   TR::RealRegister::x2,   // 7   argument
+   TR::RealRegister::x1,   // 8   argument
+   TR::RealRegister::x0,   // 9   argument
+
+   TR::RealRegister::x10,  // 10  volatile
+   TR::RealRegister::x11,  // 11  volatile
+   TR::RealRegister::x12,  // 12  volatile
+   TR::RealRegister::x13,  // 13  volatile
+   TR::RealRegister::x14,  // 14  volatile
+   TR::RealRegister::x15,  // 15  volatile
+   TR::RealRegister::x18,  // 16  volatile
+
+   TR::RealRegister::x28,  // 17  preserved
+   TR::RealRegister::x27,  // 18  preserved
+   TR::RealRegister::x26,  // 19  preserved
+   TR::RealRegister::x25,  // 20  preserved
+   TR::RealRegister::x24,  // 21  preserved
+   TR::RealRegister::x23,  // 22  preserved
+   TR::RealRegister::x22,  // 23  preserved
+   TR::RealRegister::x21,  // 24  preserved
+
+   // FPRs
+   TR::RealRegister::v13,  // 25  volatile
+   TR::RealRegister::v12,  // 26  volatile
+   TR::RealRegister::v11,  // 27  volatile
+   TR::RealRegister::v10,  // 28  volatile
+   TR::RealRegister::v9,   // 29  volatile
+   TR::RealRegister::v8,   // 30  volatile
+
+   TR::RealRegister::v7,   // 31  argument
+   TR::RealRegister::v6,   // 32  argument
+   TR::RealRegister::v5,   // 33  argument
+   TR::RealRegister::v4,   // 34  argument
+   TR::RealRegister::v3,   // 35  argument
+   TR::RealRegister::v2,   // 36  argument
+   TR::RealRegister::v1,   // 37  argument
+   TR::RealRegister::v0,   // 38  argument
+
+   TR::RealRegister::v31,  // 39  volatile
+   TR::RealRegister::v30,  // 40  volatile
+   TR::RealRegister::v29,  // 41  volatile
+   TR::RealRegister::v28,  // 42  volatile
+   TR::RealRegister::v27,  // 43  volatile
+   TR::RealRegister::v26,  // 44  volatile
+   TR::RealRegister::v25,  // 45  volatile
+   TR::RealRegister::v24,  // 46  volatile
+   TR::RealRegister::v23,  // 47  volatile
+   TR::RealRegister::v22,  // 48  volatile
+   TR::RealRegister::v21,  // 49  volatile
+   TR::RealRegister::v20,  // 50  volatile
+   TR::RealRegister::v19,  // 51  volatile
+   TR::RealRegister::v18,  // 52  volatile
+   TR::RealRegister::v17,  // 53  volatile
+   TR::RealRegister::v16,  // 54  volatile
+   TR::RealRegister::v15,  // 55  volatile
+   TR::RealRegister::v14   // 56  volatile
+   };
+
 J9::ARM64::PrivateLinkage::PrivateLinkage(TR::CodeGenerator *cg)
    : J9::PrivateLinkage(cg),
    _interpretedMethodEntryPoint(NULL),
@@ -200,7 +269,14 @@ J9::ARM64::PrivateLinkage::PrivateLinkage(TR::CodeGenerator *cg)
    _properties._argumentRegisters[14] = TR::RealRegister::v6;
    _properties._argumentRegisters[15] = TR::RealRegister::v7;
 
-   std::copy(std::begin(_globalRegisterNumberToRealRegisterMap), std::end(_globalRegisterNumberToRealRegisterMap), std::begin(_properties._allocationOrder));
+   //static const char *enablePowerPickRegister = feGetEnv("TR_EnablePowerPickRegister");
+   bool enablePowerPickRegister = true;
+
+   if (enablePowerPickRegister) {
+      std::copy(std::begin(_powerPickRegister_globalRegisterNumberToRealRegisterMap), std::end(_powerPickRegister_globalRegisterNumberToRealRegisterMap), std::begin(_properties._allocationOrder));
+   } else {
+      std::copy(std::begin(_globalRegisterNumberToRealRegisterMap), std::end(_globalRegisterNumberToRealRegisterMap), std::begin(_properties._allocationOrder));
+   }
 
    _properties._firstIntegerReturnRegister = 0;
    _properties._firstFloatReturnRegister   = 1;
@@ -214,6 +290,12 @@ J9::ARM64::PrivateLinkage::PrivateLinkage(TR::CodeGenerator *cg)
    _properties._numAllocatableIntegerRegisters = 25; // 0-15, 18, 21-28
 #endif // defined(OSX)
    _properties._numAllocatableFloatRegisters   = 32;
+
+   _properties._firstAllocatableIntegerArgumentRegister = 9;
+   _properties._lastAllocatableIntegerVolatileRegister  = 16;
+
+   _properties._firstAllocatableFloatArgumentRegister = 38;
+   _properties._lastAllocatableFloatVolatileRegister  = 56;
 
    _properties._preservedRegisterMapForGC   = 0x1fe40000;
    _properties._methodMetaDataRegister      = TR::RealRegister::x19;
@@ -891,7 +973,7 @@ void J9::ARM64::PrivateLinkage::createPrologue(TR::Instruction *cursor)
          TR::RealRegister *zeroReg = machine->getRealRegister(TR::RealRegister::RegNum::xzr);
          TR::RealRegister *baseReg = machine->getRealRegister(TR::RealRegister::RegNum::x10);
 
-         cursor = initializeLocals(cursor, numLocalsToBeInitialized, initializedLocalsOffsetFromAdjustedJavaSP, 
+         cursor = initializeLocals(cursor, numLocalsToBeInitialized, initializedLocalsOffsetFromAdjustedJavaSP,
                               zeroReg, baseReg, javaSP, cg());
 
          if (atlas->getInternalPointerMap())
@@ -902,7 +984,7 @@ void J9::ARM64::PrivateLinkage::createPrologue(TR::Instruction *cursor)
             int32_t numSlotsToBeInitialized = atlas->getNumberOfDistinctPinningArrays() + atlas->getInternalPointerMap()->getNumInternalPointers();
             int32_t offsetToFirstInternalPointerFromAdjustedJavaSP = alignedFrameSizeIncludingReturnAddress + atlas->getOffsetOfFirstInternalPointer() + firstLocalOffset;
 
-            cursor = initializeLocals(cursor, numSlotsToBeInitialized, offsetToFirstInternalPointerFromAdjustedJavaSP, 
+            cursor = initializeLocals(cursor, numSlotsToBeInitialized, offsetToFirstInternalPointerFromAdjustedJavaSP,
                               zeroReg, baseReg, javaSP, cg());
             }
          }
@@ -1626,7 +1708,7 @@ static TR::Instruction* buildStaticPICCall(TR::CodeGenerator *cg, TR::Node *call
 
       if (isUnloadAssumptionRequired)
          {
-         loadAddressConstantInSnippet(cg, callNode, reinterpret_cast<intptr_t>(profiledClass), tempReg, TR_NoRelocation, true); 
+         loadAddressConstantInSnippet(cg, callNode, reinterpret_cast<intptr_t>(profiledClass), tempReg, TR_NoRelocation, true);
          }
       else
          {
