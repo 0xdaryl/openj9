@@ -124,6 +124,78 @@ uint32_t J9::ARM64::PrivateLinkage::_globalRegisterNumberToRealRegisterMap[] =
    TR::RealRegister::v0
    };
 
+
+uint32_t J9::ARM64::PrivateLinkage::_newPickRegister_globalRegisterNumberToRealRegisterMap[] =
+   {
+   // GPRs
+   TR::RealRegister::x8,   // 0   VOL
+   TR::RealRegister::x9,   // 1   VOL
+
+   TR::RealRegister::x7,   // 2   ARG
+   TR::RealRegister::x6,   // 3   ARG
+   TR::RealRegister::x5,   // 4   ARG
+   TR::RealRegister::x4,   // 5   ARG
+   TR::RealRegister::x3,   // 6   ARG
+   TR::RealRegister::x2,   // 7   ARG
+   TR::RealRegister::x1,   // 8   ARG
+   TR::RealRegister::x0,   // 9   ARG
+
+   TR::RealRegister::x10,  // 10  VOL
+   TR::RealRegister::x11,  // 11  VOL
+   TR::RealRegister::x12,  // 12  VOL
+   TR::RealRegister::x13,  // 13  VOL
+   TR::RealRegister::x14,  // 14  VOL
+   TR::RealRegister::x15,  // 15  VOL
+   TR::RealRegister::x18,  // 16  VOL
+
+   TR::RealRegister::x28,  // 17  PRES
+   TR::RealRegister::x27,  // 18  PRES
+   TR::RealRegister::x26,  // 19  PRES
+   TR::RealRegister::x25,  // 20  PRES
+   TR::RealRegister::x24,  // 21  PRES
+   TR::RealRegister::x23,  // 22  PRES
+   TR::RealRegister::x22,  // 23  PRES
+   TR::RealRegister::x21,  // 24  PRES
+
+   // FPRs
+   TR::RealRegister::v13,  // 25  VOL
+   TR::RealRegister::v12,  // 26  VOL
+   TR::RealRegister::v11,  // 27  VOL
+   TR::RealRegister::v10,  // 28  VOL
+   TR::RealRegister::v9,   // 29  VOL
+   TR::RealRegister::v8,   // 30  VOL
+
+   TR::RealRegister::v7,   // 31  ARG
+   TR::RealRegister::v6,   // 32  ARG
+   TR::RealRegister::v5,   // 33  ARG
+   TR::RealRegister::v4,   // 34  ARG
+   TR::RealRegister::v3,   // 35  ARG
+   TR::RealRegister::v2,   // 36  ARG
+   TR::RealRegister::v1,   // 37  ARG
+   TR::RealRegister::v0,   // 38  ARG
+
+   TR::RealRegister::v31,  // 39  VOL
+   TR::RealRegister::v30,  // 40  VOL
+   TR::RealRegister::v29,  // 41  VOL
+   TR::RealRegister::v28,  // 42  VOL
+   TR::RealRegister::v27,  // 43  VOL
+   TR::RealRegister::v26,  // 44  VOL
+   TR::RealRegister::v25,  // 45  VOL
+   TR::RealRegister::v24,  // 46  VOL
+   TR::RealRegister::v23,  // 47  VOL
+   TR::RealRegister::v22,  // 48  VOL
+   TR::RealRegister::v21,  // 49  VOL
+   TR::RealRegister::v20,  // 50  VOL
+   TR::RealRegister::v19,  // 51  VOL
+   TR::RealRegister::v18,  // 52  VOL
+   TR::RealRegister::v17,  // 53  VOL
+   TR::RealRegister::v16,  // 54  VOL
+   TR::RealRegister::v15,  // 55  VOL
+   TR::RealRegister::v14   // 56  VOL
+   };
+
+
+
 J9::ARM64::PrivateLinkage::PrivateLinkage(TR::CodeGenerator *cg)
    : J9::PrivateLinkage(cg),
    _interpretedMethodEntryPoint(NULL),
@@ -200,7 +272,13 @@ J9::ARM64::PrivateLinkage::PrivateLinkage(TR::CodeGenerator *cg)
    _properties._argumentRegisters[14] = TR::RealRegister::v6;
    _properties._argumentRegisters[15] = TR::RealRegister::v7;
 
-   std::copy(std::begin(_globalRegisterNumberToRealRegisterMap), std::end(_globalRegisterNumberToRealRegisterMap), std::begin(_properties._allocationOrder));
+   static char *disableNewPickRegister = feGetEnv("TR_DisableNewPickRegister");
+
+   if (!disableNewPickRegister) {
+      std::copy(std::begin(_newPickRegister_globalRegisterNumberToRealRegisterMap), std::end(_newPickRegister_globalRegisterNumberToRealRegisterMap), std::begin(_properties._allocationOrder));
+   } else {
+      std::copy(std::begin(_globalRegisterNumberToRealRegisterMap), std::end(_globalRegisterNumberToRealRegisterMap), std::begin(_properties._allocationOrder));
+   }
 
    _properties._firstIntegerReturnRegister = 0;
    _properties._firstFloatReturnRegister   = 1;
@@ -214,6 +292,12 @@ J9::ARM64::PrivateLinkage::PrivateLinkage(TR::CodeGenerator *cg)
    _properties._numAllocatableIntegerRegisters = 25; // 0-15, 18, 21-28
 #endif // defined(OSX)
    _properties._numAllocatableFloatRegisters   = 32;
+
+   _properties._firstAllocatableIntegerArgumentRegister = 9;
+   _properties._lastAllocatableIntegerVolatileRegister  = 16;
+
+   _properties._firstAllocatableFloatArgumentRegister = 38;
+   _properties._lastAllocatableFloatVolatileRegister  = 56;
 
    _properties._preservedRegisterMapForGC   = 0x1fe40000;
    _properties._methodMetaDataRegister      = TR::RealRegister::x19;
@@ -891,7 +975,7 @@ void J9::ARM64::PrivateLinkage::createPrologue(TR::Instruction *cursor)
          TR::RealRegister *zeroReg = machine->getRealRegister(TR::RealRegister::RegNum::xzr);
          TR::RealRegister *baseReg = machine->getRealRegister(TR::RealRegister::RegNum::x10);
 
-         cursor = initializeLocals(cursor, numLocalsToBeInitialized, initializedLocalsOffsetFromAdjustedJavaSP, 
+         cursor = initializeLocals(cursor, numLocalsToBeInitialized, initializedLocalsOffsetFromAdjustedJavaSP,
                               zeroReg, baseReg, javaSP, cg());
 
          if (atlas->getInternalPointerMap())
@@ -902,7 +986,7 @@ void J9::ARM64::PrivateLinkage::createPrologue(TR::Instruction *cursor)
             int32_t numSlotsToBeInitialized = atlas->getNumberOfDistinctPinningArrays() + atlas->getInternalPointerMap()->getNumInternalPointers();
             int32_t offsetToFirstInternalPointerFromAdjustedJavaSP = alignedFrameSizeIncludingReturnAddress + atlas->getOffsetOfFirstInternalPointer() + firstLocalOffset;
 
-            cursor = initializeLocals(cursor, numSlotsToBeInitialized, offsetToFirstInternalPointerFromAdjustedJavaSP, 
+            cursor = initializeLocals(cursor, numSlotsToBeInitialized, offsetToFirstInternalPointerFromAdjustedJavaSP,
                               zeroReg, baseReg, javaSP, cg());
             }
          }
@@ -1626,7 +1710,7 @@ static TR::Instruction* buildStaticPICCall(TR::CodeGenerator *cg, TR::Node *call
 
       if (isUnloadAssumptionRequired)
          {
-         loadAddressConstantInSnippet(cg, callNode, reinterpret_cast<intptr_t>(profiledClass), tempReg, TR_NoRelocation, true); 
+         loadAddressConstantInSnippet(cg, callNode, reinterpret_cast<intptr_t>(profiledClass), tempReg, TR_NoRelocation, true);
          }
       else
          {

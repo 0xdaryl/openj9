@@ -285,6 +285,7 @@ class PrivateLinkage : public J9::PrivateLinkage
 
    // Tactical GRA
    static uint32_t _globalRegisterNumberToRealRegisterMap[];
+   static uint32_t _newPickRegister_globalRegisterNumberToRealRegisterMap[];
    };
 
 
