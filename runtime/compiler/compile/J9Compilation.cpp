@@ -246,6 +246,16 @@ J9::Compilation::Compilation(int32_t id,
       self()->getOptions()->setOption(TR_DontInlineUnloadableMethods);
       }
 
+   /**
+    * Disable ConstantProvenance until functional issues worked out.
+    * See issue #22885.
+    */
+   const char *forceEnableConstProvenance = feGetEnv("TR_ForceEnableConstProvenance");
+   if (!forceEnableConstProvenance)
+      {
+      self()->getOptions()->setOption(TR_DisableConstProvenance);
+      }
+
    // Add known object index to parm 0 so that other optmizations can be unlocked.
    // It is safe to do so because method and method symbols of a archetype specimen
    // are not shared other methods.
