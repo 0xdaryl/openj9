@@ -3900,6 +3900,12 @@ J9::Options::setLogFileForClientOptions(int suffixNumber)
          }
       _fe->releaseLogMonitor();
       }
+   else
+      {
+      // Install a default Logger regardless of whether a log file is provided
+      //
+      self()->setLogger(TR::Options::getDefaultLogger());
+      }
    }
 
 void
