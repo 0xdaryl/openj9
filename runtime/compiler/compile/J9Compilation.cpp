@@ -264,6 +264,8 @@ J9::Compilation::Compilation(int32_t id,
          parm0->setKnownObjectIndex(index);
          }
       }
+
+   TR_ASSERT_FATAL(_logger, "Expecting a Logger");
    }
 
 J9::Compilation::~Compilation()
