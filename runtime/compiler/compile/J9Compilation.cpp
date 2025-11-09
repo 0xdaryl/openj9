@@ -265,7 +265,7 @@ J9::Compilation::Compilation(int32_t id,
          }
       }
 
-   TR_ASSERT_FATAL(_logger, "Expecting a Logger");
+   TR_ASSERT_FATAL(log(), "Expecting a Logger");
    }
 
 J9::Compilation::~Compilation()
