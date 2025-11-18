@@ -4805,7 +4805,7 @@ TR_IProfiler::dumpIPBCDataCallGraph(J9VMThread* vmThread)
       }
    traverseIProfilerTableAndCollectEntries(&aggregationHT, vmThread, true/*collectOnlyCallGraphEntries*/);
    char tmp[1025];
-   char *fn = _vm->getFormattedName(tmp, sizeof(tmp), "ipdata", NULL, true);
+   char *fn = TR::Options::buildLogFileName(tmp, sizeof(tmp), "ipdata", -1, TR::Options::getLogFileNameSuffix(), true);
    aggregationHT.sortByNameAndPrint(fn);
 
    fprintf(stderr, "Finished dumping info\n");
@@ -4823,7 +4823,7 @@ TR_IProfiler::dumpAllBytecodeProfilingData(J9VMThread* vmThread)
       }
    traverseIProfilerTableAndCollectEntries(&aggregationHT, vmThread, false/*collectOnlyCallGraphEntries*/);
    char tmp[1025];
-   char *fn = _vm->getFormattedName(tmp, sizeof(tmp), "ipdata", NULL, true);
+   char *fn = TR::Options::buildLogFileName(tmp, sizeof(tmp), "ipdata", -1, TR::Options::getLogFileNameSuffix(), true);
    aggregationHT.sortByNameAndPrint(fn);
 
    fprintf(stderr, "Finished dumping info\n");

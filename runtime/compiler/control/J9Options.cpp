@@ -2604,12 +2604,6 @@ J9::Options::fePreProcess(void * base)
    PORT_ACCESS_FROM_JAVAVM(vm);
    OMRPORT_ACCESS_FROM_J9PORT(PORTLIB);
 
-   #if defined(DEBUG) || defined(PROD_WITH_ASSUMES)
-      bool forceSuffixLogs = false;
-   #else
-      bool forceSuffixLogs = true;
-   #endif
-
    int32_t xxLateSCCDisclaimTime = J9::Options::getExternalOptionIndex(J9::ExternalOptions::XXLateSCCDisclaimTimeOption);
    if (xxLateSCCDisclaimTime >= 0)
       {
@@ -2659,8 +2653,11 @@ J9::Options::fePreProcess(void * base)
       self()->setOption(TR_DisableTraps);
    #endif
 
-   if (forceSuffixLogs)
-      self()->setOption(TR_EnablePIDExtension);
+#if !defined(DEBUG) && !defined(PROD_WITH_ASSUMES)
+    // Production (PROD) builds force the application of the log filename suffix
+    //
+    self()->setOption(TR_ApplyLogFileNameSuffix);
+#endif
 
    if (jitConfig->runtimeFlags & J9JIT_CG_REGISTER_MAPS)
       self()->setOption(TR_RegisterMaps);
@@ -3642,7 +3639,6 @@ std::string
 J9::Options::packOptions(const TR::Options *origOptions)
    {
    size_t logFileNameLength = 0;
-   size_t suffixLogsFormatLength = 0;
    size_t blockShufflingSequenceLength = 0;
    size_t induceOSRLength = 0;
 
@@ -3661,15 +3657,13 @@ J9::Options::packOptions(const TR::Options *origOptions)
          logFileNameLength = JITSERVER_LOG_FILENAME_MAX_SIZE;
       snprintf(buf, logFileNameLength, "%s.%s.server", origOptions->_logFileName, pidBuf);
       }
-   if (origOptions->_suffixLogsFormat)
-      suffixLogsFormatLength = strlen(origOptions->_suffixLogsFormat) + 1;
    if (origOptions->_blockShufflingSequence)
       blockShufflingSequenceLength = strlen(origOptions->_blockShufflingSequence) + 1;
    if (origOptions->_induceOSR)
       induceOSRLength = strlen(origOptions->_induceOSR) + 1;
 
    // sizeof(bool) is reserved to pack J9JIT_RUNTIME_RESOLVE
-   size_t totalSize = sizeof(TR::Options) + logFileNameLength + suffixLogsFormatLength + blockShufflingSequenceLength + induceOSRLength + sizeof(bool);
+   size_t totalSize = sizeof(TR::Options) + logFileNameLength + blockShufflingSequenceLength + induceOSRLength + sizeof(bool);
 
    addRegexStringSize(origOptions->_disabledOptTransformations, totalSize);
    addRegexStringSize(origOptions->_disabledInlineSites, totalSize);
@@ -3745,7 +3739,6 @@ J9::Options::packOptions(const TR::Options *origOptions)
    // as a self-referring-pointer, or a relative pointer, which is
    // the offset of the data with respect to the pointer.
    curPos = appendContent(options->_logFileName, curPos, logFileNameLength);
-   curPos = appendContent(options->_suffixLogsFormat, curPos, suffixLogsFormatLength);
    curPos = appendContent(options->_blockShufflingSequence, curPos, blockShufflingSequenceLength);
    curPos = appendContent(options->_induceOSR, curPos, induceOSRLength);
 
@@ -3770,8 +3763,6 @@ J9::Options::unpackOptions(char *clientOptions, size_t clientOptionsSize, TR::Co
    // pointer = address of field + offset
    if (options->_logFileName)
       options->_logFileName = (char *)((uint8_t *)&(options->_logFileName) + (ptrdiff_t)options->_logFileName);
-   if (options->_suffixLogsFormat)
-      options->_suffixLogsFormat = (char *)((uint8_t *)&(options->_suffixLogsFormat) + (ptrdiff_t)options->_suffixLogsFormat);
    if (options->_blockShufflingSequence)
       options->_blockShufflingSequence = (char *)((uint8_t *)&(options->_blockShufflingSequence) + (ptrdiff_t)options->_blockShufflingSequence);
    if (options->_induceOSR)
@@ -3856,7 +3847,7 @@ J9::Options::writeLogFileFromServer(const std::string& logFileContent)
       return 0; // may overflow the buffer
       }
    char tmp[JITSERVER_LOG_FILENAME_MAX_SIZE];
-   char * filename = _fe->getFormattedName(tmp, JITSERVER_LOG_FILENAME_MAX_SIZE, buf, _suffixLogsFormat, true);
+   char * filename = TR::Options::buildLogFileName(tmp, JITSERVER_LOG_FILENAME_MAX_SIZE, buf, -1, TR::Options::getLogFileNameSuffix(), true);
 
    TR::FILE *logFile = trfopen(filename, "wb", false);
    ::fputs(logFileContent.c_str(), logFile->_stream);
@@ -3881,13 +3872,13 @@ J9::Options::setLogFileForClientOptions(int suffixNumber)
       _fe->acquireLogMonitor();
       if (suffixNumber)
          {
-         self()->setOption(TR_EnablePIDExtension, true);
+         self()->setOption(TR_ApplyLogFileNameSuffix, true);
          self()->openLogFileCreateLogger(suffixNumber);
          }
       else
          {
          _compilationSequenceNumber++;
-         self()->setOption(TR_EnablePIDExtension, false);
+         self()->setOption(TR_ApplyLogFileNameSuffix, false);
          self()->openLogFileCreateLogger(_compilationSequenceNumber);
          }
 
@@ -3978,3 +3969,5 @@ J9::Options::initialize()
    {
    self()->OMR::OptionsConnector::initialize();
    }
+
+char *J9::Options::_logFileNameSuffix = ".%Y%m%d.%H%M%S.%pid";

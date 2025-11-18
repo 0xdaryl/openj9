@@ -179,21 +179,16 @@ extern "C" bool _isPSWInProblemState();  /* 390 asm stub */
 
 TR::FILE *fileOpen(TR::Options *options, J9JITConfig *jitConfig, char *name, char *permission, bool b1)
    {
-   PORT_ACCESS_FROM_ENV(jitConfig->javaVM);
    char tmp[1025];
-   char *formattedTmp = NULL;
-   if (!options->getOption(TR_EnablePIDExtension))
+
+   char *fileName = TR::Options::buildLogFileName(tmp, 1025, name, -1, TR::Options::getLogFileNameSuffix(),
+      options->getOption(TR_ApplyLogFileNameSuffix));
+
+   if (fileName)
       {
-      formattedTmp = TR_J9VMBase::getJ9FormattedName(jitConfig, PORTLIB, tmp, sizeof(tmp), name, NULL, false);
+      return j9jit_fopen(fileName, permission, b1);
       }
-   else
-      {
-      formattedTmp = TR_J9VMBase::getJ9FormattedName(jitConfig, PORTLIB, tmp, sizeof(tmp), name, options->getSuffixLogsFormat(), true);
-      }
-   if (NULL != formattedTmp)
-      {
-      return j9jit_fopen(formattedTmp, permission, b1);
-      }
+
    return NULL;
    }
 
@@ -935,69 +930,6 @@ TR_J9VMBase::getProcessID()
    uintptr_t result = j9sysinfo_get_pid();
    return result;
    }
-
-// static method
-char *
-TR_J9VMBase::getJ9FormattedName(
-      J9JITConfig *jitConfig,
-      J9PortLibrary *portLibrary,
-      char *buf,
-      size_t bufLength,
-      char *name,
-      char *format,
-      bool suffix)
-   {
-   PORT_ACCESS_FROM_ENV(jitConfig->javaVM);
-   J9VMThread *vmThread = jitConfig->javaVM->internalVMFunctions->currentVMThread(jitConfig->javaVM);
-   I_64 curTime = j9time_current_time_millis();
-   J9StringTokens *tokens = j9str_create_tokens(curTime);
-   if (tokens == NULL)
-      {
-      return NULL;
-      }
-
-   char tmp[1025];
-   size_t nameLength = strlen(name);
-   uintptr_t substLength = j9str_subst_tokens(tmp, sizeof(tmp), name, tokens);
-
-   if (substLength >= std::min(sizeof(tmp), bufLength))
-      {
-      j9str_free_tokens(tokens);
-      return NULL; // not enough room for the name or the token expansion
-      }
-
-   if (strcmp(tmp, name) != 0) // only append if there isn't a format specifier
-      {
-      memcpy(buf, tmp, substLength + 1); // +1 to get the null terminator
-      }
-   else
-      {
-      memcpy(buf, name, nameLength);
-      char *suffixBuf = &buf[nameLength];
-      if (format)
-         j9str_subst_tokens(suffixBuf, bufLength - nameLength, format, tokens);
-      else if (suffix)
-         {
-         // We have to break the string up to prevent CMVC keyword expansion
-         j9str_subst_tokens(suffixBuf, bufLength - nameLength, ".%Y" "%m" "%d." "%H" "%M" "%S.%pid", tokens);
-         }
-      else
-         {
-         buf = name;
-         }
-      }
-
-   j9str_free_tokens(tokens);
-   return buf;
-   }
-
-
-char *
-TR_J9VMBase::getFormattedName(char *buf, int32_t bufLength, char *name, char *format, bool suffix)
-   {
-   return getJ9FormattedName(_jitConfig, _portLibrary, buf, bufLength, name, format, suffix);
-   }
-
 
 void
 TR_J9VMBase::invalidateCompilationRequestsForUnloadedMethods(TR_OpaqueClassBlock *clazz, bool hotCodeReplacement)
