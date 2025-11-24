@@ -83,7 +83,8 @@ int32_t TR_MethodHandleTransformer::perform()
    // Only do the opt for LambdaForm generated methods, and for for peeking ILGen, since currently
    // peeking ILGen is only triggered for MethodHandle/VarHandle-related cases to propagate object info
    TR_ResolvedMethod* currentMethod = comp()->getCurrentMethod();
-   if (!comp()->fej9()->isLambdaFormGeneratedMethod(currentMethod) && !comp()->isPeekingMethod())
+   if (!comp()->fej9()->isLambdaFormGeneratedMethod(currentMethod) && !comp()->isPeekingMethod() && !(currentMethod->getRecognizedMethod() == TR::java_lang_reflect_Method_invoke)
+        && !(strncmp(currentMethod->signature(trMemory()), "jdk/internal/reflect/DirectMethodHandleAccessor.invoke",54) == 0))
       return 0;
 
    TR::StackMemoryRegion stackMemoryRegion(*trMemory());
@@ -365,7 +366,16 @@ TR_MethodHandleTransformer::computeObjectInfoOfNode(TR::TreeTop *tt, TR::Node *n
    if (node->getOpCode().isLoadDirect() &&
        symbol->isAutoOrParm())
       {
+      //if (trace())
+      //{
+      //traceMsg(comp(), "n%dn is auto or parm. koi: %d\n", node->getGlobalIndex(), (*_currentObjectInfo)[symbol->getLocalIndex()]);
+      //}
       koi = (*_currentObjectInfo)[symbol->getLocalIndex()];
+      }
+   else if (node->getOpCode().isLoadIndirect() && node->getType() == TR::Address)
+      {
+      visitIndirectLoad(tt, node);
+      koi = getObjectInfoOfNode(node);
       }
    else if (node->getOpCode().isCall()
             && !symbol->castToMethodSymbol()->isHelper())
@@ -433,6 +443,20 @@ TR_MethodHandleTransformer::computeObjectInfoOfNode(TR::TreeTop *tt, TR::Node *n
          default:
             break;
          }
+         const char * sig = symbol->castToMethodSymbol()->getMethod()->signature(comp()->trMemory());
+         if (!strncmp(sig, "java/lang/reflect/Method.acquireMethodAccessor",46))
+            {
+            auto methodIndex = getObjectInfoOfNode(node->getFirstArgument());
+            if (knot
+               && isKnownObject(methodIndex)
+               && !knot->isNull(methodIndex))
+               {
+               auto maIndex = comp()->fej9()->getMAIndex(comp(), methodIndex);
+               //if (trace())
+               //   traceMsg(comp(), "Method.acquireMethodAccessor with known Method object %d, updating node n%dn with known MA object %d from MA Field\n", methodIndex, node->getGlobalIndex(), maIndex);
+               koi = maIndex;
+               }
+            }
       }
 
    if (isKnownObject(koi)
@@ -492,6 +516,31 @@ TR_MethodHandleTransformer::visitStoreToLocalVariable(TR::TreeTop* tt, TR::Node*
       (*_currentObjectInfo)[local->getLocalIndex()] = newObject;
       }
    }
+
+/* wip */
+/*
+void
+TR_MethodHandleTransformer::visitLoadDirect(TR::TreeTop* tt, TR::Node* node)
+   {
+   //TR::Node *rhs = node->getFirstChild();
+   TR::Symbol *local = node->getSymbolReference()->getSymbol();
+   if (node->getDataType().isAddress())
+      {
+      // Get object info of the rhs
+      TR::KnownObjectTable::Index newObject = getObjectInfoOfNode(node);
+      if (trace())
+         traceMsg(comp(), "direct load at n%dn is obj%d\n", node->getGlobalIndex(), newObject);
+
+      TR::KnownObjectTable::Index oldObject = (*_currentObjectInfo)[local->getLocalIndex()];
+      if (newObject != oldObject && trace())
+         {
+         traceMsg(comp(), "Local #%2d obj%d -> obj%d at node n%dn\n", local->getLocalIndex(), oldObject, newObject,  node->getGlobalIndex());
+         }
+
+      (*_currentObjectInfo)[local->getLocalIndex()] = newObject;
+      }
+   }
+*/
 
 // Visit indirect load, discover known object by folding the load if applicable
 void TR_MethodHandleTransformer::visitIndirectLoad(TR::TreeTop* tt, TR::Node* node)

@@ -635,6 +635,7 @@ InterpreterEmulator::maintainStack(TR_J9ByteCode bc)
    int slotIndex = -1;
    switch (bc)
       {
+      case J9BCnop: break;
       case J9BCgetfield: maintainStackForGetField(); break;
       case J9BCaload0: slotIndex = 0; maintainStackForAload(slotIndex); break;
       case J9BCaload1: slotIndex = 1; maintainStackForAload(slotIndex); break;
@@ -659,6 +660,21 @@ InterpreterEmulator::maintainStack(TR_J9ByteCode bc)
       case J9BCiconst3:  push (new (trStackMemory()) IconstOperand(3)); break;
       case J9BCiconst4:  push (new (trStackMemory()) IconstOperand(4)); break;
       case J9BCiconst5:  push (new (trStackMemory()) IconstOperand(5)); break;
+      case J9BCaconstnull:
+         {
+         TR::KnownObjectTable *knot = comp()->getKnownObjectTable();
+         if (knot)
+            {
+            TR::KnownObjectTable::Index koi = 0;
+            push(new (trStackMemory()) KnownObjOperand(koi));
+            }
+         else pushUnknownOperand();
+         break;
+         }
+      /*case J9BCifnonnull:
+         pushUnknownOperand();
+         maintainStackForIf(J9BCificmpne);
+         break;*/
       case J9BCifne:
          push (new (trStackMemory()) IconstOperand(0));
          maintainStackForIf(J9BCificmpne);
@@ -1577,8 +1593,13 @@ InterpreterEmulator::refineResolvedCalleeForInvokevirtual(TR_ResolvedMethod *&ca
          auto targetMethod = fej9->targetMethodFromMethodHandle(comp(), receiverIndex);
          if (!targetMethod) return;
 
+         TR_ResolvedMethod * resolvedMethod = fej9->createResolvedMethod(comp()->trMemory(), targetMethod, callee->owningMethod());
+         heuristicTrace(tracer(), "Pre-refinement invokebasic numargs: %d. Refined invokeBasic numArgs: %d\n",argNum, resolvedMethod->numberOfExplicitParameters());
+         if (resolvedMethod->numberOfExplicitParameters() !=  (argNum + 1))
+            return;
+
          isIndirectCall = false;
-         callee = fej9->createResolvedMethod(comp()->trMemory(), targetMethod, callee->owningMethod());
+         callee = resolvedMethod;
          heuristicTrace(tracer(), "Refine invokeBasic to %s\n", callee->signature(trMemory(), stackAlloc));
          return;
          }

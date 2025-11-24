@@ -5270,6 +5270,23 @@ TR_J9VMBase::getLayoutVarHandle(TR::Compilation *comp, TR::KnownObjectTable::Ind
    return result;
    }
 
+TR::KnownObjectTable::Index
+TR_J9VMBase::getMAIndex(TR::Compilation *comp, TR::KnownObjectTable::Index methodIndex)
+   {
+   TR::VMAccessCriticalSection getLayoutVarHandle(this);
+   TR::KnownObjectTable::Index result = TR::KnownObjectTable::UNKNOWN;
+   TR::KnownObjectTable *knot = comp->getKnownObjectTable();
+   if (!knot) return result;
+
+   uintptr_t methodObj = knot->getPointer(methodIndex);
+   uintptr_t maObject = getReferenceField(methodObj,
+                                 "methodAccessor",
+                                 "Ljdk/internal/reflect/MethodAccessor;");
+   if (!maObject) return result;
+   result = knot->getOrCreateIndex(maObject);
+   return result;
+   }
+
 int32_t
 TR_J9VMBase::getVarHandleAccessDescriptorMode(TR::Compilation *comp, TR::KnownObjectTable::Index adIndex)
    {

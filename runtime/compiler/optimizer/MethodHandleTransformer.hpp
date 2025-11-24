@@ -117,6 +117,8 @@ class TR_MethodHandleTransformer : public TR::Optimization
    //
    TR::KnownObjectTable::Index getObjectInfoOfNode(TR::Node *node);
 
+   //void visitLoadDirect(TR::TreeTop* tt, TR::Node* node);
+
    // The folowing visit functions will visit different types of node, update object info,
    // and/or do transformations
    //
