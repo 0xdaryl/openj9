@@ -4144,13 +4144,23 @@ generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR_OpaqueClass
    TR::Compilation *comp = cg->comp();
    TR_J9VMBase *fej9 = (TR_J9VMBase *)(cg->fe());
 
+   static char *reportInstanceOfCheckCastArrayClass = feGetEnv("TR_ReportInstanceOfCheckCastArrayClass");
    static char *disableInlineObjectArrayCheckCast = feGetEnv("TR_DisableInlineObjectArrayCheckCast");
+   static char *disableInlineArrayExactCastClass = feGetEnv("TR_DisableInlineArrayExactCastClass");
+   static char *enableInlineArrayExactCastClassForCheckCast = feGetEnv("TR_EnableInlineArrayExactCastClassForCheckCast");
 
-   if (!disableInlineObjectArrayCheckCast && isCheckCast && clazz && TR::Compiler->cls.isClassArray(comp, clazz))
+   if (clazz && TR::Compiler->cls.isClassArray(comp, clazz))
       {
       TR_OpaqueClassBlock *componentClass = fej9->getComponentClassFromArrayClass(clazz);
-      if (fej9->isJavaLangObject(componentClass))
+      if (!disableInlineObjectArrayCheckCast && isCheckCast && fej9->isJavaLangObject(componentClass))
          {
+         if (reportInstanceOfCheckCastArrayClass)
+            {
+            printf("XXXXX Inline checkcast for [jlO : isCheckCast=%d : %s\n", isCheckCast, comp->signature());
+            }
+
+         // Case 1: Cast class is a [Ljava/lang/Object
+         //
          logprintf(comp->getOption(TR_TraceCG), comp->log(), "Inline checkcast for [jlO : node=%p", node);
 
          TR::LabelSymbol *outlinedCallLabel = generateLabelSymbol(cg);
@@ -4233,6 +4243,114 @@ generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR_OpaqueClass
 
          return;
          }
+      else if (!disableInlineArrayExactCastClass && (!isCheckCast || (isCheckCast && enableInlineArrayExactCastClassForCheckCast)))
+         {
+          // Case 2: for cast class arrays, perform an exact test on the objectRef class
+
+          if (reportInstanceOfCheckCastArrayClass)
+             {
+             printf("YYYYY Found inlineArrayExactCastClass : isCheckCast=%d : %s\n", isCheckCast, comp->signature());
+             }
+
+          TR::LabelSymbol *outlinedCallLabel = generateLabelSymbol(cg);
+          TR::LabelSymbol *fallThruLabel = generateLabelSymbol(cg);
+
+          TR::Node *objectNode = node->getFirstChild();
+          TR::Node *castClassNode = node->getSecondChild();
+          TR::Register *objectReg = cg->evaluate(objectNode);
+          TR::Register *objectClassReg = cg->allocateRegister();
+          TR::Register *scratchReg = NULL;
+          TR::Register *resultReg = isCheckCast ? NULL : cg->allocateRegister();
+
+          TR_OutlinedInstructions *outlinedHelperCall = new (cg->trHeapMemory()) TR_OutlinedInstructions(node, isCheckCast ? TR::call : TR::icall, resultReg, outlinedCallLabel, fallThruLabel, cg);
+          cg->getOutlinedInstructionsList().push_front(outlinedHelperCall);
+
+          static char *breakOnInlineArrayExactCastClass = feGetEnv("TR_BreakOnInlineArrayExactCastClass");
+          if (breakOnInlineArrayExactCastClass)
+             generateInstruction(TR::InstOpCode::INT3, node, cg);
+
+          if (!isCheckCast)
+             {
+             generateRegRegInstruction(TR::InstOpCode::XOR4RegReg, node, resultReg, resultReg, cg);
+             }
+
+          // If the objectRef is NULL, the cast will succeed
+          //
+          if (!objectNode->isNonNull())
+             {
+             generateRegRegInstruction(TR::InstOpCode::TESTRegReg(), node, objectReg, objectReg, cg);
+             generateLabelInstruction(TR::InstOpCode::JE4, node, fallThruLabel, cg);
+             }
+
+          generateLoadJ9Class(node, objectClassReg, objectReg, cg);
+
+          bool use64BitClasses = cg->comp()->target().is64Bit() && !TR::Compiler->om.generateCompressedObjectHeaders();
+          uintptr_t clazzAddress = (uintptr_t)clazz;
+
+          if (IS_32BIT_SIGNED(clazzAddress))
+             {
+             // TODO: Need a relocation for clazz
+             generateRegImmInstruction(TR::InstOpCode::CMPRegImm4(), node, objectClassReg, clazzAddress, cg);
+             }
+          else
+             {
+             // TODO: Need a relocation for clazz
+             scratchReg = cg->allocateRegister();
+             generateRegImm64Instruction(TR::InstOpCode::MOV8RegImm64, node, scratchReg, clazzAddress, cg);
+             generateRegRegInstruction(TR::InstOpCode::CMPRegReg(), node, objectClassReg, scratchReg, cg);
+             }
+
+          // Fast path failed, do a full check out of line
+          //
+          generateLabelInstruction(TR::InstOpCode::JNE4, node, outlinedCallLabel, cg);
+
+          if (!isCheckCast)
+             {
+             generateRegImmInstruction(TR::InstOpCode::MOVRegImm4(), node, resultReg, 1, cg);
+             }
+
+          TR::RegisterDependencyConditions *deps = generateRegisterDependencyConditions((uint8_t)0, scratchReg ? 5 : 4, cg);
+          deps->addPostCondition(objectReg, TR::RealRegister::NoReg, cg);
+          deps->addPostCondition(objectClassReg, TR::RealRegister::NoReg, cg);
+
+          if (scratchReg)
+             deps->addPostCondition(scratchReg, TR::RealRegister::NoReg, cg);
+
+          TR::Node *callNode = outlinedHelperCall->getCallNode();
+          TR::Register *reg;
+
+          if (callNode->getFirstChild() == node->getFirstChild())
+             {
+             reg = callNode->getFirstChild()->getRegister();
+             if (reg)
+                deps->unionPostCondition(reg, TR::RealRegister::NoReg, cg);
+             }
+
+          if (callNode->getSecondChild() == node->getSecondChild())
+             {
+             reg = callNode->getSecondChild()->getRegister();
+             if (reg)
+                deps->unionPostCondition(reg, TR::RealRegister::NoReg, cg);
+             }
+
+          deps->stopAddingConditions();
+          generateLabelInstruction(TR::InstOpCode::label, node, fallThruLabel, deps, cg);
+
+          if (scratchReg)
+             cg->stopUsingRegister(scratchReg);
+
+          cg->stopUsingRegister(objectClassReg);
+
+          cg->decReferenceCount(objectNode);
+          cg->decReferenceCount(castClassNode);
+
+          if (!isCheckCast)
+             {
+             node->setRegister(resultReg);
+             }
+
+          return;
+          }
       }
 
    if (node->getOpCodeValue() == TR::checkcastAndNULLCHK)
