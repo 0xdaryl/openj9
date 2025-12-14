@@ -4147,7 +4147,7 @@ generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR_OpaqueClass
    static char *reportInstanceOfCheckCastArrayClass = feGetEnv("TR_ReportInstanceOfCheckCastArrayClass");
    static char *disableInlineObjectArrayCheckCast = feGetEnv("TR_DisableInlineObjectArrayCheckCast");
    static char *disableInlineArrayExactCastClass = feGetEnv("TR_DisableInlineArrayExactCastClass");
-   static char *enableInlineArrayExactCastClassForCheckCast = feGetEnv("TR_EnableInlineArrayExactCastClassForCheckCast");
+   static char *disableInlineArrayExactCastClassForCheckCast = feGetEnv("TR_DisableInlineArrayExactCastClassForCheckCast");
 
    if (clazz && TR::Compiler->cls.isClassArray(comp, clazz))
       {
@@ -4243,7 +4243,7 @@ generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR_OpaqueClass
 
          return;
          }
-      else if (!disableInlineArrayExactCastClass && (!isCheckCast || (isCheckCast && enableInlineArrayExactCastClassForCheckCast)))
+      else if (!disableInlineArrayExactCastClass && (!isCheckCast || (isCheckCast && !disableInlineArrayExactCastClassForCheckCast)))
          {
           // Case 2: for cast class arrays, perform an exact test on the objectRef class
 
