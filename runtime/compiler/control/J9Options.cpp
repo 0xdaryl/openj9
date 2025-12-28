@@ -3876,18 +3876,22 @@ J9::Options::setLogFileForClientOptions(int suffixNumber)
    if (getLogFileNameBase())
       {
       _fe->acquireLogMonitor();
+
+      OMR::Logger *logger = NULL;
       if (suffixNumber)
          {
-         self()->openLogFileCreateLogger(suffixNumber);
+         logger = self()->openLogFileCreateLogger(suffixNumber);
          }
       else
          {
          _compilationSequenceNumber++;
-         self()->openLogFileCreateLogger(_compilationSequenceNumber, false);
+         logger = self()->openLogFileCreateLogger(_compilationSequenceNumber, false);
          }
 
-      if (_logFile)
+      if (logger)
          {
+         setLogger(logger);
+
          J9JITConfig *jitConfig = (J9JITConfig*)_feBase;
          if (!jitConfig->tracingHook)
             {
@@ -3896,6 +3900,7 @@ J9::Options::setLogFileForClientOptions(int suffixNumber)
             _hasLogFile = true;
             }
          }
+
       _fe->releaseLogMonitor();
       }
    else
