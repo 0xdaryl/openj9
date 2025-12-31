@@ -151,7 +151,7 @@ outOfProcessCompilationEnd(TR_MethodToBeCompiled *entry, TR::Compilation *comp)
    auto classesThatShouldNotBeNewlyExtended = compInfoPT->getClassesThatShouldNotBeNewlyExtended();
 
    // Pack log file to send to client
-   std::string logFileStr = TR::Options::packLogFile(comp->getOutFile());
+   std::string logFileStr = TR::Options::packLogFile(comp->log());
 
    // Send runtime assumptions created during compilation to the client
    std::vector<SerializedRuntimeAssumption> serializedRuntimeAssumptions;
@@ -899,7 +899,6 @@ TR::CompilationInfoPerThreadRemote::processCompilationRequest(CompilationRequest
       optPlan->clone(&clientOptPlan);
       if (optPlan->isLogCompilation())
          {
-         optPlan->setLogCompilation(clientOptPlan.getLogCompilation());
          optPlan->setLogger(clientOptPlan.getLogger());
          }
       }

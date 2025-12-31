@@ -8690,7 +8690,6 @@ TR::CompilationInfoPerThreadBase::wrappedCompile(J9PortLibrary *portLib, void * 
                // running JitDump
                //
                TR::Options::findOrCreateDebug();
-               options->setLogFile(p->_optimizationPlan->getLogCompilation());
                options->setLogger(p->_optimizationPlan->getLogger());
                }
             // The following is a hack to prevent the JITServer from allocating
@@ -9203,8 +9202,10 @@ TR::CompilationInfoPerThreadBase::wrappedCompile(J9PortLibrary *portLib, void * 
             if (options->getOption(TR_EnableLastCompilationRetrialLogging) &&
                 (that->_methodBeingCompiled->_compilationAttemptsLeft == 1))
                {
-               if (options->getLogFile() != NULL)
+               if (options->getLogger() && options->getLogger()->isEnabled_DEPRECATED())
+                  {
                   options->setOption(TR_TraceAll);
+                  }
                }
 
             TR_ASSERT(TR::comp() == NULL, "there seems to be a current TLS TR::Compilation object %p for this thread. At this point there should be no current TR::Compilation object", TR::comp());
