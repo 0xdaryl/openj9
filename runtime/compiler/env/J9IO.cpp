@@ -33,23 +33,23 @@
 #include "infra/Assert.hpp"
 
 TR::FILE *
-J9::IO::fopen(char * fileName, const char * mode)
+J9::IO::fopen(const char * fileName, const char * mode)
    {
-   return j9jit_fopen((char*)fileName, mode, false);
+   return j9jit_fopen(fileName, mode, false);
    }
 
 
 TR::FILE *
-J9::IO::fopen(char * fileName, const char * mode, bool encrypt)
+J9::IO::fopen(const char * fileName, const char * mode, bool encrypt)
    {
    return TR::IO::fopen(fileName, mode);
    }
 
 
-void
+int32_t
 J9::IO::fclose(TR::FILE *fileId)
    {
-   j9jit_fclose(fileId);
+   return j9jit_fclose(fileId);
    }
 
 
@@ -67,10 +67,10 @@ J9::IO::ftell(TR::FILE *fileId)
    }
 
 
-void
+int32_t
 J9::IO::fflush(TR::FILE *fileId)
    {
-   j9jit_fflush(fileId);
+   return j9jit_fflush(fileId);
    }
 
 
