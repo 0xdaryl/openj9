@@ -53,10 +53,17 @@ J9::IO::fclose(TR::FILE *fileId)
    }
 
 
-void
+int32_t
 J9::IO::fseek(TR::FILE *fileId, intptr_t offset, int32_t whence)
    {
-   ::fseek(fileId->_stream, (long)offset, whence);
+   return j9jit_fseek(fileId, offset, whence);
+   }
+
+
+intptr_t
+J9::IO::fread(TR::FILE *fileId, void *buf, intptr_t nbytes)
+   {
+   return j9jit_fread(fileId, buf, nbytes);
    }
 
 
