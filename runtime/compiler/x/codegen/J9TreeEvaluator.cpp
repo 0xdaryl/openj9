@@ -4149,6 +4149,185 @@ generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR_OpaqueClass
    static char *disableInlineArrayExactCastClass = feGetEnv("TR_DisableInlineArrayExactCastClass");
    static char *disableInlineArrayExactCastClassForCheckCast = feGetEnv("TR_DisableInlineArrayExactCastClassForCheckCast");
 
+//////////////////
+
+       superClass = castClass (constant)
+       instanceClassReg
+
+      // isClassSameOrSuperclass(castClass, instanceClass)
+      //
+      TR::Register *scratchReg = NULL;
+      TR::Register *scratchReg2 = NULL;
+      TR::Register *scratchReg3 = NULL;
+
+////////////////////////////////////////////////
+           (castClass, instanceClass)
+static VMINLINE bool
+	isSameOrSuperclass(J9Class *superClass, J9Class *subClass)
+	{
+		bool isSubclass = true;
+		if (subClass != superClass) {
+			UDATA superClassDepth = getClassDepth(superClass);
+			UDATA subClassDepth = getClassDepth(subClass);
+			if ((subClassDepth <= superClassDepth) || (subClass->superclasses[superClassDepth] != superClass)) {
+				isSubclass = false;
+			}
+		}
+		return isSubclass;
+////////////////////////////////////////////////
+
+
+      assumes castClass is an array
+
+      // ----------------------------------------------------------------------
+      // Initial trivial check whether objectClass is the same or a subclass
+      // of the castClass
+      // ----------------------------------------------------------------------
+
+      // objectClass == castClass ?
+      //
+      generateLoadJ9Class(node, instanceClassReg, instanceObjectReg, cg);
+      uintptr_t clazzAddress = (uintptr_t)clazz;
+
+      if (IS_32BIT_SIGNED(clazzAddress))
+         {
+         // TODO: Need a relocation for clazz
+         generateRegImmInstruction(TR::InstOpCode::CMPRegImm4(), node, instanceClassReg, (int32_t)clazzAddress, cg);
+         }
+      else
+         {
+         // TODO: Need a relocation for clazz
+         scratchReg = cg->allocateRegister();
+         generateRegImm64Instruction(TR::InstOpCode::MOV8RegImm64, node, scratchReg, clazzAddress, cg);
+         generateRegRegInstruction(TR::InstOpCode::CMPRegReg(), node, instanceClassReg, scratchReg, cg);
+         }
+
+      JEQ done
+
+      // objectClass is a subclass of castClass ?
+      //
+      uintptr_t castClassDepth = TR::Compiler->cls.classDepthOf(clazz);
+
+      static_assert(J9AccClassDepthMask == 0xffff, "J9AccClassDepthMask must be 0xffff");
+      TR::MemoryReference *instanceClassDepthMR = generateX86MemoryReference(objectClassReg, offsetof(J9Class, classDepthAndFlags), cg);
+      generateMemImmInstruction(TR::InstOpCode::CMP2MemImm2, node, instanceClassDepthMR, castClassDepth, cg);
+
+      JBE notSameOrSubclass
+
+      if (!scratchReg)
+          scratchReg = cg->allocateRegister();
+
+      generateRegMemInstruction(TR::InstOpCode::LRegMem(), node, scratchReg, generateX86MemoryReference(instanceClassReg, offsetof(J9Class, superclasses), cg), cg);
+      auto offset = castClassDepth * sizeof(J9Class *);
+      TR_ASSERT_FATAL(IS_32BIT_SIGNED(offset), "superclass array offset is unreasonably large");
+
+      TR::MemoryReference *superclassMR = generateX86MemoryReference(scratchReg, offset, cg);
+      if (use64BitClasses)
+         {
+         if (IS_32BIT_SIGNED(clazzAddress))
+            {
+            generateMemImmInstruction(TR::InstOpCode::CMP8MemImm4, node, superclassMR, (int32_t)clazzAddress, cg);
+            }
+         else
+            {
+            if (!scratchReg2)
+               scratchReg2 = cg->allocateRegister();
+            generateRegImm64Instruction(TR::InstOpCode::MOV8RegImm64, node, scratchReg2, clazzAddress, cg);
+            generateMemRegInstruction(TR::InstOpCode::CMP8MemReg, node, superclassMR, scratchReg2, cg);
+            }
+         }
+      else
+         {
+         generateMemImmInstruction(TR::InstOpCode::CMP4MemImm4, node, superclassMR, (int32_t)clazzAddress, cg);
+         }
+
+      JEQ done
+
+      // The instanceClass is not the same or a subclass of the castClass
+
+notSameOrSubclass:
+
+      generateLabelInstruction(TR::InstOpCode::label, node, notSameOrSubclassLabel, cg);
+
+      // ----------------------------------------------------------------------
+      // Check for a hit in the classCastCache
+      // ----------------------------------------------------------------------
+
+      generateRegMemInstruction(TR::InstOpCode::LRegMem(), node, scratchReg,
+         generateX86MemoryReference(instanceClassReg, offsetof(J9Class, castClassCache), cg), cg);
+
+      if (use64BitClasses)
+         {
+         if (IS_32BIT_SIGNED(clazzAddress))
+            {
+            generateMemImmInstruction(TR::InstOpCode::XOR8RegImm4, node, scratchReg, (int32_t)clazzAddress, cg);
+            }
+         else
+            {
+            if (!scratchReg2)
+               scratchReg2 = cg->allocateRegister();
+            generateRegImm64Instruction(TR::InstOpCode::MOV8RegImm64, node, scratchReg2, clazzAddress, cg);
+            generateRegRegInstruction(TR::InstOpCode::XOR8RegReg, node, scratchReg, scratchReg2, cg);
+            }
+         }
+      else
+         {
+         generateRegImmInstruction(TR::InstOpCode::XOR4RegImm4, node, scratchReg, (int32_t)clazzAddress, cg);
+         }
+
+      generateRegImmInstruction(TR::InstOpCode::TESTRegImm4(), node, scratchReg, ~1, cg);
+
+      JNE notFoundInCache
+
+      generateRegImmInstruction(TR::InstOpCode::TESTRegImm4(), node, scratchReg, 1, cg);
+      JNE castSuccess_NoCaching
+      JMP castFailed_NoCaching
+
+notFoundInCache:
+
+// Only do the following when castClass is an array and whose leaf component type is mixed
+// J9Class *castClassLeafComponent = ((J9ArrayClass*)castClass)->leafComponentType;
+// 					if (J9CLASS_IS_MIXED(castClassLeafComponent)) {
+//
+// Otherwise, fall through to helper
+
+
+      // ----------------------------------------------------------------------
+      // For an array instanceClass, is instanceClass arity == castClass arity?
+      // ----------------------------------------------------------------------
+
+      // instanceClass is an array
+      generateMemImmInstruction(IS_8BIT_SIGNED(J9AccClassRAMArray) ? TR::InstOpCode::TEST1MemImm1 : TR::InstOpCode::TEST4MemImm4, node,
+         generateX86MemoryReference(instanceClassReg, offsetof(J9Class, classDepthAndFlags), cg), J9AccClassRAMArray, cg);
+
+      JNE notCastableButCacheable
+
+      intptr_t castClassArity = ((J9ArrayClass*)clazz)->arity;
+      J9Class *castClassLeafComponent = ((J9ArrayClass*)clazz)->leafComponentType;
+
+      // Load instance arity
+
+      generateRegRegInstruction(TR::InstOpCode::LRegMem(), node, scratchReg,
+         generateX86MemoryReference(instanceClassReg, offsetof(J9ArrayClass, arity), cg), cg);
+
+      generateRegImmInstruction(TR::InstCopCode::CMPRegImm4(), node, scratchReg, (int32_t)castClassArity, cg);
+
+      JNE doHelperCheck
+
+/*
+#if defined(J9VM_OPT_VALHALLA_FLATTENABLE_VALUE_TYPES)
+								if (J9_IS_J9ARRAYCLASS_NULL_RESTRICTED(instanceClass)
+									|| !J9_IS_J9ARRAYCLASS_NULL_RESTRICTED(castClass)
+								) {
+#endif
+*/
+
+									if (J9CLASS_IS_MIXED(instanceClassLeafComponent)) {
+
+
+
+///
+
    if (clazz && TR::Compiler->cls.isClassArray(comp, clazz))
       {
       TR_OpaqueClassBlock *componentClass = fej9->getComponentClassFromArrayClass(clazz);
