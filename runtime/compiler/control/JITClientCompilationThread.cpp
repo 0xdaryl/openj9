@@ -4208,7 +4208,7 @@ remoteCompile(J9VMThread *vmThread, TR::Compilation *compiler, TR_ResolvedMethod
          int compilationSequenceNumber = compiler->getOptions()->writeLogFileFromServer(logFileStr);
          if (compiler->getOption(TR_JITServerFollowRemoteCompileWithLocalCompile) && compilationSequenceNumber)
             {
-            compiler->getOptions()->setLogFileForClientOptions(compilationSequenceNumber);
+            compiler->getOptions()->setLoggerForClientOptions(compilationSequenceNumber);
 
             // Copy the Logger that was created on the Options object
             // to the Compilation object
@@ -4268,7 +4268,7 @@ remoteCompile(J9VMThread *vmThread, TR::Compilation *compiler, TR_ResolvedMethod
                   );
             if (compileWithoutVMAccess)
                acquireVMAccessNoSuspend(vmThread);
-            compiler->getOptions()->closeLogFileForClientOptions();
+            compiler->getOptions()->closeLoggerForClientOptions();
             }
 
          if (TR::Options::getVerboseOption(TR_VerboseJITServer))

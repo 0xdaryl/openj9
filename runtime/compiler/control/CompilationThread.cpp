@@ -8332,7 +8332,7 @@ TR::CompilationInfoPerThreadBase::postCompilationTasks(J9VMThread * vmThread,
        && _compiler->getPersistentInfo()->getRemoteCompilationMode() == JITServer::SERVER
        && !entry->_optimizationPlan->isLogCompilation())
       {
-      _compiler->getOptions()->closeLogFileForClientOptions();
+      _compiler->getOptions()->closeLoggerForClientOptions();
       }
 #endif /* defined(J9VM_OPT_JITSERVER) */
 
@@ -8681,11 +8681,11 @@ TR::CompilationInfoPerThreadBase::wrappedCompile(J9PortLibrary *portLib, void * 
             options = TR::Options::unpackOptions(compInfoPTRemote->getClientOptions(), compInfoPTRemote->getClientOptionsSize(), that, vm, p->trMemory());
             if (!p->_optimizationPlan->isLogCompilation())
                {
-               options->setLogFileForClientOptions();
+               options->setLoggerForClientOptions();
                }
             else
                {
-               // For JitDump compilations, set the log file and OMR::Logger to
+               // For JitDump compilations, set the OMR::Logger to
                // the jitdump file, which has already been created by a thread
                // running JitDump
                //

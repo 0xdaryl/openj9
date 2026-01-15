@@ -3591,8 +3591,8 @@ J9::Options::createLoggerForLogFileName(const char *logFileName, const char *fil
    // JitServer requires Loggers to be rewindable and readable in order to pack the
    // underlying log file for transmission
    //
-   TR_ASSERT_FATAL(logger->supportsRewinding(), "Logger for a log file must be rewindable");
-   TR_ASSERT_FATAL(logger->supportsRead(), "Logger for a log file must be readable");
+   TR_ASSERT_FATAL(!logger || logger->supportsRewinding(), "Logger for a log file must be rewindable");
+   TR_ASSERT_FATAL(!logger || logger->supportsRead(), "Logger for a log file must be readable");
 #endif
 
    return logger;
@@ -3879,7 +3879,7 @@ TR_Debug *createDebugObject(TR::Compilation *);
 //                suffixNumber is the compilationSequenceNumber used for the remote compilation.
 // At the server: suffixNumber is set as 0.
 void
-J9::Options::setLogFileForClientOptions(int suffixNumber)
+J9::Options::setLoggerForClientOptions(int suffixNumber)
    {
    if (getLogFileNameBase())
       {
@@ -3896,17 +3896,16 @@ J9::Options::setLogFileForClientOptions(int suffixNumber)
          logger = self()->openLogFileCreateLogger(_compilationSequenceNumber, false);
          }
 
-      if (logger)
-         {
-         setLogger(logger);
+      TR_ASSERT_FATAL(logger, "A Logger was not created for client options");
 
-         J9JITConfig *jitConfig = (J9JITConfig*)_feBase;
-         if (!jitConfig->tracingHook)
-            {
-            jitConfig->tracingHook = (void*) (TR_CreateDebug_t)createDebugObject;
-            suppressLogFileBecauseDebugObjectNotCreated(false);
-            _hasLogFile = true;
-            }
+      setLogger(logger);
+
+      J9JITConfig *jitConfig = (J9JITConfig*)_feBase;
+      if (!jitConfig->tracingHook)
+         {
+         jitConfig->tracingHook = (void*) (TR_CreateDebug_t)createDebugObject;
+         suppressLogFileBecauseDebugObjectNotCreated(false);
+         _hasLogFile = true;
          }
 
       _fe->releaseLogMonitor();
@@ -3920,7 +3919,7 @@ J9::Options::setLogFileForClientOptions(int suffixNumber)
    }
 
 void
-J9::Options::closeLogFileForClientOptions()
+J9::Options::closeLoggerForClientOptions()
    {
    if (_logger)
       {
