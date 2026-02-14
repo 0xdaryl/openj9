@@ -4343,6 +4343,7 @@ notFoundInCache:
          logprintf(comp->getOption(TR_TraceCG), comp->log(), "Inline checkcast for [jlO : node=%p", node);
 
          TR::LabelSymbol *outlinedCallLabel = generateLabelSymbol(cg);
+         TR::LabelSymbol *startLabel = generateLabelSymbol(cg);
          TR::LabelSymbol *fallThruLabel = generateLabelSymbol(cg);
 
          TR::Node *objectNode = node->getFirstChild();
@@ -4350,6 +4351,11 @@ notFoundInCache:
          TR::Register *objectReg = cg->evaluate(objectNode);
          TR::Register *objectClassReg = cg->allocateRegister();
          TR::Register *scratchReg = cg->allocateRegister();
+
+         startLabel->setStartInternalControlFlow();
+         fallThruLabel->setEndInternalControlFlow();
+
+         generateLabelInstruction(TR::InstOpCode::label, node, startLabel, cg);
 
          TR_OutlinedInstructions *outlinedHelperCall = new (cg->trHeapMemory()) TR_OutlinedInstructions(node, TR::call, NULL, outlinedCallLabel, fallThruLabel, cg);
          cg->getOutlinedInstructionsList().push_front(outlinedHelperCall);
