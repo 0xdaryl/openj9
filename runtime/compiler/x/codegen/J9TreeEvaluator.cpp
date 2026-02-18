@@ -4646,7 +4646,7 @@ static VMINLINE bool isSameOrSuperclass(J9Class *superClass, J9Class *subClass)
                }
             else
                {
-               TR_ASSERT_FATAL(TR::Compiler->cls.isClassArray(comp, castClassLeafComponentClass), "Expected cast class leaf component to be non-array");
+               TR_ASSERT_FATAL(!TR::Compiler->cls.isClassArray(comp, castClassLeafComponentClass), "Expected cast class leaf component to be non-array");
                }
 
             // Generated code will fall through to notCastableUpdateCacheLabel
