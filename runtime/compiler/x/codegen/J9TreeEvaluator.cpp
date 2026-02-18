@@ -4182,6 +4182,7 @@ generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR_OpaqueClass
 
    static char *reportInstanceOfCheckCastArrayClass = feGetEnv("TR_ReportInstanceOfCheckCastArrayClass");
    static char *disableInlineObjectArrayCheckCast = feGetEnv("TR_DisableInlineObjectArrayCheckCast");
+   static char *reportInlineArrayExactCastClass= feGetEnv("TR_ReportInlineArrayExactCastClass");
    static char *disableInlineArrayExactCastClass = feGetEnv("TR_DisableInlineArrayExactCastClass");
 
    bool isRelocatableCompile = comp->compileRelocatableCode() || comp->isOutOfProcessCompilation();
