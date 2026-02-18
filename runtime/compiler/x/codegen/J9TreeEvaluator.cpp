@@ -4356,21 +4356,21 @@ static VMINLINE bool isSameOrSuperclass(J9Class *superClass, J9Class *subClass)
             {
             generateRegRegInstruction(TR::InstOpCode::TESTRegReg(), node, objectReg, objectReg, cg);
 
-            if (isCheckCast)
-               // checkcast leaves the operand stack unaffected
-               generateLabelInstruction(TR::InstOpCode::JE4, node, fallThruLabel, cg);
-            else
-               // instanceof returns 0 if the objectRef is null
-               generateLabelInstruction(TR::InstOpCode::JE4, node, notCastableDoNotCacheLabel, cg);
+            // checkcast leaves the operand stack unaffected
+            // instanceof returns 0 if the objectRef is null
+            //
+            TR::LabelSymbol *nullTargetLabel = isCheckCast ? fallThruLabel : notCastableDoNotCacheLabel;
+            generateLabelInstruction(TR::InstOpCode::JE4, node, nullTargetLabel, cg);
             }
 
-         // ----------------------------------------------------------------------
-         // Perform trivial check whether objectClass is the same or a subclass
-         // of the castClass.
+         // -----------------------------------------------------------------------
+         // Perform trivial check whether objectClass is the same as the castClass.
+         // The castClass is known to be an array (implicitly final), so no
+         // subclass test is needed.
          //
          // If the trivial check reveals a successful cast, do not cache the
          // result to avoiding polluting the cast class cache.
-         // ----------------------------------------------------------------------
+         // -----------------------------------------------------------------------
 
 // L597 if (!isSameOrSuperclass(castClass, instanceClass)) {
 
@@ -4395,6 +4395,8 @@ static VMINLINE bool isSameOrSuperclass(J9Class *superClass, J9Class *subClass)
 
          generateLabelInstruction(TR::InstOpCode::JE4, node, castableDoNotCacheLabel, cg);
 
+// xxxxx
+#if 0
          // Is objectClass is a subclass of castClass ?
          //
          uintptr_t castClassDepth = TR::Compiler->cls.classDepthOf(clazz);
@@ -4440,10 +4442,15 @@ static VMINLINE bool isSameOrSuperclass(J9Class *superClass, J9Class *subClass)
          // The objectClass is not the same or a subclass of the castClass
 
          generateLabelInstruction(TR::InstOpCode::label, node, notSameOrSubclassLabel, cg);
+// xxxxxxxxxxxxxx
+#endif
 
          // ----------------------------------------------------------------------
          // Next, check for a hit in the object's classCastCache
          // ----------------------------------------------------------------------
+
+         if (!scratchReg)
+            scratchReg = cg->allocateRegister();
 
          generateRegMemInstruction(TR::InstOpCode::LRegMem(), node, scratchReg,
             generateX86MemoryReference(objectClassReg, offsetof(J9Class, castClassCache), cg), cg);
@@ -4478,9 +4485,6 @@ static VMINLINE bool isSameOrSuperclass(J9Class *superClass, J9Class *subClass)
          //
          generateRegImmInstruction(TR::InstOpCode::TESTRegImm4(), node, scratchReg, 1, cg);
          generateLabelInstruction(TR::InstOpCode::JE4, node, castableDoNotCacheLabel, cg);
-         generateLabelInstruction(TR::InstOpCode::JMP4, node, notCastableDoNotCacheLabel, cg);
-
-         generateLabelInstruction(TR::InstOpCode::label, node, castClassCacheMissLabel, cg);
 
          J9Class *castClassLeafComponent = ((J9ArrayClass*)clazz)->leafComponentType;
 
@@ -4493,6 +4497,11 @@ static VMINLINE bool isSameOrSuperclass(J9Class *superClass, J9Class *subClass)
             {
 // L633				if (J9CLASS_IS_ARRAY(instanceClass)) {
 // Still original objectClass
+
+            // JMP is required on this path from the cache check
+            //
+            generateLabelInstruction(TR::InstOpCode::JMP4, node, notCastableDoNotCacheLabel, cg);
+            generateLabelInstruction(TR::InstOpCode::label, node, castClassCacheMissLabel, cg);
 
             // Check if objectClass is an array. Not castable if it is not.
             //
@@ -4583,57 +4592,73 @@ static VMINLINE bool isSameOrSuperclass(J9Class *superClass, J9Class *subClass)
 
             generateLabelInstruction(TR::InstOpCode::JE4, node, castableAndUpdateCacheLabel, cg);
 
-            // Is objectClassLeaf is a subclass of castClassLeafComponent ?
+            // No need for a subclass check if the castClassLeafComponent is final
             //
-            uintptr_t castClassLeafComponentDepth = TR::Compiler->cls.classDepthOf(TR::Compiler->cls.convertClassPtrToClassOffset(castClassLeafComponent));
-
-            static_assert(J9AccClassDepthMask == 0xffff, "J9AccClassDepthMask must be 0xffff");
-            TR::MemoryReference *objectClassLeafDepthMR = generateX86MemoryReference(objectClassLeafReg, offsetof(J9Class, classDepthAndFlags), cg);
-            generateMemImmInstruction(TR::InstOpCode::CMP2MemImm2, node, objectClassLeafDepthMR, castClassLeafComponentDepth, cg);
-
-            // Too complex for inline; perform cast check in helper
-            //
-            if (!oolHelperCallTrampolineLabel)
-               oolHelperCallTrampolineLabel = generateLabelSymbol(cg);
-            generateLabelInstruction(TR::InstOpCode::JBE4, node, oolHelperCallTrampolineLabel, cg);
-
-            generateRegMemInstruction(TR::InstOpCode::LRegMem(), node, scratchReg, generateX86MemoryReference(objectClassLeafReg, offsetof(J9Class, superclasses), cg), cg);
-            auto offset = castClassLeafComponentDepth * sizeof(J9Class *);
-            TR_ASSERT_FATAL(IS_32BIT_SIGNED(offset), "superclass array offset is unreasonably large");
-
-            TR::MemoryReference *superclassMR2 = generateX86MemoryReference(scratchReg, offset, cg);
-            if (use64BitClasses)
+            TR_OpaqueClassBlock *castClassLeafComponentClass = TR::Compiler->cls.convertClassPtrToClassOffset(castClassLeafComponent);
+            if (!fej9->isClassFinal(castClassLeafComponentClass))
                {
-               if (IS_32BIT_SIGNED(componentClazzAddress))
+               // Is objectClassLeaf is a subclass of castClassLeafComponent ?
+               //
+               uintptr_t castClassLeafComponentDepth = TR::Compiler->cls.classDepthOf(castClassLeafComponentClass);
+
+               static_assert(J9AccClassDepthMask == 0xffff, "J9AccClassDepthMask must be 0xffff");
+               TR::MemoryReference *objectClassLeafDepthMR = generateX86MemoryReference(objectClassLeafReg, offsetof(J9Class, classDepthAndFlags), cg);
+               generateMemImmInstruction(TR::InstOpCode::CMP2MemImm2, node, objectClassLeafDepthMR, castClassLeafComponentDepth, cg);
+
+               // Too complex for inline; perform cast check in helper
+               //
+               if (!oolHelperCallTrampolineLabel)
+                  oolHelperCallTrampolineLabel = generateLabelSymbol(cg);
+               generateLabelInstruction(TR::InstOpCode::JBE4, node, oolHelperCallTrampolineLabel, cg);
+
+               generateRegMemInstruction(TR::InstOpCode::LRegMem(), node, scratchReg, generateX86MemoryReference(objectClassLeafReg, offsetof(J9Class, superclasses), cg), cg);
+               auto offset = castClassLeafComponentDepth * sizeof(J9Class *);
+               TR_ASSERT_FATAL(IS_32BIT_SIGNED(offset), "superclass array offset is unreasonably large");
+
+               TR::MemoryReference *superclassMR2 = generateX86MemoryReference(scratchReg, offset, cg);
+               if (use64BitClasses)
                   {
-                  generateMemImmInstruction(TR::InstOpCode::CMP8MemImm4, node, superclassMR2, (int32_t)componentClazzAddress, cg);
+                  if (IS_32BIT_SIGNED(componentClazzAddress))
+                     {
+                     generateMemImmInstruction(TR::InstOpCode::CMP8MemImm4, node, superclassMR2, (int32_t)componentClazzAddress, cg);
+                     }
+                  else
+                     {
+                     if (!scratchReg3)
+                        scratchReg3 = cg->allocateRegister();
+                     generateRegImm64Instruction(TR::InstOpCode::MOV8RegImm64, node, scratchReg3, componentClazzAddress, cg);
+                     generateMemRegInstruction(TR::InstOpCode::CMP8MemReg, node, superclassMR2, scratchReg3, cg);
+                     }
                   }
                else
                   {
-                  if (!scratchReg3)
-                     scratchReg3 = cg->allocateRegister();
-                  generateRegImm64Instruction(TR::InstOpCode::MOV8RegImm64, node, scratchReg3, componentClazzAddress, cg);
-                  generateMemRegInstruction(TR::InstOpCode::CMP8MemReg, node, superclassMR2, scratchReg3, cg);
+                  generateMemImmInstruction(TR::InstOpCode::CMP4MemImm4, node, superclassMR2, (int32_t)componentClazzAddress, cg);
                   }
+
+               generateLabelInstruction(TR::InstOpCode::JE4, node, castableAndUpdateCacheLabel, cg);
+               }
+
+            if (J9ROMCLASS_IS_INTERFACE(castClassLeafComponent->romClass))
+               {
+               if (!oolHelperCallTrampolineLabel)
+                  oolHelperCallTrampolineLabel = generateLabelSymbol(cg);
+               generateLabelInstruction(TR::InstOpCode::JMP4, node, oolHelperCallTrampolineLabel, cg);
                }
             else
                {
-               generateMemImmInstruction(TR::InstOpCode::CMP4MemImm4, node, superclassMR2, (int32_t)componentClazzAddress, cg);
+               TR_ASSERT_FATAL(TR::Compiler->cls.isClassArray(comp, castClassLeafComponentClass), "Expected cast class leaf component to be non-array");
                }
 
-            generateLabelInstruction(TR::InstOpCode::JE4, node, castableAndUpdateCacheLabel, cg);
-
-            // The objectClassLeaf is not the same or a subclass of the castClassLeafComponent
-            // Too complex for inline; perform cast check in helper
-            //
-            if (!oolHelperCallTrampolineLabel)
-               oolHelperCallTrampolineLabel = generateLabelSymbol(cg);
-            generateLabelInstruction(TR::InstOpCode::JMP4, node, oolHelperCallTrampolineLabel, cg);
+            // Generated code will fall through to notCastableUpdateCacheLabel
 
 #if defined(J9VM_OPT_VALHALLA_FLATTENABLE_VALUE_TYPES)
 // L669 /* else fail since a nullable array class cannot be cast to a null-restricted class */
 #endif /* defined(J9VM_OPT_VALHALLA_FLATTENABLE_VALUE_TYPES) */
 
+            }
+         else
+            {
+            generateLabelInstruction(TR::InstOpCode::label, node, castClassCacheMissLabel, cg);
             }
 
 // if (J9CLASS_IS_MIXED(castClassLeafComponent) is false)
