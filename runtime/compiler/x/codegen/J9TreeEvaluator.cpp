@@ -4183,10 +4183,6 @@ generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR_OpaqueClass
    static char *reportInstanceOfCheckCastArrayClass = feGetEnv("TR_ReportInstanceOfCheckCastArrayClass");
    static char *disableInlineObjectArrayCheckCast = feGetEnv("TR_DisableInlineObjectArrayCheckCast");
    static char *disableInlineArrayExactCastClass = feGetEnv("TR_DisableInlineArrayExactCastClass");
-   static char *disableInlineArrayExactCastClassForCheckCast = feGetEnv("TR_DisableInlineArrayExactCastClassForCheckCast");
-
-   //static char *enableInlineArrayExactCastClass = feGetEnv("TR_EnableInlineArrayExactCastClass");
-   //static char *disableInlineArrayExactCastClass = feGetEnv("TR_DisableInlineArrayExactCastClass");
 
    bool isRelocatableCompile = comp->compileRelocatableCode() || comp->isOutOfProcessCompilation();
 
@@ -4197,7 +4193,7 @@ generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR_OpaqueClass
          {
          if (reportInstanceOfCheckCastArrayClass)
             {
-            printf("XXXXX Inline checkcast for [jlO : isCheckCast=%d : %s\n", isCheckCast, comp->signature());
+            OMR::CStdIOStreamLogger::Stdout->printf("XXXXX Inline checkcast for [jlO : isCheckCast=%d : %s\n", isCheckCast, comp->signature());
             }
 
          // Case 1: Cast class is a [Ljava/lang/Object
@@ -4290,29 +4286,14 @@ generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR_OpaqueClass
 
          return;
          }
-//      else if (!disableInlineArrayExactCastClass && (!isCheckCast || (isCheckCast && !disableInlineArrayExactCastClassForCheckCast)))
-//      else if (enableInlineArrayExactCastClass
       else if (!disableInlineArrayExactCastClass && !isRelocatableCompile)
          {
+         // Case 2 : constant cast class array
 
-         // Case 2 : array case
-
-#if 0
-////////////////////////////////////////////////
-           (castClass, instanceClass)
-static VMINLINE bool isSameOrSuperclass(J9Class *superClass, J9Class *subClass)
-    {
-    bool isSubclass = true;
-    if (subClass != superClass) {
-        UDATA superClassDepth = getClassDepth(superClass);
-        UDATA subClassDepth = getClassDepth(subClass);
-        if ((subClassDepth <= superClassDepth) || (subClass->superclasses[superClassDepth] != superClass)) {
-            isSubclass = false;
-        }
-    }
-    return isSubclass;
-////////////////////////////////////////////////
-#endif
+         if (reportInlineArrayExactCastClass)
+            {
+            OMR::CStdIOStreamLogger::Stdout->printf("YYYYY Found inlineArrayExactCastClass : isCheckCast=%d : %s\n", isCheckCast, comp->signature());
+            }
 
          TR::Node *objectNode = node->getFirstChild();
          TR::Node *castClassNode = node->getSecondChild();
@@ -4325,8 +4306,6 @@ static VMINLINE bool isSameOrSuperclass(J9Class *superClass, J9Class *subClass)
          TR::Register *scratchReg = NULL;
          TR::Register *scratchReg2 = NULL;
          TR::Register *scratchReg3 = NULL;
-
-//         bool skipOutOfLineChecks = (!isCheckCast && fej9->isClassFinal(componentClass)) ? true : false;
 
          bool use64BitClasses = cg->comp()->target().is64Bit() && !TR::Compiler->om.generateCompressedObjectHeaders();
 
@@ -4394,56 +4373,6 @@ static VMINLINE bool isSameOrSuperclass(J9Class *superClass, J9Class *subClass)
             }
 
          generateLabelInstruction(TR::InstOpCode::JE4, node, castableDoNotCacheLabel, cg);
-
-// xxxxx
-#if 0
-         // Is objectClass is a subclass of castClass ?
-         //
-         uintptr_t castClassDepth = TR::Compiler->cls.classDepthOf(clazz);
-
-         static_assert(J9AccClassDepthMask == 0xffff, "J9AccClassDepthMask must be 0xffff");
-         TR::MemoryReference *objectClassDepthMR = generateX86MemoryReference(objectClassReg, offsetof(J9Class, classDepthAndFlags), cg);
-         generateMemImmInstruction(TR::InstOpCode::CMP2MemImm2, node, objectClassDepthMR, castClassDepth, cg);
-
-         TR::LabelSymbol *notSameOrSubclassLabel = generateLabelSymbol(cg);
-         generateLabelInstruction(TR::InstOpCode::JBE4, node, notSameOrSubclassLabel, cg);
-
-         if (!scratchReg)
-            scratchReg = cg->allocateRegister();
-
-         generateRegMemInstruction(TR::InstOpCode::LRegMem(), node, scratchReg, generateX86MemoryReference(objectClassReg, offsetof(J9Class, superclasses), cg), cg);
-         auto offset = castClassDepth * sizeof(J9Class *);
-         TR_ASSERT_FATAL(IS_32BIT_SIGNED(offset), "superclass array offset is unreasonably large");
-
-         TR::MemoryReference *superclassMR = generateX86MemoryReference(scratchReg, offset, cg);
-         if (use64BitClasses)
-            {
-            if (IS_32BIT_SIGNED(clazzAddress))
-               {
-               generateMemImmInstruction(TR::InstOpCode::CMP8MemImm4, node, superclassMR, (int32_t)clazzAddress, cg);
-               }
-            else
-               {
-               if (!scratchReg2)
-                  scratchReg2 = cg->allocateRegister();
-               generateRegImm64Instruction(TR::InstOpCode::MOV8RegImm64, node, scratchReg2, clazzAddress, cg);
-               generateMemRegInstruction(TR::InstOpCode::CMP8MemReg, node, superclassMR, scratchReg2, cg);
-               }
-            }
-         else
-            {
-            generateMemImmInstruction(TR::InstOpCode::CMP4MemImm4, node, superclassMR, (int32_t)clazzAddress, cg);
-            }
-
-         generateLabelInstruction(TR::InstOpCode::JE4, node, castableDoNotCacheLabel, cg);
-
-// body of if (!isSameOrSuperclass(castClass, instanceClass)) {
-
-         // The objectClass is not the same or a subclass of the castClass
-
-         generateLabelInstruction(TR::InstOpCode::label, node, notSameOrSubclassLabel, cg);
-// xxxxxxxxxxxxxx
-#endif
 
          // ----------------------------------------------------------------------
          // Next, check for a hit in the object's classCastCache
@@ -4556,10 +4485,6 @@ static VMINLINE bool isSameOrSuperclass(J9Class *superClass, J9Class *subClass)
                generateX86MemoryReference(objectClassReg, offsetof(J9ArrayClass, leafComponentType), cg), cg);
 
 // L660  if (J9CLASS_IS_MIXED(instanceClassLeafComponent)) {
-
-// #define J9CLASS_IS_MIXED(ramClass) (((J9CLASS_FLAGS(ramClass) >> J9AccClassRAMShapeShift) & OBJECT_HEADER_SHAPE_MASK) == OBJECT_HEADER_SHAPE_MIXED)
-// #define J9CLASS_FLAGS(clazz) ((UDATA)(clazz)->classDepthAndFlags)
-// #define J9AccClassRAMShapeShift 0x10
 
             // Check if objectClassLeaf is a mixed object (reference)
             //
@@ -4711,8 +4636,6 @@ static VMINLINE bool isSameOrSuperclass(J9Class *superClass, J9Class *subClass)
          // Collect register dependencies for fallThruLabel
          // ----------------------------------------------------------------------
 
-//         int32_t numRegDeps = skipOutOfLineChecks ? (scratchReg ? 3 : 2) : (scratchReg ? 5 : 4);
-
          int32_t numRegDeps =
              1 +   // objectReg
              ((objectReg != objectClassReg) ? 1 : 0) +
@@ -4743,7 +4666,6 @@ static VMINLINE bool isSameOrSuperclass(J9Class *superClass, J9Class *subClass)
          if (scratchReg3)
             deps->addPostCondition(scratchReg3, TR::RealRegister::NoReg, cg);
 
-//         if (!skipOutOfLineChecks)
          if (outlinedHelperCall)
             {
             TR::Node *callNode = outlinedHelperCall->getCallNode();
@@ -4788,138 +4710,6 @@ static VMINLINE bool isSameOrSuperclass(J9Class *superClass, J9Class *subClass)
             }
 
          return;
-
-
-#if 0
-// ---------------------------------------------------------------------------------------------------------------------------------------------------------------
-         // Case 2: for cast class arrays, perform an exact test on the objectRef class
-
-         bool skipOutOfLineChecks = (!isCheckCast && fej9->isClassFinal(componentClass)) ? true : false;
-
-         if (reportInstanceOfCheckCastArrayClass)
-            {
-            printf("YYYYY Found inlineArrayExactCastClass : isCheckCast=%d : %s\n", isCheckCast, comp->signature());
-            }
-
-         TR::LabelSymbol *outlinedCallLabel = generateLabelSymbol(cg);
-         TR::LabelSymbol *fallThruLabel = generateLabelSymbol(cg);
-
-         TR::Node *objectNode = node->getFirstChild();
-         TR::Node *castClassNode = node->getSecondChild();
-         TR::Register *objectReg = cg->evaluate(objectNode);
-         TR::Register *objectClassReg = cg->allocateRegister();
-         TR::Register *scratchReg = NULL;
-         TR::Register *resultReg = isCheckCast ? NULL : cg->allocateRegister();
-
-         TR_OutlinedInstructions *outlinedHelperCall = NULL;
-         if (!skipOutOfLineChecks)
-            {
-            outlinedHelperCall = new (cg->trHeapMemory()) TR_OutlinedInstructions(node, isCheckCast ? TR::call : TR::icall, resultReg, outlinedCallLabel, fallThruLabel, cg);
-            cg->getOutlinedInstructionsList().push_front(outlinedHelperCall);
-            }
-
-         static char *breakOnInlineArrayExactCastClass = feGetEnv("TR_BreakOnInlineArrayExactCastClass");
-         if (breakOnInlineArrayExactCastClass)
-            generateInstruction(TR::InstOpCode::INT3, node, cg);
-
-         if (!isCheckCast)
-            {
-            generateRegRegInstruction(TR::InstOpCode::XOR4RegReg, node, resultReg, resultReg, cg);
-            }
-
-         // If the objectRef is NULL, the cast will succeed
-         //
-         if (!objectNode->isNonNull())
-            {
-            generateRegRegInstruction(TR::InstOpCode::TESTRegReg(), node, objectReg, objectReg, cg);
-            generateLabelInstruction(TR::InstOpCode::JE4, node, fallThruLabel, cg);
-            }
-
-         generateLoadJ9Class(node, objectClassReg, objectReg, cg);
-
-         bool use64BitClasses = cg->comp()->target().is64Bit() && !TR::Compiler->om.generateCompressedObjectHeaders();
-         uintptr_t clazzAddress = (uintptr_t)clazz;
-
-         if (IS_32BIT_SIGNED(clazzAddress))
-            {
-            // TODO: Need a relocation for clazz
-            generateRegImmInstruction(TR::InstOpCode::CMPRegImm4(), node, objectClassReg, clazzAddress, cg);
-            }
-         else
-            {
-            // TODO: Need a relocation for clazz
-            scratchReg = cg->allocateRegister();
-            generateRegImm64Instruction(TR::InstOpCode::MOV8RegImm64, node, scratchReg, clazzAddress, cg);
-            generateRegRegInstruction(TR::InstOpCode::CMPRegReg(), node, objectClassReg, scratchReg, cg);
-            }
-
-         // Fast path failed, do a full check out of line
-         //
-         if (!skipOutOfLineChecks)
-            {
-            generateLabelInstruction(TR::InstOpCode::JNE4, node, outlinedCallLabel, cg);
-            if (!isCheckCast)
-               {
-               generateRegImmInstruction(TR::InstOpCode::MOVRegImm4(), node, resultReg, 1, cg);
-               }
-            }
-         else
-            {
-            TR_ASSERT_FATAL(!isCheckCast, "Only expecting instanceof");
-            generateRegInstruction(TR::InstOpCode::SETE1Reg, node, resultReg, cg);
-            }
-
-         int32_t numRegDeps = skipOutOfLineChecks ? (scratchReg ? 3 : 2) : (scratchReg ? 5 : 4);
-
-         TR::RegisterDependencyConditions *deps =
-            generateRegisterDependencyConditions((uint8_t)0, numRegDeps, cg);
-
-         deps->addPostCondition(objectReg, TR::RealRegister::NoReg, cg);
-         deps->addPostCondition(objectClassReg, TR::RealRegister::NoReg, cg);
-
-         if (scratchReg)
-            deps->addPostCondition(scratchReg, TR::RealRegister::NoReg, cg);
-
-         if (!skipOutOfLineChecks)
-            {
-            TR::Node *callNode = outlinedHelperCall->getCallNode();
-            TR::Register *reg;
-
-            if (callNode->getFirstChild() == node->getFirstChild())
-               {
-               reg = callNode->getFirstChild()->getRegister();
-               if (reg)
-                  deps->unionPostCondition(reg, TR::RealRegister::NoReg, cg);
-               }
-
-            if (callNode->getSecondChild() == node->getSecondChild())
-               {
-               reg = callNode->getSecondChild()->getRegister();
-               if (reg)
-                  deps->unionPostCondition(reg, TR::RealRegister::NoReg, cg);
-               }
-            }
-
-         deps->stopAddingConditions();
-         generateLabelInstruction(TR::InstOpCode::label, node, fallThruLabel, deps, cg);
-
-         if (scratchReg)
-            cg->stopUsingRegister(scratchReg);
-
-         cg->stopUsingRegister(objectClassReg);
-
-         cg->decReferenceCount(objectNode);
-         cg->decReferenceCount(castClassNode);
-
-         if (!isCheckCast)
-            {
-            node->setRegister(resultReg);
-            }
-
-         return;
-// ---------------------------------------------------------------------------------------------------------------------------------------------------------------
-#endif
-
          }
       }
 
