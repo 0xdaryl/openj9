@@ -4294,31 +4294,48 @@ static void generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR
     TR::Compilation *comp = cg->comp();
     TR_J9VMBase *fej9 = (TR_J9VMBase *)(cg->fe());
 
-    static char *disableInlineObjectArrayCheckCast = feGetEnv("TR_DisableInlineObjectArrayCheckCast");
+    static char *disableInlineObjectArrayCheck = feGetEnv("TR_DisableInlineObjectArrayCheck");
 
-    if (!disableInlineObjectArrayCheckCast && isCheckCast && clazz && TR::Compiler->cls.isClassArray(comp, clazz)) {
+    if (clazz && TR::Compiler->cls.isClassArray(comp, clazz)) {
         TR_OpaqueClassBlock *componentClass = fej9->getComponentClassFromArrayClass(clazz);
-        if (fej9->isJavaLangObject(componentClass)) {
+        if (!disableInlineObjectArrayCheck && fej9->isJavaLangObject(componentClass)) {
+            // Case 1: Cast class is a [Ljava/lang/Object
+            //
             logprintf(comp->getOption(TR_TraceCG), comp->log(), "Inline checkcast for [jlO : node=%p", node);
-
-            TR::LabelSymbol *outlinedCallLabel = generateLabelSymbol(cg);
-            TR::LabelSymbol *fallThruLabel = generateLabelSymbol(cg);
 
             TR::Node *objectNode = node->getFirstChild();
             TR::Node *castClassNode = node->getSecondChild();
             TR::Register *objectReg = cg->evaluate(objectNode);
-            TR::Register *objectClassReg = cg->allocateRegister();
-            TR::Register *scratchReg = cg->allocateRegister();
 
-            TR_OutlinedInstructions *outlinedHelperCall = new (cg->trHeapMemory())
-                TR_OutlinedInstructions(node, TR::call, NULL, outlinedCallLabel, fallThruLabel, cg);
+            // The first child of a call to isAssignableFrom is already the class object
+            //
+            TR::Register *objectClassReg = (node->getOpCodeValue() == TR::icall) ? objectReg : cg->allocateRegister();
+            TR::Register *scratchReg = cg->allocateRegister();
+            TR::Register *resultReg = isCheckCast ? NULL : cg->allocateRegister();
+
+            TR::LabelSymbol *outlinedHelperCallLabel = generateLabelSymbol(cg);
+            TR::LabelSymbol *startLabel = generateLabelSymbol(cg);
+            TR::LabelSymbol *fallThruLabel = generateLabelSymbol(cg);
+
+            startLabel->setStartInternalControlFlow();
+            fallThruLabel->setEndInternalControlFlow();
+
+            generateLabelInstruction(TR::InstOpCode::label, node, startLabel, cg);
+
+            TR_OutlinedInstructions *outlinedHelperCall = new (cg->trHeapMemory()) TR_OutlinedInstructions(node,
+                isCheckCast ? TR::call : TR::icall, resultReg, outlinedHelperCallLabel, fallThruLabel, cg);
             cg->getOutlinedInstructionsList().push_front(outlinedHelperCall);
 
-            static char *breakOnInlineObjectArrayCheckCast = feGetEnv("TR_BreakOnInlineObjectArrayCheckCast");
-            if (breakOnInlineObjectArrayCheckCast)
+            static char *breakOnInlineObjectArrayCheck = feGetEnv("TR_BreakOnInlineObjectArrayCheck");
+            if (breakOnInlineObjectArrayCheck)
                 generateInstruction(TR::InstOpCode::INT3, node, cg);
 
-            // If the objectRef is NULL, the cast will succeed
+            if (!isCheckCast) {
+                generateRegRegInstruction(TR::InstOpCode::XOR4RegReg, node, resultReg, resultReg, cg);
+            }
+
+            // If the object is NULL, no exception is thrown for a checkcast and a 0
+            // is returned for an instanceof.
             //
             if (!objectNode->isNonNull()) {
                 generateRegRegInstruction(TR::InstOpCode::TESTRegReg(), node, objectReg, objectReg, cg);
@@ -4339,7 +4356,7 @@ static void generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR
                 generateX86MemoryReference(objectClassReg, offsetof(J9Class, romClass), cg), cg);
             generateMemImmInstruction(TR::InstOpCode::TEST4MemImm4, node,
                 generateX86MemoryReference(romClassReg, offsetof(J9ROMClass, modifiers), cg), J9AccClassArray, cg);
-            generateLabelInstruction(TR::InstOpCode::JE4, node, outlinedCallLabel, cg);
+            generateLabelInstruction(TR::InstOpCode::JE4, node, outlinedHelperCallLabel, cg);
 
             // Check if object class is a primitive array
             generateRegMemInstruction(TR::InstOpCode::LRegMem(), node, componentClassReg,
@@ -4349,11 +4366,27 @@ static void generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR
             generateMemImmInstruction(TR::InstOpCode::TEST4MemImm4, node,
                 generateX86MemoryReference(romClassReg, offsetof(J9ROMClass, modifiers), cg),
                 J9AccClassInternalPrimitiveType, cg);
-            generateLabelInstruction(TR::InstOpCode::JNE4, node, outlinedCallLabel, cg);
+            generateLabelInstruction(TR::InstOpCode::JNE4, node, outlinedHelperCallLabel, cg);
 
-            TR::RegisterDependencyConditions *deps = generateRegisterDependencyConditions((uint8_t)0, 5, cg);
+            if (!isCheckCast) {
+                generateRegImmInstruction(TR::InstOpCode::MOV4RegImm4, node, resultReg, 1, cg);
+            }
+
+            int32_t numRegDeps = 1 + // objectReg
+                ((objectReg != objectClassReg) ? 1 : 0) + (resultReg ? 1 : 0) + (scratchReg ? 1 : 0) + 1
+                + // objectReg helper arg
+                1; // castClass helper arg
+
+            TR::RegisterDependencyConditions *deps = generateRegisterDependencyConditions((uint8_t)0, numRegDeps, cg);
+
             deps->addPostCondition(objectReg, TR::RealRegister::NoReg, cg);
-            deps->addPostCondition(objectClassReg, TR::RealRegister::NoReg, cg);
+
+            if (objectReg != objectClassReg)
+                deps->addPostCondition(objectClassReg, TR::RealRegister::NoReg, cg);
+
+            if (resultReg)
+                deps->addPostCondition(resultReg, TR::RealRegister::NoReg, cg);
+
             deps->addPostCondition(scratchReg, TR::RealRegister::NoReg, cg);
 
             TR::Node *callNode = outlinedHelperCall->getCallNode();
@@ -4375,7 +4408,12 @@ static void generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR
             generateLabelInstruction(TR::InstOpCode::label, node, fallThruLabel, deps, cg);
 
             cg->stopUsingRegister(scratchReg);
-            cg->stopUsingRegister(objectClassReg);
+            if (objectReg != objectClassReg)
+                cg->stopUsingRegister(objectClassReg);
+
+            if (!isCheckCast) {
+                node->setRegister(resultReg);
+            }
 
             cg->decReferenceCount(objectNode);
             cg->decReferenceCount(castClassNode);
