@@ -1475,7 +1475,9 @@ J9::AheadOfTimeCompile::dumpRelocationHeaderData(uint8_t *cursor, bool isVerbose
          if (isVerbose)
             {
             TR::SymbolReference *symRef = comp->getSymRefTab()->getSymRef(helperID);
-            log->printf("\nHelper method address of %s(%d)", self()->getDebug()->getName(symRef), helperID);
+            log->prints("\nHelper method address of ");
+            self()->getDebug()->printName(log, symRef);
+            log->printf("(%d)", helperID);
             }
          }
          break;
@@ -1516,7 +1518,9 @@ J9::AheadOfTimeCompile::dumpRelocationHeaderData(uint8_t *cursor, bool isVerbose
          if (isVerbose)
             {
             TR::SymbolReference *symRef = comp->getSymRefTab()->getSymRef(helperID);
-            log->printf("\nHelper method address of %s(%d)", self()->getDebug()->getName(symRef), helperID);
+            log->prints("\nHelper method address of ");
+            self()->getDebug()->printName(log, symRef);
+            log->printf("(%d)", helperID);
             }
          }
          break;
