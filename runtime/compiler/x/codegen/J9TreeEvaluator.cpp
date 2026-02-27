@@ -4833,8 +4833,8 @@ static void generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR
                 cg->stopUsingRegister(objectClassReg);
 
 
-            //if (!disableCheckInstanceof) {
-            if (enableCheckInstanceof && !isCheckCast) {
+            if (!disableCheckInstanceof && !isCheckCast) {
+//            if (enableCheckInstanceof && !isCheckCast) {
 
                 int32_t i;
                 TR::Node *child;
