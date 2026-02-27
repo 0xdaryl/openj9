@@ -4832,12 +4832,6 @@ static void generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR
             if (objectReg != objectClassReg)
                 cg->stopUsingRegister(objectClassReg);
 
-            cg->decReferenceCount(objectNode);
-            cg->decReferenceCount(castClassNode);
-
-            if (!isCheckCast) {
-                node->setRegister(resultReg);
-            }
 
             //if (!disableCheckInstanceof) {
             if (enableCheckInstanceof && !isCheckCast) {
@@ -4900,6 +4894,14 @@ static void generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR
                 generateLabelInstruction(TR::InstOpCode::JE4, node, reallyDoneLabel, cg);
                 generateInstruction(TR::InstOpCode::INT3, node, cg);
                 generateLabelInstruction(TR::InstOpCode::label, node, reallyDoneLabel, cg);
+            }
+
+
+            cg->decReferenceCount(objectNode);
+            cg->decReferenceCount(castClassNode);
+
+            if (!isCheckCast) {
+                node->setRegister(resultReg);
             }
 
             return;
