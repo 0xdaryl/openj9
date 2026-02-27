@@ -4333,6 +4333,9 @@ static void generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR
     static char *disableInlineObjectArrayCheck = feGetEnv("TR_DisableInlineObjectArrayCheck");
     static char *disableInlineArrayExactCastClass = feGetEnv("TR_DisableInlineArrayExactCastClass");
 
+    static char *disableCheckInstanceof = feGetEnv("TR_DisableCheckInstanceof");
+    static char *enableCheckInstanceof = feGetEnv("TR_EnableCheckInstanceof");
+
     bool isRelocatableCompile = comp->compileRelocatableCode() || comp->isOutOfProcessCompilation();
 
     if (clazz && TR::Compiler->cls.isClassArray(comp, clazz)) {
@@ -4836,6 +4839,69 @@ static void generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR
 
             if (!isCheckCast) {
                 node->setRegister(resultReg);
+            }
+
+            //if (!disableCheckInstanceof) {
+            if (enableCheckInstanceof) {
+
+                int32_t i;
+                TR::Node *child;
+
+                TR::Node *callNode = node;
+
+                // We pass true for getSymbolReference because
+                TR::Node *newCallNode
+                    = TR::Node::createWithSymRef(node, isCheckCast ? TR::call : TR::icall, callNode->getNumChildren(), callNode->getSymbolReference());
+
+                newCallNode->setReferenceCount(1);
+
+                for (i = 0; i < callNode->getNumChildren(); i++) {
+                    child = callNode->getChild(i);
+
+                    if (child->getRegister() != NULL) {
+                        // Child has already been evaluated outside this tree.
+                        //
+                        newCallNode->setAndIncChild(i, child);
+                    } else if (child->getOpCode().isLoadConst()) {
+                        // Copy unevaluated constant nodes.
+                        //
+                        child = TR::Node::copy(child);
+                        child->setReferenceCount(1);
+                        newCallNode->setChild(i, child);
+                    } else {
+                        if ((child->getOpCodeValue() == TR::loadaddr) && (child->getSymbolReference()->getSymbol())
+                            && (child->getSymbolReference()->getSymbol()->getStaticSymbol())) {
+                            child = TR::Node::copy(child);
+                            child->setReferenceCount(1);
+                            newCallNode->setChild(i, child);
+                        } else {
+                            // Be very conservative at this point, even though it is possible to make it less so.  For example, this
+                            // will catch the case of an unevaluated argument not persisting outside of the outlined region even
+                            // though one of its subtrees will.
+                            //
+                            (void)_cg->evaluate(child);
+
+                            // Do not decrement the reference count here.  It will be decremented when the call node is evaluated
+                            // again in the helper instruction stream.
+                            //
+                            newCallNode->setAndIncChild(i, child);
+                        }
+                    }
+                }
+                if (callNode->isPreparedForDirectJNI()) {
+                    newCallNode->setPreparedForDirectJNI();
+                }
+
+                TR::TreeEvaluator::performHelperCall(newCallNode, NULL, isCheckCast ? TR::call : TR::icall, false, cg);
+
+                TR::Register *checkResultReg = newCallNode->getRegister();
+                TR_ASSERT_FATAL(checkResultReg, "expecting a check result reg");
+
+                generateRegRegInstruction(TR::InstOpCode::CMP8RegReg, node, resultReg, checkResultReg, cg);
+                TR::LabelSymbol *reallyDoneLabel = generateLabelSymbol(cg);
+                generateLabelInstruction(TR::InstOpCode::JE4, node, reallyDoneLabel, cg);
+                generateInstruction(TR::InstOpCode::INT3, node, cg);
+                generateLabelInstruction(TR::InstOpCode::label, node, reallyDoneLabel, cg);
             }
 
             return;
