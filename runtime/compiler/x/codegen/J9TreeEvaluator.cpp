@@ -4730,8 +4730,7 @@ static void generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR
             }
 
             generateLabelInstruction(TR::InstOpCode::label, node, notCastableUpdateCacheLabel, cg);
-            generateCastClassCacheUpdate(objectClassReg, clazzAddress | 1, use64BitClasses, scratchReg, scratchReg3,
-                node, cg);
+            generateCastClassCacheUpdate(objectClassReg, clazzAddress | 1, use64BitClasses, scratchReg, node, cg);
 
             generateLabelInstruction(TR::InstOpCode::label, node, notCastableDoNotCacheLabel, cg);
 
@@ -4765,8 +4764,7 @@ static void generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR
             }
 
             generateLabelInstruction(TR::InstOpCode::label, node, castableAndUpdateCacheLabel, cg);
-            generateCastClassCacheUpdate(objectClassReg, clazzAddress, use64BitClasses, scratchReg, scratchReg3, node,
-                cg);
+            generateCastClassCacheUpdate(objectClassReg, clazzAddress, use64BitClasses, scratchReg, node, cg);
 
             generateLabelInstruction(TR::InstOpCode::label, node, castableDoNotCacheLabel, cg);
 
@@ -4879,7 +4877,7 @@ static void generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR
                             // will catch the case of an unevaluated argument not persisting outside of the outlined region even
                             // though one of its subtrees will.
                             //
-                            (void)_cg->evaluate(child);
+                            (void)cg->evaluate(child);
 
                             // Do not decrement the reference count here.  It will be decremented when the call node is evaluated
                             // again in the helper instruction stream.
