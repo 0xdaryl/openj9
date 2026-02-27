@@ -4727,8 +4727,7 @@ static void generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR
             }
 
             generateLabelInstruction(TR::InstOpCode::label, node, notCastableUpdateCacheLabel, cg);
-            generateCastClassCacheUpdate(objectClassReg, clazzAddress | 1, use64BitClasses, scratchReg, scratchReg3,
-                node, cg);
+            generateCastClassCacheUpdate(objectClassReg, clazzAddress | 1, use64BitClasses, scratchReg, node, cg);
 
             generateLabelInstruction(TR::InstOpCode::label, node, notCastableDoNotCacheLabel, cg);
 
@@ -4762,8 +4761,7 @@ static void generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR
             }
 
             generateLabelInstruction(TR::InstOpCode::label, node, castableAndUpdateCacheLabel, cg);
-            generateCastClassCacheUpdate(objectClassReg, clazzAddress, use64BitClasses, scratchReg, scratchReg3, node,
-                cg);
+            generateCastClassCacheUpdate(objectClassReg, clazzAddress, use64BitClasses, scratchReg, node, cg);
 
             generateLabelInstruction(TR::InstOpCode::label, node, castableDoNotCacheLabel, cg);
 
