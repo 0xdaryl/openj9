@@ -4840,7 +4840,7 @@ static void generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR
             }
 
             //if (!disableCheckInstanceof) {
-            if (enableCheckInstanceof) {
+            if (enableCheckInstanceof && !isCheckCast) {
 
                 int32_t i;
                 TR::Node *child;
