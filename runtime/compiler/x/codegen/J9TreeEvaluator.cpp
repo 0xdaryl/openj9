@@ -4331,6 +4331,7 @@ static void generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR
     TR_J9VMBase *fej9 = (TR_J9VMBase *)(cg->fe());
 
     static char *disableInlineObjectArrayCheck = feGetEnv("TR_DisableInlineObjectArrayCheck");
+    static char *disableInlineFinalArrayCastClass = feGetEnv("TR_DisableInlineFinalArrayClass");
     static char *disableInlineArrayExactCastClass = feGetEnv("TR_DisableInlineArrayExactCastClass");
 
     bool isRelocatableCompile = comp->compileRelocatableCode() || comp->isOutOfProcessCompilation();
