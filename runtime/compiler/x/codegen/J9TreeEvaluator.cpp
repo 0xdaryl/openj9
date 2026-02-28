@@ -4336,9 +4336,8 @@ static void generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR
 
     bool isRelocatableCompile = comp->compileRelocatableCode() || comp->isOutOfProcessCompilation();
 
-    if (clazz && TR::Compiler->cls.isClassArray(comp, clazz)
-        && !isRelocatableCompile && cg->comp()->target().is64Bit()) {
-
+    if (clazz && TR::Compiler->cls.isClassArray(comp, clazz) && !isRelocatableCompile
+        && cg->comp()->target().is64Bit()) {
         TR_OpaqueClassBlock *componentClass = fej9->getComponentClassFromArrayClass(clazz);
 
         J9Class *castClassLeafComponent = ((J9ArrayClass *)clazz)->leafComponentType;
@@ -4470,7 +4469,8 @@ static void generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR
             // Case 2: cast class is an array with a final leaf type
             //
             logprintf(comp->getOption(TR_TraceCG), comp->log(),
-                "Inline instanceof/checkcast/isAssignableFrom for const final cast class array: node=%p, isCheckCast=%d, "
+                "Inline instanceof/checkcast/isAssignableFrom for const final cast class array: node=%p, "
+                "isCheckCast=%d, "
                 "icall?=%d\n",
                 node, isCheckCast, (node->getOpCodeValue() == TR::icall));
 
@@ -4541,8 +4541,8 @@ static void generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR
                 // throw the CastClassException
                 //
                 TR::LabelSymbol *outlinedHelperCallLabel = generateLabelSymbol(cg);
-                outlinedHelperCall = new (cg->trHeapMemory()) TR_OutlinedInstructions(node,
-                    TR::call, NULL, outlinedHelperCallLabel, fallThruLabel, cg);
+                outlinedHelperCall = new (cg->trHeapMemory())
+                    TR_OutlinedInstructions(node, TR::call, NULL, outlinedHelperCallLabel, fallThruLabel, cg);
                 cg->getOutlinedInstructionsList().push_front(outlinedHelperCall);
 
                 generateLabelInstruction(TR::InstOpCode::JNE4, node, outlinedHelperCallLabel, cg);
