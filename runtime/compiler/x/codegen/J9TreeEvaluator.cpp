@@ -4368,6 +4368,7 @@ static void generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR
     TR_J9VMBase *fej9 = (TR_J9VMBase *)(cg->fe());
 
     static char *disableInlineObjectArrayCheck = feGetEnv("TR_DisableInlineObjectArrayCheck");
+    static char *disableInlineFinalArrayCastClass = feGetEnv("TR_DisableInlineFinalArrayClass");
 
     bool isAssignableFrom = (node->getOpCodeValue() == TR::icall);
     bool isRelocatableCompile = comp->compileRelocatableCode() || comp->isOutOfProcessCompilation();
@@ -4375,6 +4376,11 @@ static void generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR
     if (clazz && TR::Compiler->cls.isClassArray(comp, clazz) && !isRelocatableCompile
         && cg->comp()->target().is64Bit()) {
         TR_OpaqueClassBlock *componentClass = fej9->getComponentClassFromArrayClass(clazz);
+
+        J9Class *castClassLeafComponent = ((J9ArrayClass *)clazz)->leafComponentType;
+        TR_OpaqueClassBlock *castClassLeafComponentClass
+            = TR::Compiler->cls.convertClassPtrToClassOffset(castClassLeafComponent);
+
         if (!disableInlineObjectArrayCheck && fej9->isJavaLangObject(componentClass)) {
             /**
              * Case 1: Cast class is a [Ljava/lang/Object known at compile-time
@@ -4524,6 +4530,159 @@ static void generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR
 
             cg->decReferenceCount(objectNode);
             cg->decReferenceCount(castClassNode);
+
+            return;
+        } else if (!disableInlineFinalArrayCastClass && fej9->isClassFinal(castClassLeafComponentClass)) {
+            /**
+             * Case 2: Cast class is an array known at compile-time with a final leaf type
+             *
+             * if (objectRef == NULL) {
+             *     instanceof/isAssignableFrom : 0
+             *     checkcast : no action
+             * }
+             *
+             * if (objectRef.class == castClass) {
+             *     instanceof/isAssignableFrom : 1
+             *     checkcast : no action
+             * } else {
+             *     instanceof/isAssignableFrom : 0
+             *     checkcast : throw OOL
+             * }
+             */
+            logprintf(comp->getOption(TR_TraceCG), comp->log(),
+                "Inline %s for const final cast class array : node=%p\n",
+                isCheckCast ? "checkcast" : (isAssignableFrom ? "isAssignableFrom" : "instanceof"), node);
+
+            TR::Node *objectNode = node->getFirstChild();
+            TR::Node *castClassNode = node->getSecondChild();
+            TR::Register *objectReg = cg->evaluate(objectNode);
+
+            // The first child of a call to isAssignableFrom is already the class object
+            //
+            TR::Register *objectClassReg = isAssignableFrom ? objectReg : cg->allocateRegister();
+            TR::Register *resultReg = isCheckCast ? NULL : cg->allocateRegister();
+            TR::Register *scratchReg = NULL;
+
+            TR_OutlinedInstructions *outlinedHelperCall = NULL;
+
+            TR::LabelSymbol *startLabel = generateLabelSymbol(cg);
+            TR::LabelSymbol *fallThruLabel = generateLabelSymbol(cg);
+            startLabel->setStartInternalControlFlow();
+            fallThruLabel->setEndInternalControlFlow();
+
+            static char *breakOnInlineFinalArrayCastClass = feGetEnv("TR_BreakOnInlineFinalArrayCastClass");
+            if (breakOnInlineFinalArrayCastClass)
+                generateInstruction(TR::InstOpCode::INT3, node, cg);
+
+            generateLabelInstruction(TR::InstOpCode::label, node, startLabel, cg);
+
+            if (!isCheckCast) {
+                generateRegRegInstruction(TR::InstOpCode::XOR4RegReg, node, resultReg, resultReg, cg);
+            }
+
+            // If the object is NULL, no exception is thrown for a checkcast and a 0
+            // is returned for an instanceof.
+            //
+            if (!objectNode->isNonNull()) {
+                generateRegRegInstruction(TR::InstOpCode::TEST8RegReg, node, objectReg, objectReg, cg);
+
+                // checkcast leaves the operand stack unaffected
+                // instanceof returns 0 if the objectRef is null
+                //
+                generateLabelInstruction(TR::InstOpCode::JE4, node, fallThruLabel, cg);
+            }
+
+            // -----------------------------------------------------------------------
+            // For a cast class array with a final leaf component class, perform a
+            // trivial check whether objectClass is the same as the castClass.
+            // -----------------------------------------------------------------------
+
+            generateLoadJ9Class(node, objectClassReg, objectReg, cg);
+            uintptr_t clazzAddress = (uintptr_t)clazz;
+            J9Class *castClass = TR::Compiler->cls.convertClassOffsetToClassPtr(clazz);
+
+            if (IS_32BIT_SIGNED(clazzAddress)) {
+                // TODO: Need a relocation for clazz
+                generateRegImmInstruction(TR::InstOpCode::CMP8RegImm4, node, objectClassReg, (int32_t)clazzAddress, cg);
+            } else {
+                // TODO: Need a relocation for clazz
+                scratchReg = cg->allocateRegister();
+                generateRegImm64Instruction(TR::InstOpCode::MOV8RegImm64, node, scratchReg, clazzAddress, cg);
+                generateRegRegInstruction(TR::InstOpCode::CMP8RegReg, node, objectClassReg, scratchReg, cg);
+            }
+
+            if (isCheckCast) {
+                // Unsuccessful checkcast cast jumps directly to the OOL helper to
+                // throw the CastClassException
+                //
+                TR::LabelSymbol *outlinedHelperCallLabel = generateLabelSymbol(cg);
+                outlinedHelperCall = new (cg->trHeapMemory())
+                    TR_OutlinedInstructions(node, TR::call, NULL, outlinedHelperCallLabel, fallThruLabel, cg);
+                cg->getOutlinedInstructionsList().push_front(outlinedHelperCall);
+
+                generateLabelInstruction(TR::InstOpCode::JNE4, node, outlinedHelperCallLabel, cg);
+            } else {
+                generateRegInstruction(TR::InstOpCode::SETE1Reg, node, resultReg, cg);
+            }
+
+            // ----------------------------------------------------------------------
+            // Collect register dependencies for fallThruLabel
+            // ----------------------------------------------------------------------
+
+            // clang-format off
+            int32_t numRegDeps =
+                  1  // objectReg
+                + ((objectReg != objectClassReg) ? 1 : 0)
+                + (outlinedHelperCall ? 2 : 0)  // 2 helper args: objectRef + castClass
+                + (resultReg ? 1 : 0)
+                + (scratchReg ? 1 : 0);
+            // clang-format on
+
+            TR::RegisterDependencyConditions *deps = generateRegisterDependencyConditions((uint8_t)0, numRegDeps, cg);
+
+            deps->addPostCondition(objectReg, TR::RealRegister::NoReg, cg);
+
+            if (objectReg != objectClassReg)
+                deps->addPostCondition(objectClassReg, TR::RealRegister::NoReg, cg);
+
+            if (resultReg)
+                deps->addPostCondition(resultReg, TR::RealRegister::NoReg, cg);
+
+            if (scratchReg)
+                deps->addPostCondition(scratchReg, TR::RealRegister::NoReg, cg);
+
+            if (outlinedHelperCall) {
+                TR::Node *callNode = outlinedHelperCall->getCallNode();
+                TR::Register *reg;
+
+                if (callNode->getFirstChild() == node->getFirstChild()) {
+                    reg = callNode->getFirstChild()->getRegister();
+                    if (reg)
+                        deps->unionPostCondition(reg, TR::RealRegister::NoReg, cg);
+                }
+
+                if (callNode->getSecondChild() == node->getSecondChild()) {
+                    reg = callNode->getSecondChild()->getRegister();
+                    if (reg)
+                        deps->unionPostCondition(reg, TR::RealRegister::NoReg, cg);
+                }
+            }
+
+            deps->stopAddingConditions();
+            generateLabelInstruction(TR::InstOpCode::label, node, fallThruLabel, deps, cg);
+
+            if (scratchReg)
+                cg->stopUsingRegister(scratchReg);
+
+            if (objectReg != objectClassReg)
+                cg->stopUsingRegister(objectClassReg);
+
+            cg->decReferenceCount(objectNode);
+            cg->decReferenceCount(castClassNode);
+
+            if (!isCheckCast) {
+                node->setRegister(resultReg);
+            }
 
             return;
         }
