@@ -4304,6 +4304,42 @@ inline void generateInlinedCheckCastForDynamicCastClass(TR::Node *node, TR::Code
     cg->decReferenceCount(node->getSecondChild());
 }
 
+/**
+ * @brief
+ *    Generate instructions to update the castClassCache field of a J9Class object.
+ *    Handles class addresses of different sizes.
+ *
+ * @param[in] objectClassReg : register containing the destination object class
+ * @param[in[ clazzAddress : the class address to update in the cache
+ * @param[in] use64BitClasses : whether 64 bit classes are active
+ * @param[in,out] scratchReg : a secondary scratch register allocated if needed in this function
+ * @param[in] node : the cast check TR::Node
+ * @param[in] cg : the CodeGenerator object
+ */
+static void generateCastClassCacheUpdate(TR::Register *objectClassReg, uintptr_t clazzAddress, bool use64BitClasses,
+    TR::Register *&scratchReg, TR::Node *node, TR::CodeGenerator *cg)
+{
+    static const char *dontUpdateCastClassCache = feGetEnv("TR_DontUpdateCastClassCache");
+    if (dontUpdateCastClassCache)
+        return;
+
+    TR::MemoryReference *castClassMR
+        = generateX86MemoryReference(objectClassReg, offsetof(J9Class, castClassCache), cg);
+
+    if (use64BitClasses) {
+        if (IS_32BIT_SIGNED(clazzAddress)) {
+            generateMemImmInstruction(TR::InstOpCode::S8MemImm4, node, castClassMR, (int32_t)clazzAddress, cg);
+        } else {
+            if (!scratchReg)
+                scratchReg = cg->allocateRegister();
+            generateRegImm64Instruction(TR::InstOpCode::MOV8RegImm64, node, scratchReg, clazzAddress, cg);
+            generateMemRegInstruction(TR::InstOpCode::S8MemReg, node, castClassMR, scratchReg, cg);
+        }
+    } else {
+        generateMemImmInstruction(TR::InstOpCode::S4MemImm4, node, castClassMR, (int32_t)clazzAddress, cg);
+    }
+}
+
 static void generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR_OpaqueClassBlock *clazz,
     bool isCheckCast, TR::CodeGenerator *cg)
 {
@@ -4312,6 +4348,7 @@ static void generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR
 
     static char *disableInlineObjectArrayCheck = feGetEnv("TR_DisableInlineObjectArrayCheck");
     static char *disableInlineFinalArrayCastClass = feGetEnv("TR_DisableInlineFinalArrayClass");
+    static char *disableInlineArrayExactCastClass = feGetEnv("TR_DisableInlineArrayExactCastClass");
 
     bool isAssignableFrom = (node->getOpCodeValue() == TR::icall);
     bool isRelocatableCompile = comp->compileRelocatableCode() || comp->isOutOfProcessCompilation();
@@ -4616,6 +4653,395 @@ static void generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR
 
             if (scratchReg)
                 cg->stopUsingRegister(scratchReg);
+
+            if (objectReg != objectClassReg)
+                cg->stopUsingRegister(objectClassReg);
+
+            cg->decReferenceCount(objectNode);
+            cg->decReferenceCount(castClassNode);
+
+            if (!isCheckCast) {
+                node->setRegister(resultReg);
+            }
+
+            return;
+        }
+        /**
+         * The only reason this is disabled for relocatable compiles (AOT and out-of-process
+         * compiles like JitServer) is because the support has not been implemented yet.
+         * Implemeting the code relocations and appropriate frontend queries can be done
+         * in the future.
+         */
+        else if (!disableInlineArrayExactCastClass) {
+            /**
+             * Case 3: cast class is an array known at compile-time
+             *
+             */
+            logprintf(comp->getOption(TR_TraceCG), comp->log(),
+                "Inline %s for const cast class array: node=%p\n", isCheckCast
+                    ? "checkcast"
+                    : (isAssignableFrom ? "isAssignableFrom" : "instanceof"),
+                node);
+
+            TR::Node *objectNode = node->getFirstChild();
+            TR::Node *castClassNode = node->getSecondChild();
+            TR::Register *objectReg = cg->evaluate(objectNode);
+
+            // The first child of a call to isAssignableFrom is already the class object
+            //
+            TR::Register *objectClassReg = isAssignableFrom ? objectReg : cg->allocateRegister();
+            TR::Register *resultReg = isCheckCast ? NULL : cg->allocateRegister();
+            TR::Register *scratchReg = NULL;
+            TR::Register *scratchReg2 = NULL;
+            TR::Register *scratchReg3 = NULL;
+
+            bool use64BitClasses = !TR::Compiler->om.generateCompressedObjectHeaders();
+
+            TR::LabelSymbol *startLabel = generateLabelSymbol(cg);
+            TR::LabelSymbol *fallThruLabel = generateLabelSymbol(cg);
+            startLabel->setStartInternalControlFlow();
+            fallThruLabel->setEndInternalControlFlow();
+
+            TR::LabelSymbol *oolHelperCallTrampolineLabel = isCheckCast ? generateLabelSymbol(cg) : NULL;
+            TR_OutlinedInstructions *outlinedHelperCall = NULL;
+
+            static char *breakOnInlineArrayCastClass = feGetEnv("TR_BreakOnInlineArrayCastClass");
+            if (breakOnInlineArrayCastClass)
+                generateInstruction(TR::InstOpCode::INT3, node, cg);
+
+            TR::LabelSymbol *castableDoNotCacheLabel = generateLabelSymbol(cg);
+            TR::LabelSymbol *castableAndUpdateCacheLabel = generateLabelSymbol(cg);
+            TR::LabelSymbol *notCastableDoNotCacheLabel = generateLabelSymbol(cg);
+            TR::LabelSymbol *notCastableUpdateCacheLabel = generateLabelSymbol(cg);
+
+            generateLabelInstruction(TR::InstOpCode::label, node, startLabel, cg);
+
+            // If the object is NULL, no exception is thrown for a checkcast and a 0
+            // is returned for an instanceof.
+            //
+            if (!objectNode->isNonNull()) {
+                generateRegRegInstruction(TR::InstOpCode::TEST8RegReg, node, objectReg, objectReg, cg);
+
+                // checkcast leaves the operand stack unaffected
+                // instanceof returns 0 if the objectRef is null
+                //
+                TR::LabelSymbol *nullTargetLabel = isCheckCast ? fallThruLabel : notCastableDoNotCacheLabel;
+                generateLabelInstruction(TR::InstOpCode::JE4, node, nullTargetLabel, cg);
+            }
+
+            // -----------------------------------------------------------------------
+            // Perform trivial check whether objectClass is the same as the castClass.
+            // The castClass is known to be an array (implicitly final), so no
+            // subclass test is needed.
+            //
+            // If the trivial check reveals a successful cast, do not cache the
+            // result to avoiding polluting the cast class cache.
+            // -----------------------------------------------------------------------
+
+            generateLoadJ9Class(node, objectClassReg, objectReg, cg);
+            uintptr_t clazzAddress = (uintptr_t)clazz;
+            J9Class *castClass = TR::Compiler->cls.convertClassOffsetToClassPtr(clazz);
+
+            if (IS_32BIT_SIGNED(clazzAddress)) {
+                // TODO: Need a relocation for clazz
+                generateRegImmInstruction(TR::InstOpCode::CMP8RegImm4, node, objectClassReg, (int32_t)clazzAddress, cg);
+            } else {
+                // TODO: Need a relocation for clazz
+                scratchReg = cg->allocateRegister();
+                generateRegImm64Instruction(TR::InstOpCode::MOV8RegImm64, node, scratchReg, clazzAddress, cg);
+                generateRegRegInstruction(TR::InstOpCode::CMP8RegReg, node, objectClassReg, scratchReg, cg);
+            }
+
+            generateLabelInstruction(TR::InstOpCode::JE4, node, castableDoNotCacheLabel, cg);
+
+            // ----------------------------------------------------------------------
+            // Next, check for a hit in the object's classCastCache
+            // ----------------------------------------------------------------------
+
+            if (!scratchReg)
+                scratchReg = cg->allocateRegister();
+
+            generateRegMemInstruction(TR::InstOpCode::L8RegMem, node, scratchReg,
+                generateX86MemoryReference(objectClassReg, offsetof(J9Class, castClassCache), cg), cg);
+
+            if (use64BitClasses) {
+                if (IS_32BIT_SIGNED(clazzAddress)) {
+                    generateRegImmInstruction(TR::InstOpCode::XOR8RegImm4, node, scratchReg, (int32_t)clazzAddress, cg);
+                } else {
+                    if (!scratchReg2)
+                        scratchReg2 = cg->allocateRegister();
+                    generateRegImm64Instruction(TR::InstOpCode::MOV8RegImm64, node, scratchReg2, clazzAddress, cg);
+                    generateRegRegInstruction(TR::InstOpCode::XOR8RegReg, node, scratchReg, scratchReg2, cg);
+                }
+            } else {
+                generateRegImmInstruction(TR::InstOpCode::XOR4RegImm4, node, scratchReg, (int32_t)clazzAddress, cg);
+            }
+
+            generateRegImmInstruction(TR::InstOpCode::TEST8RegImm4, node, scratchReg, ~1, cg);
+
+            TR::LabelSymbol *castClassCacheMissLabel = generateLabelSymbol(cg);
+            generateLabelInstruction(TR::InstOpCode::JNE4, node, castClassCacheMissLabel, cg);
+
+            // objectClass was found in the cache.  Determine whether it was castable or not.
+            //
+            generateRegImmInstruction(TR::InstOpCode::TEST8RegImm4, node, scratchReg, 1, cg);
+            generateLabelInstruction(TR::InstOpCode::JE4, node, castableDoNotCacheLabel, cg);
+
+            J9Class *castClassLeafComponent = ((J9ArrayClass *)clazz)->leafComponentType;
+
+            // If the cast class leaf component is not mixed, the result is not castable.
+            // Fall through to update the cache
+            //
+            if (J9CLASS_IS_MIXED(castClassLeafComponent)) {
+                // JMP is required on this path from the cache check
+                //
+                generateLabelInstruction(TR::InstOpCode::JMP4, node, notCastableDoNotCacheLabel, cg);
+                generateLabelInstruction(TR::InstOpCode::label, node, castClassCacheMissLabel, cg);
+
+                // Check if objectClass is an array. Not castable if it is not.
+                //
+                generateMemImmInstruction(IS_8BIT_SIGNED(J9AccClassRAMArray) ? TR::InstOpCode::TEST1MemImm1
+                                                                             : TR::InstOpCode::TEST4MemImm4,
+                    node, generateX86MemoryReference(objectClassReg, offsetof(J9Class, classDepthAndFlags), cg),
+                    J9AccClassRAMArray, cg);
+                generateLabelInstruction(TR::InstOpCode::JE4, node, notCastableUpdateCacheLabel, cg);
+
+                // ----------------------------------------------------------------------
+                // For an array objectClass, is objectClass arity == castClass arity?
+                // ----------------------------------------------------------------------
+
+                generateRegMemInstruction(TR::InstOpCode::L8RegMem, node, scratchReg,
+                    generateX86MemoryReference(objectClassReg, offsetof(J9ArrayClass, arity), cg), cg);
+
+                generateRegImmInstruction(TR::InstOpCode::CMP8RegImm4, node, scratchReg,
+                    (int32_t)(((J9ArrayClass *)clazz)->arity), cg);
+
+                // Arity mismatch case is not handled inline: call helper
+                //
+                if (!oolHelperCallTrampolineLabel)
+                    oolHelperCallTrampolineLabel = generateLabelSymbol(cg);
+                generateLabelInstruction(TR::InstOpCode::JNE4, node, oolHelperCallTrampolineLabel, cg);
+
+#if defined(J9VM_OPT_VALHALLA_FLATTENABLE_VALUE_TYPES)
+                if (J9_IS_J9ARRAYCLASS_NULL_RESTRICTED(castClass)) {
+                    static_assert(J9ClassArrayIsNullRestricted == 0x2000000,
+                        "Cannot do simple bit test for J9ClassArrayIsNullRestricted");
+
+                    generateMemImmInstruction(IS_8BIT_SIGNED(J9ClassArrayIsNullRestricted)
+                            ? TR::InstOpCode::TEST1MemImm1
+                            : TR::InstOpCode::TEST4MemImm4,
+                        node, generateX86MemoryReference(objectClassReg, offsetof(J9Class, classFlags), cg),
+                        J9ClassArrayIsNullRestricted, cg);
+
+                    // Fail, since a nullable array class cannot be cast to a null-restricted class
+                    //
+                    generateLabelInstruction(TR::InstOpCode::JE4, node, notCastableUpdateCacheLabel, cg);
+                }
+#endif /* defined(J9VM_OPT_VALHALLA_FLATTENABLE_VALUE_TYPES) */
+
+                // Alias for code readability
+                //
+                TR::Register *&objectClassLeafReg = scratchReg2;
+
+                if (!objectClassLeafReg)
+                    objectClassLeafReg = cg->allocateRegister();
+
+                generateRegMemInstruction(TR::InstOpCode::L8RegMem, node, objectClassLeafReg,
+                    generateX86MemoryReference(objectClassReg, offsetof(J9ArrayClass, leafComponentType), cg), cg);
+
+                // Check if objectClassLeaf is a mixed object (reference)
+                //
+                generateRegMemInstruction(TR::InstOpCode::L8RegMem, node, scratchReg,
+                    generateX86MemoryReference(objectClassLeafReg, offsetof(J9Class, classDepthAndFlags), cg), cg);
+                generateRegImmInstruction(TR::InstOpCode::AND8RegImm4, node, scratchReg,
+                    (OBJECT_HEADER_SHAPE_MASK << J9AccClassRAMShapeShift), cg);
+                generateRegImmInstruction(TR::InstOpCode::CMP8RegImm4, node, scratchReg,
+                    (OBJECT_HEADER_SHAPE_MIXED << J9AccClassRAMShapeShift), cg);
+                generateLabelInstruction(TR::InstOpCode::JNE4, node, notCastableUpdateCacheLabel, cg);
+
+                // Is objectClassLeaf == castComponentClass ?
+                //
+                uintptr_t componentClazzAddress = (uintptr_t)castClassLeafComponent;
+
+                if (IS_32BIT_SIGNED(componentClazzAddress)) {
+                    // TODO: Need a relocation for componentClazz
+                    generateRegImmInstruction(TR::InstOpCode::CMP8RegImm4, node, objectClassLeafReg,
+                        (int32_t)componentClazzAddress, cg);
+                } else {
+                    // TODO: Need a relocation for componentClazz
+                    generateRegImm64Instruction(TR::InstOpCode::MOV8RegImm64, node, scratchReg, componentClazzAddress,
+                        cg);
+                    generateRegRegInstruction(TR::InstOpCode::CMP8RegReg, node, objectClassLeafReg, scratchReg, cg);
+                }
+
+                generateLabelInstruction(TR::InstOpCode::JE4, node, castableAndUpdateCacheLabel, cg);
+
+                // No need for a subclass check if the castClassLeafComponent is final
+                //
+                TR_OpaqueClassBlock *castClassLeafComponentClass
+                    = TR::Compiler->cls.convertClassPtrToClassOffset(castClassLeafComponent);
+                if (!fej9->isClassFinal(castClassLeafComponentClass)) {
+                    // Is objectClassLeaf is a subclass of castClassLeafComponent ?
+                    //
+                    uintptr_t castClassLeafComponentDepth = TR::Compiler->cls.classDepthOf(castClassLeafComponentClass);
+
+                    static_assert(J9AccClassDepthMask == 0xffff, "J9AccClassDepthMask must be 0xffff");
+                    TR::MemoryReference *objectClassLeafDepthMR
+                        = generateX86MemoryReference(objectClassLeafReg, offsetof(J9Class, classDepthAndFlags), cg);
+                    generateMemImmInstruction(TR::InstOpCode::CMP2MemImm2, node, objectClassLeafDepthMR,
+                        castClassLeafComponentDepth, cg);
+
+                    // Too complex for inline; perform cast check in helper
+                    //
+                    if (!oolHelperCallTrampolineLabel)
+                        oolHelperCallTrampolineLabel = generateLabelSymbol(cg);
+                    generateLabelInstruction(TR::InstOpCode::JBE4, node, oolHelperCallTrampolineLabel, cg);
+
+                    generateRegMemInstruction(TR::InstOpCode::L8RegMem, node, scratchReg,
+                        generateX86MemoryReference(objectClassLeafReg, offsetof(J9Class, superclasses), cg), cg);
+                    auto offset = castClassLeafComponentDepth * sizeof(J9Class *);
+                    TR_ASSERT_FATAL(IS_32BIT_SIGNED(offset), "superclass array offset is unreasonably large");
+
+                    TR::MemoryReference *superclassMR2 = generateX86MemoryReference(scratchReg, offset, cg);
+                    if (use64BitClasses) {
+                        if (IS_32BIT_SIGNED(componentClazzAddress)) {
+                            generateMemImmInstruction(TR::InstOpCode::CMP8MemImm4, node, superclassMR2,
+                                (int32_t)componentClazzAddress, cg);
+                        } else {
+                            if (!scratchReg3)
+                                scratchReg3 = cg->allocateRegister();
+
+                            generateRegImm64Instruction(TR::InstOpCode::MOV8RegImm64, node, scratchReg3,
+                                componentClazzAddress, cg);
+                            generateMemRegInstruction(TR::InstOpCode::CMP8MemReg, node, superclassMR2, scratchReg3, cg);
+                        }
+                    } else {
+                        generateMemImmInstruction(TR::InstOpCode::CMP4MemImm4, node, superclassMR2,
+                            (int32_t)componentClazzAddress, cg);
+                    }
+
+                    generateLabelInstruction(TR::InstOpCode::JE4, node, castableAndUpdateCacheLabel, cg);
+                }
+
+                if (J9ROMCLASS_IS_INTERFACE(castClassLeafComponent->romClass)) {
+                    if (!oolHelperCallTrampolineLabel)
+                        oolHelperCallTrampolineLabel = generateLabelSymbol(cg);
+                    generateLabelInstruction(TR::InstOpCode::JMP4, node, oolHelperCallTrampolineLabel, cg);
+                } else {
+                    TR_ASSERT_FATAL(!TR::Compiler->cls.isClassArray(comp, castClassLeafComponentClass),
+                        "Expected cast class leaf component to be non-array");
+                }
+
+                // Generated code will fall through to notCastableUpdateCacheLabel
+            } else {
+                generateLabelInstruction(TR::InstOpCode::label, node, castClassCacheMissLabel, cg);
+            }
+
+            generateLabelInstruction(TR::InstOpCode::label, node, notCastableUpdateCacheLabel, cg);
+            generateCastClassCacheUpdate(objectClassReg, clazzAddress | 1, use64BitClasses, scratchReg, node, cg);
+
+            generateLabelInstruction(TR::InstOpCode::label, node, notCastableDoNotCacheLabel, cg);
+
+            if (!isCheckCast) {
+                generateRegRegInstruction(TR::InstOpCode::XOR4RegReg, node, resultReg, resultReg, cg);
+                generateLabelInstruction(TR::InstOpCode::JMP4, node, fallThruLabel, cg);
+            } else {
+                // TODO: process out of line, but could just throw a ClassCastException instead
+                TR_ASSERT_FATAL(oolHelperCallTrampolineLabel, "checkcast requires an OOL label");
+            }
+
+            if (oolHelperCallTrampolineLabel) {
+                TR::LabelSymbol *outlinedHelperCallLabel = generateLabelSymbol(cg);
+                outlinedHelperCall = new (cg->trHeapMemory()) TR_OutlinedInstructions(node,
+                    isCheckCast ? TR::call : TR::icall, resultReg, outlinedHelperCallLabel, fallThruLabel, cg);
+                cg->getOutlinedInstructionsList().push_front(outlinedHelperCall);
+
+                // This code sequence has been designed so that all branches to the out of line helper
+                // call go through a single jump.  In practice, this has little impact on performance
+                // (other than code size).
+                //
+                // Although it would be better if instructions branched directly to the out-of-line
+                // helper call, the use of this trampoline is required when there are multiple branches
+                // to the same out-of-line sequence due to unspecified behaviours with the out-of-line
+                // register assigner.  The specific issues with multiple branches to the same OOL sequence
+                // have not been fully determined, but until they are fully understood and that OOL
+                // design is reworked, use a single branch to reach each unique OOL helper call.
+                //
+                generateLabelInstruction(TR::InstOpCode::label, node, oolHelperCallTrampolineLabel, cg);
+                generateLabelInstruction(TR::InstOpCode::JMP4, node, outlinedHelperCallLabel, cg);
+            }
+
+            generateLabelInstruction(TR::InstOpCode::label, node, castableAndUpdateCacheLabel, cg);
+            generateCastClassCacheUpdate(objectClassReg, clazzAddress, use64BitClasses, scratchReg, node, cg);
+
+            generateLabelInstruction(TR::InstOpCode::label, node, castableDoNotCacheLabel, cg);
+
+            if (!isCheckCast) {
+                generateRegImmInstruction(TR::InstOpCode::MOV4RegImm4, node, resultReg, 1, cg);
+            }
+
+            // ----------------------------------------------------------------------
+            // Collect register dependencies for fallThruLabel
+            // ----------------------------------------------------------------------
+
+            // clang-format off
+            int32_t numRegDeps =
+                  1 + // objectReg
+                + ((objectReg != objectClassReg) ? 1 : 0)
+                + (outlinedHelperCall ? 2 : 0)  // 2 helper args: objectRef + castClass
+                + (resultReg ? 1 : 0)
+                + (scratchReg ? 1 : 0)
+                + (scratchReg2 ? 1 : 0)
+                + (scratchReg3 ? 1 : 0);
+            // clang-format on
+
+            TR::RegisterDependencyConditions *deps = generateRegisterDependencyConditions((uint8_t)0, numRegDeps, cg);
+
+            deps->addPostCondition(objectReg, TR::RealRegister::NoReg, cg);
+
+            if (objectReg != objectClassReg)
+                deps->addPostCondition(objectClassReg, TR::RealRegister::NoReg, cg);
+
+            if (resultReg)
+                deps->addPostCondition(resultReg, TR::RealRegister::NoReg, cg);
+
+            if (scratchReg)
+                deps->addPostCondition(scratchReg, TR::RealRegister::NoReg, cg);
+
+            if (scratchReg2)
+                deps->addPostCondition(scratchReg2, TR::RealRegister::NoReg, cg);
+
+            if (scratchReg3)
+                deps->addPostCondition(scratchReg3, TR::RealRegister::NoReg, cg);
+
+            if (outlinedHelperCall) {
+                TR::Node *callNode = outlinedHelperCall->getCallNode();
+                TR::Register *reg;
+
+                if (callNode->getFirstChild() == node->getFirstChild()) {
+                    reg = callNode->getFirstChild()->getRegister();
+                    if (reg)
+                        deps->unionPostCondition(reg, TR::RealRegister::NoReg, cg);
+                }
+
+                if (callNode->getSecondChild() == node->getSecondChild()) {
+                    reg = callNode->getSecondChild()->getRegister();
+                    if (reg)
+                        deps->unionPostCondition(reg, TR::RealRegister::NoReg, cg);
+                }
+            }
+
+            deps->stopAddingConditions();
+            generateLabelInstruction(TR::InstOpCode::label, node, fallThruLabel, deps, cg);
+
+            if (scratchReg)
+                cg->stopUsingRegister(scratchReg);
+
+            if (scratchReg2)
+                cg->stopUsingRegister(scratchReg2);
+
+            if (scratchReg3)
+                cg->stopUsingRegister(scratchReg3);
 
             if (objectReg != objectClassReg)
                 cg->stopUsingRegister(objectClassReg);
