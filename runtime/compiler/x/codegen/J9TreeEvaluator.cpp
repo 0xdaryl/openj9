@@ -4364,17 +4364,13 @@ static void generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR
 
     if (clazz && TR::Compiler->cls.isClassArray(comp, clazz) && !isRelocatableCompile
         && cg->comp()->target().is64Bit()) {
-        TR_OpaqueClassBlock *componentClass = fej9->getComponentClassFromArrayClass(clazz);
+        TR_OpaqueClassBlock *castClassComponentClass = fej9->getComponentClassFromArrayClass(clazz);
 
-        J9Class *castClassLeafComponent = ((J9ArrayClass *)clazz)->leafComponentType;
-        TR_OpaqueClassBlock *castClassLeafComponentClass
-            = TR::Compiler->cls.convertClassPtrToClassOffset(castClassLeafComponent);
+        J9Class *castClassLeafJ9Class = ((J9ArrayClass *)clazz)->leafComponentType;
+        TR_OpaqueClassBlock *castClassLeafClass
+            = TR::Compiler->cls.convertClassPtrToClassOffset(castClassLeafJ9Class);
 
-#if 1
-TR_ASSERT_FATAL(componentClass == castClassLeafComponentClass, "Component classes are different?");
-#endif
-
-        if (!disableInlineObjectArrayCheck && fej9->isJavaLangObject(componentClass)) {
+        if (!disableInlineObjectArrayCheck && fej9->isJavaLangObject(castClassComponentClass)) {
             /**
              * Case 1: Cast class is a [Ljava/lang/Object known at compile-time
              *
@@ -4525,7 +4521,7 @@ TR_ASSERT_FATAL(componentClass == castClassLeafComponentClass, "Component classe
             cg->decReferenceCount(castClassNode);
 
             return;
-        } else if (!disableInlineFinalArrayCastClass && fej9->isClassFinal(castClassLeafComponentClass)) {
+        } else if (!disableInlineFinalArrayCastClass && fej9->isClassFinal(castClassLeafClass)) {
             /**
              * Case 2: Cast class is an array known at compile-time with a final leaf type
              *
@@ -4592,7 +4588,6 @@ TR_ASSERT_FATAL(componentClass == castClassLeafComponentClass, "Component classe
 
             generateLoadJ9Class(node, objectClassReg, objectReg, cg);
             uintptr_t clazzAddress = (uintptr_t)clazz;
-            J9Class *castClass = TR::Compiler->cls.convertClassOffsetToClassPtr(clazz);
 
             if (IS_32BIT_SIGNED(clazzAddress)) {
                 // TODO: Need a relocation for clazz
@@ -4824,7 +4819,6 @@ TR_ASSERT_FATAL(componentClass == castClassLeafComponentClass, "Component classe
 
             generateLoadJ9Class(node, objectClassReg, objectReg, cg);
             uintptr_t clazzAddress = (uintptr_t)clazz;
-            J9Class *castClass = TR::Compiler->cls.convertClassOffsetToClassPtr(clazz);
 
             if (IS_32BIT_SIGNED(clazzAddress)) {
                 // TODO: Need a relocation for clazz
@@ -4874,16 +4868,12 @@ TR_ASSERT_FATAL(componentClass == castClassLeafComponentClass, "Component classe
             generateRegImmInstruction(TR::InstOpCode::TEST8RegImm4, node, scratchReg, 1, cg);
             generateLabelInstruction(TR::InstOpCode::JE4, node, castableDoNotCacheLabel, cg);
 
-#if 0
-            J9Class *castClassLeafComponent = ((J9ArrayClass *)clazz)->leafComponentType;
-#endif
-
             // ----------------------------------------------------------------------
             // If the cast class leaf component is not a reference array, the result
             // is not castable. Fall through to update the cache.
             // ----------------------------------------------------------------------
 
-            if (J9CLASS_IS_MIXED(castClassLeafComponent)) {
+            if (J9CLASS_IS_MIXED(castClassLeafJ9Class)) {
                 // The JMP is required on this path to complete the above cache check
                 //
                 generateLabelInstruction(TR::InstOpCode::JMP4, node, notCastableDoNotCacheLabel, cg);
@@ -4915,7 +4905,8 @@ TR_ASSERT_FATAL(componentClass == castClassLeafComponentClass, "Component classe
                 generateLabelInstruction(TR::InstOpCode::JNE4, node, oolHelperCallTrampolineLabel, cg);
 
 #if defined(J9VM_OPT_VALHALLA_FLATTENABLE_VALUE_TYPES)
-                if (J9_IS_J9ARRAYCLASS_NULL_RESTRICTED(castClass)) {
+                J9Class *castClassJ9Class = TR::Compiler->cls.convertClassOffsetToClassPtr(clazz);
+                if (J9_IS_J9ARRAYCLASS_NULL_RESTRICTED(castClassJ9Class)) {
                     static_assert(J9ClassArrayIsNullRestricted == 0x2000000,
                         "J9ClassArrayIsNullRestricted must be 0x2000000 for simple bit test");
 
@@ -4959,7 +4950,7 @@ TR_ASSERT_FATAL(componentClass == castClassLeafComponentClass, "Component classe
                 // castableAndUpdateCache
                 // ----------------------------------------------------------------------
 
-                uintptr_t componentClazzAddress = (uintptr_t)castClassLeafComponent;
+                uintptr_t componentClazzAddress = (uintptr_t)castClassLeafJ9Class;
 
                 if (IS_32BIT_SIGNED(componentClazzAddress)) {
                     // TODO: Need a relocation for componentClazz
@@ -4975,55 +4966,40 @@ TR_ASSERT_FATAL(componentClass == castClassLeafComponentClass, "Component classe
                 generateLabelInstruction(TR::InstOpCode::JE4, node, castableAndUpdateCacheLabel, cg);
 
                 // ----------------------------------------------------------------------
-                // Skip the subclass check if the castClassLeafComponent is final
+                // Skip the subclass check if the castClassLeaf is final
                 // ----------------------------------------------------------------------
 
-#if 0
-                TR_OpaqueClassBlock *castClassLeafComponentClass
-                    = TR::Compiler->cls.convertClassPtrToClassOffset(castClassLeafComponent);
-#endif
+                bool castClassLeafIsInterface = J9ROMCLASS_IS_INTERFACE(castClassLeafJ9Class->romClass);
 
-                bool castClassLeafComponentIsInterface = J9ROMCLASS_IS_INTERFACE(castClassLeafComponent->romClass);
-
-                if (!fej9->isClassFinal(castClassLeafComponentClass)) {
+                if (!fej9->isClassFinal(castClassLeafClass)) {
 
                     // ----------------------------------------------------------------------
-                    // Is objectClassLeaf a subclass of castClassLeafComponent ?
+                    // Is objectClassLeaf a subclass of castClassLeaf?
                     // ----------------------------------------------------------------------
 
-                    uintptr_t castClassLeafComponentDepth = TR::Compiler->cls.classDepthOf(castClassLeafComponentClass);
+                    uintptr_t castClassLeafDepth = TR::Compiler->cls.classDepthOf(castClassLeafClass);
 
                     static_assert(J9AccClassDepthMask == 0xffff, "J9AccClassDepthMask must be 0xffff");
                     TR::MemoryReference *objectClassLeafDepthMR
                         = generateX86MemoryReference(objectClassLeafReg, offsetof(J9Class, classDepthAndFlags), cg);
                     generateMemImmInstruction(TR::InstOpCode::CMP2MemImm2, node, objectClassLeafDepthMR,
-                        castClassLeafComponentDepth, cg);
+                        castClassLeafDepth, cg);
 
-//                    generateLabelInstruction(TR::InstOpCode::JBE4, node, notCastableUpdateCacheLabel, cg);
-
-                    if (castClassLeafComponentIsInterface) {
+                    if (castClassLeafIsInterface) {
                         // Too complex for inline; perform cast check in helper
                         //
                         if (!oolHelperCallTrampolineLabel)
                             oolHelperCallTrampolineLabel = generateLabelSymbol(cg);
                         generateLabelInstruction(TR::InstOpCode::JBE4, node, oolHelperCallTrampolineLabel, cg);
                     } else {
-                        TR_ASSERT_FATAL(!TR::Compiler->cls.isClassArray(comp, castClassLeafComponentClass),
+                        TR_ASSERT_FATAL(!TR::Compiler->cls.isClassArray(comp, castClassLeafClass),
                             "Expected cast class leaf component to be non-array");
                         generateLabelInstruction(TR::InstOpCode::JBE4, node, notCastableUpdateCacheLabel, cg);
                     }
 
-#if 0
-                    // Too complex for inline; perform cast check in helper
-                    //
-                    if (!oolHelperCallTrampolineLabel)
-                        oolHelperCallTrampolineLabel = generateLabelSymbol(cg);
-                    generateLabelInstruction(TR::InstOpCode::JBE4, node, oolHelperCallTrampolineLabel, cg);
-#endif
-
                     generateRegMemInstruction(TR::InstOpCode::L8RegMem, node, scratchReg,
                         generateX86MemoryReference(objectClassLeafReg, offsetof(J9Class, superclasses), cg), cg);
-                    auto offset = castClassLeafComponentDepth * sizeof(J9Class *);
+                    auto offset = castClassLeafDepth * sizeof(J9Class *);
                     TR_ASSERT_FATAL(IS_32BIT_SIGNED(offset), "superclass array offset is unreasonably large");
 
                     TR::MemoryReference *superclassMR2 = generateX86MemoryReference(scratchReg, offset, cg);
@@ -5047,12 +5023,12 @@ TR_ASSERT_FATAL(componentClass == castClassLeafComponentClass, "Component classe
                     generateLabelInstruction(TR::InstOpCode::JE4, node, castableAndUpdateCacheLabel, cg);
                 }
 
-                if (castClassLeafComponentIsInterface) {
+                if (castClassLeafIsInterface) {
                     if (!oolHelperCallTrampolineLabel)
                         oolHelperCallTrampolineLabel = generateLabelSymbol(cg);
                     generateLabelInstruction(TR::InstOpCode::JMP4, node, oolHelperCallTrampolineLabel, cg);
                 } else {
-                    TR_ASSERT_FATAL(!TR::Compiler->cls.isClassArray(comp, castClassLeafComponentClass),
+                    TR_ASSERT_FATAL(!TR::Compiler->cls.isClassArray(comp, castClassLeafClass),
                         "Expected cast class leaf component to be non-array");
                 }
 
