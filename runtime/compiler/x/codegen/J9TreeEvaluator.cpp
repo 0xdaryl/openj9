@@ -4367,7 +4367,7 @@ inline void generateInlinedCheckCastForDynamicCastClass(TR::Node *node, TR::Code
  *    Handles class addresses of different sizes.
  *
  * @param[in] objectClassReg : register containing the destination object class
- * @param[in[ clazzAddress : the class address to update in the cache
+ * @param[in] clazzAddress : the class address to update in the cache
  * @param[in] use64BitClasses : whether 64 bit classes are active
  * @param[in,out] scratchReg : a secondary scratch register allocated if needed in this function
  * @param[in] node : the cast check TR::Node
@@ -4383,17 +4383,13 @@ static void generateCastClassCacheUpdate(TR::Register *objectClassReg, uintptr_t
     TR::MemoryReference *castClassMR
         = generateX86MemoryReference(objectClassReg, offsetof(J9Class, castClassCache), cg);
 
-    if (use64BitClasses) {
-        if (IS_32BIT_SIGNED(clazzAddress)) {
-            generateMemImmInstruction(TR::InstOpCode::S8MemImm4, node, castClassMR, (int32_t)clazzAddress, cg);
-        } else {
-            if (!scratchReg)
-                scratchReg = cg->allocateRegister();
-            generateRegImm64Instruction(TR::InstOpCode::MOV8RegImm64, node, scratchReg, clazzAddress, cg);
-            generateMemRegInstruction(TR::InstOpCode::S8MemReg, node, castClassMR, scratchReg, cg);
-        }
+    if (!use64BitClasses || (use64BitClasses && IS_32BIT_SIGNED(clazzAddress))) {
+        generateMemImmInstruction(TR::InstOpCode::S8MemImm4, node, castClassMR, (int32_t)clazzAddress, cg);
     } else {
-        generateMemImmInstruction(TR::InstOpCode::S4MemImm4, node, castClassMR, (int32_t)clazzAddress, cg);
+        if (!scratchReg)
+            scratchReg = cg->allocateRegister();
+        generateRegImm64Instruction(TR::InstOpCode::MOV8RegImm64, node, scratchReg, clazzAddress, cg);
+        generateMemRegInstruction(TR::InstOpCode::S8MemReg, node, castClassMR, scratchReg, cg);
     }
 }
 
@@ -4403,7 +4399,7 @@ static void generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR
     TR::Compilation *comp = cg->comp();
     TR_J9VMBase *fej9 = (TR_J9VMBase *)(cg->fe());
 
-    static char *disableInlineObjectArrayCheck = feGetEnv("TR_DisableInlineObjectArrayCheck");
+    static char *disableInlineObjectArrayCastClass = feGetEnv("TR_DisableInlineObjectArrayCastClass");
     static char *disableInlineFinalArrayCastClass = feGetEnv("TR_DisableInlineFinalArrayClass");
     static char *disableInlineArrayExactCastClass = feGetEnv("TR_DisableInlineArrayExactCastClass");
 
@@ -4425,7 +4421,7 @@ static void generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR
         J9Class *castClassLeafJ9Class = ((J9ArrayClass *)clazz)->leafComponentType;
         TR_OpaqueClassBlock *castClassLeafClass = TR::Compiler->cls.convertClassPtrToClassOffset(castClassLeafJ9Class);
 
-        if (!disableInlineObjectArrayCheck && fej9->isJavaLangObject(castClassComponentClass)) {
+        if (!disableInlineObjectArrayCastClass && fej9->isJavaLangObject(castClassComponentClass)) {
             /**
              * Case 1: Cast class is a [Ljava/lang/Object known at compile-time
              *
@@ -4481,9 +4477,14 @@ static void generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR
                 generateRegRegInstruction(TR::InstOpCode::XOR4RegReg, node, resultReg, resultReg, cg);
             }
 
+            // -----------------------------------------------------------------------
             // If the object is NULL, no exception is thrown for a checkcast and a 0
             // is returned for an instanceof.
             //
+            // A NULL class passed to Class.isAssignableFrom() will be handled by a
+            // NULLCHK node inserted before this call node.
+            // -----------------------------------------------------------------------
+
             if (!objectNode->isNonNull()) {
                 generateRegRegInstruction(TR::InstOpCode::TESTRegReg(), node, objectReg, objectReg, cg);
                 generateLabelInstruction(TR::InstOpCode::JE4, node, fallThruLabel, cg);
@@ -4624,9 +4625,14 @@ static void generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR
                 generateRegRegInstruction(TR::InstOpCode::XOR4RegReg, node, resultReg, resultReg, cg);
             }
 
+            // -----------------------------------------------------------------------
             // If the object is NULL, no exception is thrown for a checkcast and a 0
             // is returned for an instanceof.
             //
+            // A NULL class passed to Class.isAssignableFrom() will be handled by a
+            // NULLCHK node inserted before this call node.
+            // -----------------------------------------------------------------------
+
             if (!objectNode->isNonNull()) {
                 generateRegRegInstruction(TR::InstOpCode::TEST8RegReg, node, objectReg, objectReg, cg);
 
@@ -4813,6 +4819,9 @@ static void generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR
                 "Inline %s for const cast class array: node=%p, castClass=%p\n",
                 isCheckCast ? "checkcast" : (isAssignableFrom ? "isAssignableFrom" : "instanceof"), node, clazz);
 
+            const int32_t CAST_CLASS_CACHE_MASK = ~1;
+            const int32_t CAST_CLASS_CACHE_UNCASTABLE = 1;
+
             TR::Node *objectNode = node->getFirstChild();
             TR::Node *castClassNode = node->getSecondChild();
             TR::Register *objectReg = cg->evaluate(objectNode);
@@ -4849,6 +4858,9 @@ static void generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR
             // -----------------------------------------------------------------------
             // If the object is NULL, no exception is thrown for a checkcast and a 0
             // is returned for an instanceof.
+            //
+            // A NULL class passed to Class.isAssignableFrom() will be handled by a
+            // NULLCHK node inserted before this call node.
             // -----------------------------------------------------------------------
 
             if (!objectNode->isNonNull()) {
@@ -4863,8 +4875,8 @@ static void generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR
 
             // -----------------------------------------------------------------------
             // Perform trivial check whether objectClass is the same as the castClass.
-            // The castClass is known to be an array (implicitly final), so no
-            // subclass test is needed.
+            // The castClass is known to be an array (all array classes are implicitly
+            // final), so no subclass test is needed.
             //
             // If the trivial check reveals a successful cast, do not cache the
             // result to avoiding polluting the cast class cache.
@@ -4908,7 +4920,7 @@ static void generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR
                 generateRegImmInstruction(TR::InstOpCode::XOR4RegImm4, node, scratchReg, (int32_t)clazzAddress, cg);
             }
 
-            generateRegImmInstruction(TR::InstOpCode::TEST8RegImm4, node, scratchReg, ~1, cg);
+            generateRegImmInstruction(TR::InstOpCode::TEST8RegImm4, node, scratchReg, CAST_CLASS_CACHE_MASK, cg);
 
             TR::LabelSymbol *castClassCacheMissLabel = generateLabelSymbol(cg);
             generateLabelInstruction(TR::InstOpCode::JNE4, node, castClassCacheMissLabel, cg);
@@ -4918,7 +4930,7 @@ static void generateInlinedCheckCastOrInstanceOfForArrayClass(TR::Node *node, TR
             // or not and exit appropriately.
             // ----------------------------------------------------------------------
 
-            generateRegImmInstruction(TR::InstOpCode::TEST8RegImm4, node, scratchReg, 1, cg);
+            generateRegImmInstruction(TR::InstOpCode::TEST8RegImm4, node, scratchReg, CAST_CLASS_CACHE_UNCASTABLE, cg);
             generateLabelInstruction(TR::InstOpCode::JE4, node, castableDoNotCacheLabel, cg);
 
             // ----------------------------------------------------------------------
