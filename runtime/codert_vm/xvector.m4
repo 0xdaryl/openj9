@@ -22,11 +22,12 @@ include(xhelpers.m4)
 
 	FILE_START
 
-dnl For all of these functions, on entry:
+dnl The functions herein only apply to 64-bit targets.
 dnl
-dnl 1) return address on the stack
-dnl 2) r8 is a scratch register on 64-bit
-dnl 3) eax is a scratch register on 32-bit
+dnl Assumptions on entry to each of these functions:
+dnl
+dnl 1) The return address is on top of stack
+dnl 2) Register r8 is available as a scratch register
 
 START_PROC(jitSaveVectorRegistersAVX512)
 	dnl lfence prevents CPU throttling penalty caused by speculative execution of AVX-512 instructions

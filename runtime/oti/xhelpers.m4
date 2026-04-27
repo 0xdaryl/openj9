@@ -43,14 +43,15 @@ ifdef({ASM_J9VM_ENV_DATA64},{
 	LABEL(skip_vzu{}VZU_COUNT):
 })
 
-dnl for(<symbol> = <start>; <symbol> <= <end>; ++<symbol>) { <expr> }
+dnl for({symbol} = {start}; {symbol} <= {end}; ++{symbol}) { {expr} }
 dnl $1 = symbol name
 dnl $2 = starting value
 dnl $3 = ending value
 dnl $4 = expression
-define({forloop},
-	{define({$1}, {$2})$4
-	ifelse({$2}, {$3}, {},{$0({$1}, incr({$2}), {$3}, {$4})})})
+define({forloop},{define({$1}, {$2})ifelse(eval({$2} <= {$3}),1,
+	{$4}
+	{$0({$1}, incr({$2}), {$3}, {$4})})})
+
 define({SYM_COUNT},0)
 define({INC_SYM_COUNT},{define({SYM_COUNT},incr(SYM_COUNT))})
 
