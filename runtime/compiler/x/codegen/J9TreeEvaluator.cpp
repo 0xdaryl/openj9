@@ -204,7 +204,7 @@ static TR_OutlinedInstructions *generateArrayletReference(TR::Node *node, TR::No
 
     static char *forceArrayletInt = feGetEnv("TR_forceArrayletInt");
     if (forceArrayletInt) {
-        Inst(OP::INT3, node, cg);
+        Inst0(OP::INT3, node, cg);
     }
 
     // -----------------------------------------------------------------------------------
@@ -580,7 +580,7 @@ TR::Register *J9::X86::TreeEvaluator::fpConvertToLong(TR::Node *node, TR::Symbol
         Inst_MemReg(OP::MOVSSMemReg, node, tempMR, floatReg, cg);
         Inst_Mem(OP::FLDMem, node, MRef_MRefOff(*tempMR, 0, cg), cg);
 
-        Inst(OP::FLDDUP, node, cg);
+        Inst0(OP::FLDDUP, node, cg);
 
         // For slow conversion only, change the rounding mode on the FPU via its control word register.
         //
@@ -635,7 +635,7 @@ TR::Register *J9::X86::TreeEvaluator::fpConvertToLong(TR::Node *node, TR::Symbol
         Inst_Label(OP::label, node, reStartLabel, deps, cg);
 
         cg->decReferenceCount(child);
-        Inst(OP::FSTPST0, node, cg);
+        Inst0(OP::FSTPST0, node, cg);
 
         TR::Register *targetRegister = cg->allocateRegisterPair(lowReg, highReg);
         node->setRegister(targetRegister);
@@ -1651,7 +1651,7 @@ static TR::Register *generate2DArrayWithInlineAllocators(TR::Node *node, TR::Cod
 
         static const OP::Mnemonic repstosOpCode[] = { OP::REPSTOSB, OP::REPSTOSW, OP::REPSTOSD, OP::REPSTOSQ };
 
-        Inst(repstosOpCode[sizeShift], node, cg);
+        Inst0(repstosOpCode[sizeShift], node, cg);
         // leafPtrReg is pointing to the end of the allocation again
     }
 
@@ -2347,15 +2347,15 @@ TR::Register *J9::X86::TreeEvaluator::arraycopyEvaluator(TR::Node *node, TR::Cod
             Inst_RegMem(OP::LEARegMem(), node, RDI,
                 MRef_BISdisp32(RDI, RCX, 0, -TR::Compiler->om.sizeofReferenceField(), cg), cg);
             Inst_RegImm(OP::SHRRegImm1(), node, RCX, use64BitClasses ? 3 : 2, cg);
-            Inst(OP::STD, node, cg);
-            Inst(use64BitClasses ? OP::REPMOVSQ : OP::REPMOVSD, node, cg);
-            Inst(OP::CLD, node, cg);
+            Inst0(OP::STD, node, cg);
+            Inst0(use64BitClasses ? OP::REPMOVSQ : OP::REPMOVSD, node, cg);
+            Inst0(OP::CLD, node, cg);
             Inst_Label(OP::JMP4, node, endLabel, cg);
             og.endOutlinedInstructionSequence();
         }
 
         Inst_RegImm(OP::SHRRegImm1(), node, RCX, use64BitClasses ? 3 : 2, cg);
-        Inst(use64BitClasses ? OP::REPMOVSQ : OP::REPMOVSD, node, cg);
+        Inst0(use64BitClasses ? OP::REPMOVSQ : OP::REPMOVSD, node, cg);
 
         Inst_Label(OP::label, node, endLabel, deps, cg);
 
@@ -3796,7 +3796,7 @@ TR::Register *J9::X86::TreeEvaluator::barrierFenceEvaluator(TR::Node *node, TR::
     if (opCode == TR::fullFence && node->canOmitSync()) {
         Inst_Label(OP::label, node, generateLabelSymbol(cg), cg);
     } else if (cg->comp()->getOption(TR_X86UseMFENCE)) {
-        Inst(OP::MFENCE, node, cg);
+        Inst0(OP::MFENCE, node, cg);
     } else {
         TR::RealRegister *stackReg = cg->machine()->getRealRegister(TR::RealRegister::esp);
         TR::MemoryReference *mr = MRef_Bdisp32(stackReg, intptr_t(0), cg);
@@ -4347,7 +4347,7 @@ static void inlineCheckCastOrInstanceOfObjectArrayCastClass(TR::Node *node, TR_O
 
     static char *breakOnInlineObjectArrayCheck = feGetEnv("TR_BreakOnInlineObjectArrayCheck");
     if (breakOnInlineObjectArrayCheck)
-        Inst(OP::INT3, node, cg);
+        Inst0(OP::INT3, node, cg);
 
     if (!isCheckCast) {
         Inst_RegReg(OP::XOR4RegReg, node, resultReg, resultReg, cg);
@@ -4511,7 +4511,7 @@ static void inlineCheckCastOrInstanceOfFinalArrayCastClass(TR::Node *node, TR_Op
 
     static char *breakOnInlineFinalArrayCastClass = feGetEnv("TR_BreakOnInlineFinalArrayCastClass");
     if (breakOnInlineFinalArrayCastClass)
-        Inst(OP::INT3, node, cg);
+        Inst0(OP::INT3, node, cg);
 
     Inst_Label(OP::label, node, startLabel, cg);
 
@@ -4799,7 +4799,7 @@ static void inlineCheckCastOrInstanceOfKnownArrayCastClass(TR::Node *node, TR_Op
 
     static char *breakOnInlineArrayCastClass = feGetEnv("TR_BreakOnInlineArrayCastClass");
     if (breakOnInlineArrayCastClass)
-        Inst(OP::INT3, node, cg);
+        Inst0(OP::INT3, node, cg);
 
     TR::LabelSymbol *castableDoNotCacheLabel = generateLabelSymbol(cg);
     TR::LabelSymbol *castableAndUpdateCacheLabel = generateLabelSymbol(cg);
@@ -5394,7 +5394,7 @@ inline void generateInlinedCheckCastOrInstanceOfForInterface(TR::Node *node, TR_
             }
 
             if (!isCheckCast) {
-                Inst(OP::STC, node, cg);
+                Inst0(OP::STC, node, cg);
             }
             Inst_Label(OP::JMP4, node, endLabel, cg);
 
@@ -5422,7 +5422,7 @@ inline void generateInlinedCheckCastOrInstanceOfForInterface(TR::Node *node, TR_
 
         // Succeed
         if (!isCheckCast) {
-            Inst(OP::STC, node, cg);
+            Inst0(OP::STC, node, cg);
         }
     } else {
         /**
@@ -5444,7 +5444,7 @@ inline void generateInlinedCheckCastOrInstanceOfForInterface(TR::Node *node, TR_
 
         if (!isCheckCast) {
             // Class found in itable
-            Inst(OP::STC, node, cg);
+            Inst0(OP::STC, node, cg);
 
             // Fall through to endLabel
         } else {
@@ -5563,7 +5563,7 @@ inline void generateInlinedCheckCastOrInstanceOfForClass(TR::Node *node, TR_Opaq
                 Inst_Label(OP::JBE4, node, outlineLabel, cg);
 
                 TR_OutlinedInstructionsGenerator og(outlineLabel, node, cg);
-                Inst(OP::CLC, node, cg);
+                Inst0(OP::CLC, node, cg);
                 Inst_Label(OP::JMP4, node, failLabel, cg);
                 og.endOutlinedInstructionSequence();
             } else {
@@ -5586,14 +5586,14 @@ inline void generateInlinedCheckCastOrInstanceOfForClass(TR::Node *node, TR_Opaq
 
     // Branch to success/fail path
     if (!isCheckCast) {
-        Inst(OP::CLC, node, cg);
+        Inst0(OP::CLC, node, cg);
     }
     Inst_Label(OP::JNE4, node, failLabel, cg);
 
     // Set CF to report success
     if (!isCheckCast) {
         Inst_Label(OP::label, node, successLabel, cg);
-        Inst(OP::STC, node, cg);
+        Inst0(OP::STC, node, cg);
     }
 
     // Throw exception for CheckCast
@@ -5719,7 +5719,7 @@ void J9::X86::TreeEvaluator::asyncGCMapCheckPatching(TR::Node *node, TR::CodeGen
         //
         static char *d = feGetEnv("TR_GCOnAsyncBREAK");
         if (d)
-            Inst(OP::INT3, node, cg);
+            Inst0(OP::INT3, node, cg);
 
         Inst_MemImm(OP::S8MemImm4, node,
             MRef_Bdisp32(cg->getVMThreadRegister(), offsetof(J9VMThread, stackOverflowMark), cg), -1, cg);
@@ -5819,7 +5819,7 @@ void J9::X86::TreeEvaluator::asyncGCMapCheckPatching(TR::Node *node, TR::CodeGen
 
         static char *d = feGetEnv("TR_GCOnAsyncBREAK");
         if (d)
-            Inst(OP::INT3, node, cg);
+            Inst0(OP::INT3, node, cg);
 
         // Populate the existing inline code
         //
@@ -6736,7 +6736,7 @@ static void genHeapAllocForDiscontiguousArraysOrRealtime(TR::Node *node, TR_Opaq
         UDATA sizeClass = fej9->getObjectSizeClass(allocationSizeOrDataOffset);
 
         if (comp->getOption(TR_BreakOnNew))
-            Inst(OP::INT3, node, cg);
+            Inst0(OP::INT3, node, cg);
 
         // heap allocation, so proceed
         if (sizeReg) {
@@ -7678,7 +7678,7 @@ static bool genZeroInitForEntireObjectOrHybridArraylet(TR::Node *node, int32_t o
 
                 Inst_RegReg(OP::MOVRegReg(), node, zeroInitScratchReg, newObjectAddressReg, cg);
                 Inst_RegReg(OP::XOR4RegReg, node, newObjectAddressReg, newObjectAddressReg, cg);
-                Inst(OP::REPSTOSB, node, cg);
+                Inst0(OP::REPSTOSB, node, cg);
                 Inst_RegReg(OP::MOVRegReg(), node, newObjectAddressReg, zeroInitScratchReg, cg);
                 Inst_Label(OP::JMP4, node, mergeInitLabelSym, cg);
                 og.endOutlinedInstructionSequence();
@@ -7702,7 +7702,7 @@ static bool genZeroInitForEntireObjectOrHybridArraylet(TR::Node *node, int32_t o
                 Inst_Reg(OP::PUSHReg, node, newObjectAddressReg, cg);
             }
             Inst_RegReg(OP::XOR4RegReg, node, newObjectAddressReg, newObjectAddressReg, cg);
-            Inst(OP::REPSTOSB, node, cg);
+            Inst0(OP::REPSTOSB, node, cg);
             if (comp->target().is64Bit()) {
                 Inst_RegReg(OP::MOVRegReg(), node, newObjectAddressReg, zeroInitScratchReg, cg);
                 srm->reclaimScratchRegister(zeroInitScratchReg);
@@ -7948,7 +7948,7 @@ static bool genZeroInitEntireObject(TR::Node *node, int32_t objectSize, int32_t 
         }
 
         OP::Mnemonic op = comp->target().is64Bit() ? OP::REPSTOSQ : OP::REPSTOSD;
-        Inst(op, node, cg);
+        Inst0(op, node, cg);
 
         if (comp->target().is64Bit()) {
             Inst_RegReg(OP::MOVRegReg(), node, targetReg, scratchReg, cg);
@@ -11824,7 +11824,7 @@ void J9::X86::TreeEvaluator::VMwrtbarRealTimeWithoutStoreEvaluator(TR::Node *nod
     }
 
     if (comp->getOption(TR_BreakOnWriteBarrier)) {
-        Inst(OP::INT3, node, cg);
+        Inst0(OP::INT3, node, cg);
     }
 
     TR::SymbolReference *wrtBarSymRef = NULL;
@@ -12127,7 +12127,7 @@ void J9::X86::TreeEvaluator::VMwrtbarWithoutStoreEvaluator(TR::Node *node,
     }
 
     if (comp->getOption(TR_BreakOnWriteBarrier)) {
-        Inst(OP::INT3, node, cg);
+        Inst0(OP::INT3, node, cg);
     }
 
     TR::MemoryReference *fragmentParentMR = MRef_Bdisp32(cg->getVMThreadRegister(),
@@ -12872,11 +12872,11 @@ TR::Register *J9::X86::TreeEvaluator::tstartEvaluator(TR::Node *node, TR::CodeGe
     Inst_RegImm(OP::MOV4RegImm4, node, counterReg, 100, cg);
     TR::LabelSymbol *spinLabel = TR::LabelSymbol::create(cg->trHeapMemory(), cg);
     Inst_Label(OP::label, node, spinLabel, cg);
-    Inst(OP::PAUSE, node, cg);
-    Inst(OP::PAUSE, node, cg);
-    Inst(OP::PAUSE, node, cg);
-    Inst(OP::PAUSE, node, cg);
-    Inst(OP::PAUSE, node, cg);
+    Inst0(OP::PAUSE, node, cg);
+    Inst0(OP::PAUSE, node, cg);
+    Inst0(OP::PAUSE, node, cg);
+    Inst0(OP::PAUSE, node, cg);
+    Inst0(OP::PAUSE, node, cg);
     Inst_Reg(OP::DEC4Reg, node, counterReg, cg);
     TR::RegisterDependencyConditions *loopConditions = RegDeps((uint8_t)0, 1, cg);
     loopConditions->addPostCondition(counterReg, TR::RealRegister::NoReg, cg);
@@ -12898,7 +12898,7 @@ TR::Register *J9::X86::TreeEvaluator::tstartEvaluator(TR::Node *node, TR::CodeGe
 
 TR::Register *J9::X86::TreeEvaluator::tfinishEvaluator(TR::Node *node, TR::CodeGenerator *cg)
 {
-    Inst(OP::XEND, node, cg);
+    Inst0(OP::XEND, node, cg);
     return NULL;
 }
 
@@ -13018,7 +13018,7 @@ TR::Register *J9::X86::TreeEvaluator::directCallEvaluator(TR::Node *node, TR::Co
         case TR::java_lang_Thread_onSpinWait: {
             static char *disableOSW = feGetEnv("TR_noPauseOnSpinWait");
             if (!disableOSW) {
-                Inst(OP::PAUSE, node, cg);
+                Inst0(OP::PAUSE, node, cg);
 
                 static char *printIt = feGetEnv("TR_showPauseOnSpinWait");
                 if (printIt && comp->getOption(TR_TraceCG)) {
@@ -13057,7 +13057,7 @@ TR::Register *J9::X86::TreeEvaluator::directCallEvaluator(TR::Node *node, TR::Co
             TR::RegisterDependencyConditions *deps = RegDeps((uint8_t)1, (uint8_t)1, cg);
             deps->addPreCondition(valueToKeepAlive, TR::RealRegister::NoReg, cg);
             deps->addPostCondition(valueToKeepAlive, TR::RealRegister::NoReg, cg);
-            new (cg->trHeapMemory()) TR::X86LabelInstruction(OP::label, node, generateLabelSymbol(cg), deps, cg);
+            Inst_Label(OP::label, node, generateLabelSymbol(cg), deps, cg);
             cg->decReferenceCount(node->getFirstChild());
 
             return NULL; // keepAlive has no return value

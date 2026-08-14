@@ -254,17 +254,15 @@ void J9::X86::CodeGenerator::beginInstructionSelection()
         if (comp->target().is64Bit()) {
             // A copy of the first two bytes of the method, in case we need to un-patch them
             //
-            new (self()->trHeapMemory()) TR::X86ImmInstruction(cursor, OP::DWImm2, 0xcccc, self());
+            Inst_Imm(cursor, OP::DWImm2, 0xcccc, self());
         }
     } else if (methodSymbol->isJNI()) {
         intptr_t methodAddress = (intptr_t)methodSymbol->getResolvedMethod()->startAddressForJNIMethod(comp);
 
         if (comp->target().is64Bit())
-            new (self()->trHeapMemory())
-                TR::AMD64Imm64Instruction((TR::Instruction *)NULL, OP::DQImm64, methodAddress, self());
+            Inst_Imm64((TR::Instruction *)NULL, OP::DQImm64, methodAddress, self());
         else
-            new (self()->trHeapMemory())
-                TR::X86ImmInstruction((TR::Instruction *)NULL, OP::DDImm4, methodAddress, self());
+            Inst_Imm((TR::Instruction *)NULL, OP::DDImm4, methodAddress, self());
     }
 
     if (methodSymbol->getLinkageConvention() == TR_Private && !_returnTypeInfoInstruction) {
@@ -272,8 +270,7 @@ void J9::X86::CodeGenerator::beginInstructionSelection()
         if (self()->getAppendInstruction())
             _returnTypeInfoInstruction = Inst_Imm(OP::DDImm4, startNode, 0, self());
         else
-            _returnTypeInfoInstruction
-                = new (self()->trHeapMemory()) TR::X86ImmInstruction((TR::Instruction *)NULL, OP::DDImm4, 0, self());
+            _returnTypeInfoInstruction = Inst_Imm((TR::Instruction *)NULL, OP::DDImm4, 0, self());
     }
 
     if (methodSymbol->getLinkageConvention() == TR_System && !_returnTypeInfoInstruction) {
@@ -281,8 +278,7 @@ void J9::X86::CodeGenerator::beginInstructionSelection()
         if (self()->getAppendInstruction())
             _returnTypeInfoInstruction = Inst_Imm(OP::DDImm4, startNode, 0, self());
         else
-            _returnTypeInfoInstruction
-                = new (self()->trHeapMemory()) TR::X86ImmInstruction((TR::Instruction *)NULL, OP::DDImm4, 0, self());
+            _returnTypeInfoInstruction = Inst_Imm((TR::Instruction *)NULL, OP::DDImm4, 0, self());
     }
 
     TR::RegisterDependencyConditions *deps = RegDeps((uint8_t)0, (uint8_t)1, self());
@@ -293,9 +289,9 @@ void J9::X86::CodeGenerator::beginInstructionSelection()
     deps->stopAddingPostConditions();
 
     if (self()->getAppendInstruction())
-        Inst(OP::proc, startNode, deps, self());
+        Inst0(OP::proc, startNode, deps, self());
     else
-        new (self()->trHeapMemory()) TR::Instruction(deps, OP::proc, (TR::Instruction *)NULL, self());
+        Inst0(NULL, OP::proc, deps, self());
 
     // Set the default FPCW to single precision mode if we are allowed to.
     //
@@ -411,7 +407,7 @@ TR::Instruction *J9::X86::CodeGenerator::generateSwitchToInterpreterPrePrologue(
             comp->getStaticHCRPICSites()->push_front(prev);
     }
 
-    prev = new (self()->trHeapMemory()) TR::X86ImmSymInstruction(prev, OP::JMP4,
+    prev = Inst_ImmSym(prev, OP::JMP4,
         (uintptr_t)helperSymRef->getMethodAddress(), helperSymRef, deps, self());
     self()->stopUsingRegister(ediRegister);
 
@@ -425,7 +421,7 @@ TR::Instruction *J9::X86::CodeGenerator::generateSwitchToInterpreterPrePrologue(
         //
         alignmentMargin += 2; // Size of the mini-trampoline
         prev = Inst_Alignment(prev, alignment, alignmentMargin, self());
-        prev = new (self()->trHeapMemory()) TR::X86LabelInstruction(prev, OP::JMP4, startLabel, self());
+        prev = Inst_Label(prev, OP::JMP4, startLabel, self());
     }
 
     return prev;

@@ -1125,7 +1125,7 @@ void J9::X86::AMD64::PrivateLinkage::buildIPIC(TR::X86CallSite &site, TR::LabelS
             // let's just lay it down.  It's likely not worth the effort to get
             // this exactly right in all cases.
             //
-            Inst(OP::INT3, site.getCallNode(), cg());
+            Inst0(OP::INT3, site.getCallNode(), cg());
         }
     }
 

@@ -498,7 +498,7 @@ void J9::X86::I386::PrivateLinkage::buildIPIC(TR::X86CallSite &site, TR::LabelSy
 
     if (useLastITableCache) {
         if (breakBeforeIPICUsingLastITable)
-            Inst(OP::INT3, site.getCallNode(), cg());
+            Inst0(OP::INT3, site.getCallNode(), cg());
         if (numIPicSlotsBeforeLastITable)
             numIPicSlots = atoi(numIPicSlotsBeforeLastITable);
     }

@@ -370,15 +370,13 @@ static TR::Instruction *initializeLocals(TR::Instruction *cursor, int32_t lowOff
     int32_t pointerSize, TR::RealRegister *framePointer, TR::RealRegister *sourceReg, TR::RealRegister *loopReg,
     TR::CodeGenerator *cg)
 {
-    TR::Compilation *comp = cg->comp();
     int32_t offset = lowOffset;
 
     if (count <= 4) {
         // For a small number, just generate a sequence of stores.
         //
         for (int32_t i = 0; i < count; i++, offset += pointerSize) {
-            cursor = new (cg->trHeapMemory())
-                TR::X86MemRegInstruction(cursor, OP::SMemReg(), MRef_Bdisp32(framePointer, offset, cg), sourceReg, cg);
+            cursor = Inst_MemReg(cursor, OP::SMemReg(), MRef_Bdisp32(framePointer, offset, cg), sourceReg, cg);
         }
     } else {
         // For a large number, generate a loop.
@@ -388,19 +386,18 @@ static TR::Instruction *initializeLocals(TR::Instruction *cursor, int32_t lowOff
         //
         TR_ASSERT(count > 0, "positive count required for dword RegImm instruction");
 
-        cursor = new (cg->trHeapMemory())
-            TR::X86RegMemInstruction(cursor, OP::LEARegMem(), loopReg, MRef_Bdisp32(sourceReg, count - 1, cg), cg);
+        cursor = Inst_RegMem(cursor, OP::LEARegMem(), loopReg, MRef_Bdisp32(sourceReg, count - 1, cg), cg);
 
         TR::LabelSymbol *loopLabel = generateLabelSymbol(cg);
-        cursor = new (cg->trHeapMemory()) TR::X86LabelInstruction(cursor, OP::label, loopLabel, cg);
+        cursor = Inst_Label(cursor, OP::label, loopLabel, cg);
 
-        cursor = new (cg->trHeapMemory()) TR::X86MemRegInstruction(cursor, OP::SMemReg(),
+        cursor = Inst_MemReg(cursor, OP::SMemReg(),
             MRef_BISdisp32(framePointer, loopReg, TR::MemoryReference::convertMultiplierToStride(pointerSize), offset,
                 cg),
             sourceReg, cg);
 
-        cursor = new (cg->trHeapMemory()) TR::X86RegImmInstruction(cursor, OP::SUB4RegImms, loopReg, 1, cg);
-        cursor = new (cg->trHeapMemory()) TR::X86LabelInstruction(cursor, OP::JAE4, loopLabel, cg);
+        cursor = Inst_RegImm(cursor, OP::SUB4RegImms, loopReg, 1, cg);
+        cursor = Inst_Label(cursor, OP::JAE4, loopLabel, cg);
     }
 
     return cursor;
@@ -501,10 +498,9 @@ void J9::X86::PrivateLinkage::createPrologue(TR::Instruction *cursor)
         if (minInstructionSize > 0) {
             // We don't want the breakpoint to get patched, so generate a sacrificial no-op
             //
-            cursor = new (trHeapMemory())
-                TR::X86PaddingInstruction(cursor, minInstructionSize, TR_AtomicNoOpPadding, cg());
+            cursor = Inst_Padding(cursor, minInstructionSize, TR_AtomicNoOpPadding, cg());
         }
-        cursor = new (trHeapMemory()) TR::Instruction(OP::INT3, cursor, cg());
+        cursor = Inst0(cursor, OP::INT3, cg());
     }
 
     // Compute the nature of the preserved regs
@@ -744,7 +740,7 @@ void J9::X86::PrivateLinkage::createPrologue(TR::Instruction *cursor)
             minInstructionSize);
         const OP::Mnemonic subOp
             = (allocSize <= 127 && getMinimumFirstInstructionSize() <= 3) ? OP::SUBRegImms() : OP::SUBRegImm4();
-        cursor = new (trHeapMemory()) TR::X86RegImmInstruction(cursor, subOp, espReal, allocSize, cg());
+        cursor = Inst_RegImm(cursor, subOp, espReal, allocSize, cg());
     }
 
     // Support to paint allocated frame slots.
@@ -783,26 +779,22 @@ void J9::X86::PrivateLinkage::createPrologue(TR::Instruction *cursor)
         // Load the 64 bit paint value into a paint reg.
 #ifdef TR_TARGET_64BIT
         paintReg = machine()->getRealRegister(TR::RealRegister::r8);
-        cursor
-            = new (trHeapMemory()) TR::AMD64RegImm64Instruction(cursor, OP::MOV8RegImm64, paintReg, paintValue64, cg());
+        cursor = Inst_RegImm64(cursor, OP::MOV8RegImm64, paintReg, paintValue64, cg());
 #endif
 
         // Perform the paint.
         //
-        cursor = new (trHeapMemory())
-            TR::X86RegImmInstruction(cursor, OP::MOVRegImm4(), frameSlotIndexReg, paintSize, cg());
-        cursor = new (trHeapMemory()) TR::X86LabelInstruction(cursor, OP::label, startLabel, cg());
+        cursor = Inst_RegImm(cursor, OP::MOVRegImm4(), frameSlotIndexReg, paintSize, cg());
+        cursor = Inst_Label(cursor, OP::label, startLabel, cg());
         if (comp()->target().is64Bit())
-            cursor = new (trHeapMemory()) TR::X86MemRegInstruction(cursor, OP::S8MemReg,
+            cursor = Inst_MemReg(cursor, OP::S8MemReg,
                 MRef_BISdisp32(espReal, frameSlotIndexReg, 0, (uint8_t)paintSlotsOffset, cg()), paintReg, cg());
         else
-            cursor = new (trHeapMemory()) TR::X86MemImmInstruction(cursor, OP::SMemImm4(),
+            cursor = Inst_MemImm(cursor, OP::SMemImm4(),
                 MRef_BISdisp32(espReal, frameSlotIndexReg, 0, (uint8_t)paintSlotsOffset, cg()), paintValue32, cg());
-        cursor = new (trHeapMemory())
-            TR::X86RegImmInstruction(cursor, OP::SUBRegImms(), frameSlotIndexReg, sizeof(intptr_t), cg());
-        cursor = new (trHeapMemory())
-            TR::X86RegImmInstruction(cursor, OP::CMPRegImm4(), frameSlotIndexReg, paintBound, cg());
-        cursor = new (trHeapMemory()) TR::X86LabelInstruction(cursor, OP::JGE4, startLabel, cg());
+        cursor = Inst_RegImm(cursor, OP::SUBRegImms(), frameSlotIndexReg, sizeof(intptr_t), cg());
+        cursor = Inst_RegImm(cursor, OP::CMPRegImm4(), frameSlotIndexReg, paintBound, cg());
+        cursor = Inst_Label(cursor, OP::JGE4, startLabel, cg());
     }
 
     // Save preserved regs
@@ -832,8 +824,7 @@ void J9::X86::PrivateLinkage::createPrologue(TR::Instruction *cursor)
         }
 
         if (numReferenceLocalSlotsToInitialize > 0 || numInternalPointerSlotsToInitialize > 0) {
-            cursor
-                = new (trHeapMemory()) TR::X86RegRegInstruction(cursor, OP::XOR4RegReg, scratchReg, scratchReg, cg());
+            cursor = Inst_RegReg(cursor, OP::XOR4RegReg, scratchReg, scratchReg, cg());
 
             // Initialize locals that are live on entry
             //
@@ -977,7 +968,7 @@ TR::Register *J9::X86::PrivateLinkage::buildDirectDispatch(TR::Node *callNode, b
         char *name = method->getClassNameFromConstantPool(cpIndex, len);
         if (name) {
             if (TR::SimpleRegex::matchIgnoringLocale(r, name)) {
-                Inst(OP::INT3, callNode, cg());
+                Inst0(OP::INT3, callNode, cg());
             }
         }
     }
@@ -2653,7 +2644,7 @@ void J9::X86::PrivateLinkage::buildInterfaceDispatchUsingLastITable(TR::X86CallS
     //
     Inst_Label(OP::label, callNode, lastITableTestLabel, cg());
     if (breakBeforeInterfaceDispatchUsingLastITable)
-        Inst(OP::INT3, callNode, cg());
+        Inst0(OP::INT3, callNode, cg());
     Inst_RegMem(OP::LRegMem(), callNode, scratchReg,
         MRef_Bdisp32(vftReg, (int32_t)fej9->getOffsetOfLastITableFromClassField(), cg()), cg());
     bool use32BitInterfaceClassPointers = comp()->target().is32Bit();
