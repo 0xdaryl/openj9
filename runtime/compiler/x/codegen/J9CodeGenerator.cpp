@@ -64,6 +64,11 @@ void J9::X86::CodeGenerator::initialize()
 {
     self()->J9::CodeGenerator::initialize();
 
+#if defined (J9VM_JIT_NEW_DUAL_HELPERS)
+#else
+#error NO DUAL MODE
+#endif
+
     TR::CodeGenerator *cg = self();
     TR::Compilation *comp = cg->comp();
     TR_J9VMBase *fej9 = (TR_J9VMBase *)(cg->fe());
