@@ -11966,6 +11966,8 @@ void J9::X86::TreeEvaluator::VMwrtbarWithoutStoreEvaluator(TR::Node *node,
     TR_ASSERT(!(comp->getOptions()->realTimeGC()), "Call the real-time barrier");
     auto gcMode = TR::Compiler->om.writeBarrierType();
 
+    auto origGCMode = gcMode;
+
     if (node->getOpCode().isWrtBar() && node->skipWrtBar())
         gcMode = gc_modron_wrtbar_none;
     else if ((node->getOpCodeValue() == TR::ArrayStoreCHK) && node->getFirstChild()->getOpCode().isWrtBar()
@@ -12095,22 +12097,102 @@ void J9::X86::TreeEvaluator::VMwrtbarWithoutStoreEvaluator(TR::Node *node,
             = (doIsDestInOldSpaceCheck || doIsDestAHeapObjectCheck || doCheckConcurrentMarkActive || doSrcIsNullCheck);
     }
 
-    if (comp->getOption(TR_TraceCG)) {
-        OMR::Logger *log = comp->log();
-        log->prints(" | Write barrier info:\n");
-        log->printf(" |   GC mode = %d:%s\n", gcMode, cg->getDebug()->getWriteBarrierKindName(gcMode));
-        log->printf(" |   Node = %s %s  sourceObject = %s\n", cg->getDebug()->getName(node->getOpCodeValue()),
-            cg->getDebug()->getName(node), sourceObject ? cg->getDebug()->getName(sourceObject) : "(none)");
-        log->prints(" |   Action flags:");
-        REPORT_FLAG(doInternalControlFlow);
-        REPORT_FLAG(doCheckConcurrentMarkActive);
-        REPORT_FLAG(doInlineCardMarkingWithoutOldSpaceCheck);
-        REPORT_FLAG(dirtyCardTableOutOfLine);
-        REPORT_FLAG(doIsDestAHeapObjectCheck);
-        REPORT_FLAG(doIsDestInOldSpaceCheck);
-        REPORT_FLAG(isSourceNonNull);
-        REPORT_FLAG(doSrcIsNullCheck);
-        log->println();
+    if (comp->getOption(TR_X86HLE)) {
+        const int32_t maxBufLen = 512;
+        char buf[maxBufLen];
+        OMR::Logger *log = OMR::MemoryBufferLogger::create(cg->trHeapMemory(), buf, maxBufLen);
+
+        enum wbk {
+            wbk_writeBarrier = 0,
+            wbk_arraycopy = 1,
+            wbk_arraystorechk = 2,
+            wbk_call = 3,
+            wbk_unknown = 4,
+        };
+
+        wbk wbKind;
+
+        J9Method *method = (J9Method *)node->getOwningMethod();
+        J9UTF8 *className;
+        J9UTF8 *name;
+        J9UTF8 *signature;
+        getClassNameSignatureFromMethod(method, className, name, signature);
+
+        TR::Node *wbNode;
+        switch (node->getOpCodeValue()) {
+            case TR::ArrayStoreCHK:
+                wbNode = node->getFirstChild();
+                wbKind = wbk_arraystorechk;
+                break;
+            case TR::arraycopy:
+                wbNode = NULL;
+                wbKind = wbk_arraycopy;
+                break;
+            case TR::awrtbari:
+            case TR::awrtbar:
+                wbNode = node;
+                wbKind = wbk_writeBarrier;
+                break;
+            default:
+                if (node->getOpCode().isCall()) {
+                    wbKind = wbk_call;
+                } else {
+                    wbKind = wbk_unknown;
+                }
+                wbNode = NULL;
+                break;
+        }
+
+        log->printf("WRTBAR (MTH=%s:OWN=%.*s.%.*s%.*s", comp->signature(), J9UTF8_LENGTH(className), (char *)J9UTF8_DATA(className), J9UTF8_LENGTH(name), (char *)J9UTF8_DATA(name), J9UTF8_LENGTH(signature), (char *)J9UTF8_DATA(signature));
+
+        if (wbNode) {
+            TR::SymbolReference *wbsr = wbNode->getSymbolReference();
+            if (!wbsr->getSymbol()->isShadow() || (wbsr->getSymbol()->isShadow() && !wbsr->getSymbol()->isArrayShadowSymbol())) {
+                if (wbKind == wbk_arraystorechk) {
+                    log->prints(" : ASC");
+                }
+
+                if (wbsr->getSymbol()->isNamedShadowSymbol()) {
+                    log->printf(" : NAMED-SHADOW %s", wbsr->getSymbol()->getNamedShadowSymbol()->getName());
+                } else {
+                    int32_t nameLen, sigLen;
+                    const char *fieldName = wbsr->getOwningMethod(comp)->fieldNameChars(wbsr->getCPIndex(), nameLen);
+                    const char *fieldSig = wbsr->getOwningMethod(comp)->fieldSignatureChars(wbsr->getCPIndex(), sigLen);
+                    log->printf(" : %.*s %.*s", nameLen, fieldName, sigLen, fieldSig);
+                }
+            } else {
+                log->printf(" : ARRAY-SHADOW");
+            }
+        } else if (wbKind == wbk_arraycopy) {
+            log->printf(" : ARRAYCOPY");
+        } else if (wbKind == wbk_call) {
+            TR::SymbolReference *callsr = node->getSymbolReference();
+            TR::Method *callMethod = callsr->getSymbol()->castToMethodSymbol()->getMethod();
+            const char *methodName;
+            if (callMethod == NULL) {
+                methodName = " : CALL unknown";
+            } else {
+                methodName = callMethod->signature(comp->trMemory(), stackAlloc);
+            }
+            log->printf(" : CALL %s", methodName);
+        }
+
+        log->printf(" : wbk=%d,GCM=%d,OGCM=%d,ICF=%d,CMA=%d,ICM=%d,DCT=%d,DAHO=%d,DIOS=%d,SNN=%d,SIN=%d)", wbKind, gcMode, origGCMode, doInternalControlFlow, doCheckConcurrentMarkActive,doInlineCardMarkingWithoutOldSpaceCheck,dirtyCardTableOutOfLine,doIsDestAHeapObjectCheck,doIsDestInOldSpaceCheck,isSourceNonNull,doSrcIsNullCheck);
+
+        size_t logLen = strlen(buf);
+        char *counterName = (char *)TR_Memory::jitPersistentAlloc(logLen + 1); // +1 for NUL-terminator
+        if (counterName) {
+            memcpy(counterName, buf, logLen + 1);
+        }
+
+        static char *printWBCounter = feGetEnv("TR_PrintWBCounter");
+        if (printWBCounter) {
+            printf("%s\n", counterName);
+        }
+
+        TR::LabelSymbol *cl = generateLabelSymbol(cg);
+        TR::Instruction *beforeCounter = Inst_Label(OP::label, node, cl, cg);
+        cg->generateDebugCounter(beforeCounter, counterName, 1, TR::DebugCounter::Exorbitant);
     }
 
     //
