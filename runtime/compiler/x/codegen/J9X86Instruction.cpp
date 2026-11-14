@@ -59,6 +59,18 @@ TR::Snippet *TR::X86MemImmSnippetInstruction::getSnippetForGC()
     return getMemoryReference()->getUnresolvedDataSnippet();
 }
 
+#ifdef NO_KINDS_TO_BE_ASSIGNED
+void TR::X86MemImmSnippetInstruction::assignRegisters()
+{
+    TR::X86MemImmInstruction::assignRegisters();
+    if (cg()->getRegisterKindsToAssign() & TR_FPR_Mask) {
+        TR::UnresolvedDataSnippet *snippet = getMemoryReference()->getUnresolvedDataSnippet();
+        if (snippet) {
+            snippet->setHasLiveXMMRegisters((cg()->machine()->fpGetNumberOfLiveXMMRs() > 0) ? true : false);
+        }
+    }
+}
+#else
 void TR::X86MemImmSnippetInstruction::assignRegisters(TR_RegisterKinds kindsToBeAssigned)
 {
     TR::X86MemImmInstruction::assignRegisters(kindsToBeAssigned);
@@ -70,6 +82,7 @@ void TR::X86MemImmSnippetInstruction::assignRegisters(TR_RegisterKinds kindsToBe
         }
     }
 }
+#endif
 
 uint8_t *TR::X86MemImmSnippetInstruction::generateBinaryEncoding()
 {

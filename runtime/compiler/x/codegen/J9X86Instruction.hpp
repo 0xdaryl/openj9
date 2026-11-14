@@ -57,7 +57,11 @@ public:
     TR::UnresolvedDataSnippet *setUnresolvedSnippet(TR::UnresolvedDataSnippet *us) { return (_unresolvedSnippet = us); }
 
     virtual TR::Snippet *getSnippetForGC();
+#ifdef NO_KINDS_TO_BE_ASSIGNED
+    virtual void assignRegisters();
+#else
     virtual void assignRegisters(TR_RegisterKinds kindsToBeAssigned);
+#endif
     virtual uint8_t *generateBinaryEncoding();
 };
 
